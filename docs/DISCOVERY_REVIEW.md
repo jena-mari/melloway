@@ -6,8 +6,9 @@ Approval records your local opinion; it does not prove that a video features
 the café, that it is available, or that it is popular.
 
 Run commands from the repository root with dependencies installed (`npm install`).
-The command builds the shared domain package automatically. No credentials are
-needed or loaded. The CLI supports mock discovery only; it cannot enable live API use.
+The command builds the shared domain package automatically. Mock/review/export
+commands need no credentials. Only an explicit `live` command uses the existing
+Responses adapter; see [live setup and handoff](DISCOVERY_HANDOFF.md).
 
 ## Discover one mock café
 
@@ -71,6 +72,25 @@ Do not edit the JSON while a command is running. If a process crashes and leaves
 `review-queue.json.lock`, first confirm that no review command is running, then
 remove only that lock and retry. Do not delete the queue to resolve errors.
 These safeguards do not provide secure multi-user moderation or an audit log.
+
+## Approved-only export
+
+```sh
+npm run discovery:review -- export .local/discovery/approved-videos.json
+```
+
+The new file contains a versioned `melloway-approved-social-videos` object with
+`exportedAt`, a private-curation notice and `records`. Only validated `approved`
+records appear, retaining IDs, venue/platform/post fields, URLs, evidence,
+uncertainty and decision timestamps. Pending/rejected entries are excluded.
+An empty approved set exports `records: []`; it does not invent entries.
+
+The queue is unchanged. Export publishes a complete flushed temporary file via
+an atomic hard link, then removes the temporary name. It refuses to replace any
+existing output or write over the input queue; choose a fresh output name each
+time. Repository-local output must stay in the ignored `.local/discovery/` directory.
+This is a data handoff only: no importer or connection to Melloway is included.
+Approved mock fixtures remain mock data and must not be treated as real research.
 
 ## Tests
 

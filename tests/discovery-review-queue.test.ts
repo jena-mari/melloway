@@ -244,7 +244,7 @@ test('documented CLI persists labelled mock results, lists original links/eviden
   } finally { await f.cleanup(); }
 });
 
-test('CLI rejects live mode, mismatched/malformed fixtures and repository paths outside the ignored directory', async () => {
+test('CLI rejects incomplete live arguments, mismatched/malformed fixtures and repository paths outside the ignored directory', async () => {
   const f = await fixture();
   try {
     assert.notEqual(cli(f.path, ['live']).status, 0);

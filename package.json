@@ -9,7 +9,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "server": "node --experimental-strip-types --env-file-if-exists=.env server/index.js",
     "test": "node --test tests/*.test.js && npm run test:mobile && npm run test:events && npm run test:discovery",
-    "test:discovery": "node --experimental-strip-types --test tests/openai-social-discovery.test.ts tests/discovery-review-queue.test.ts",
+    "test:discovery": "node --experimental-strip-types --test tests/openai-social-discovery.test.ts tests/discovery-review-queue.test.ts tests/discovery-export.test.ts",
     "prediscovery:review": "npm run build:domain",
     "discovery:review": "node --experimental-strip-types scripts/discovery-review.ts",
     "typecheck:discovery": "tsc -p server/tsconfig.discovery.json",

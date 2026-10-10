@@ -1,22 +1,30 @@
-/** Mock-only CLI; intentionally no live mode, dotenv loading, endpoints or publishing. */
+/** Private CLI: mock by default; only the explicit live command can call Responses. */
 import { readFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { discoverCafeVideos } from '../server/socialDiscovery.ts';
 import { createLocalReviewQueue } from '../server/discoveryReviewQueue.ts';
+import { exportApprovedVideos } from '../server/discoveryExport.ts';
 import type { SocialSearchSource } from '@melloway/domain';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const privateDirectory = resolve(root, '.local/discovery');
 const notice = 'Private local curation tool, not secure multi-user moderation. Matches remain tentative.';
-const usage = 'Usage: discovery:review -- [--queue path] mock <venue-id> "<exact name>" "<Sydney suburb>" <mock-sources.json> | list | approve <id> | reject <id>';
+const usage = 'Usage: discovery:review -- [--queue path] mock <venue-id> "<exact name>" "<Sydney suburb>" <mock-sources.json> | live <venue-id> "<exact name>" "<Sydney suburb>" | list | approve <id> | reject <id> | export <new-output.json>';
 const inside = (parent: string, child: string) => {
   const rel = relative(parent, child);
   return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
 };
 
-try {
-  const args = process.argv.slice(2);
+function requirePrivatePath(path: string) {
+  if (inside(root, path) && !inside(privateDirectory, path)) {
+    throw new Error('Keep repository-local queues and exports inside .local/discovery/, or use a path outside the repository.');
+  }
+}
+
+/** Fetch is injectable for isolated live-command tests; production uses the server adapter. */
+export async function runReviewCommand(input: string[], options: { fetcher?: typeof fetch } = {}) {
+  const args = [...input];
   let queuePath = resolve(privateDirectory, 'review-queue.json');
   const flag = args.indexOf('--queue');
   if (flag !== -1) {
@@ -26,9 +34,7 @@ try {
   }
   if (args.some(arg => arg.startsWith('--'))) throw new Error(usage);
   // Repository-local generated data must stay in the directory ignored by Git.
-  if (inside(root, queuePath) && !inside(privateDirectory, queuePath)) {
-    throw new Error('Keep repository-local queues inside .local/discovery/, or use a path outside the repository.');
-  }
+  requirePrivatePath(queuePath);
   const queue = createLocalReviewQueue(queuePath);
   const [command, ...values] = args;
   if (command === 'mock' && values.length === 4) {
@@ -49,15 +55,28 @@ try {
     const candidates = await discoverCafeVideos({ venueId, name, suburb }, {
       mode: 'mock', mockProvider: { mode: 'mock', async search() { return sources; } },
     });
-    console.log(JSON.stringify({ notice, mode: 'mock', fixture: fixture.description,
-      ...await queue.importPending(candidates) }, null, 2));
+    return { notice, mode: 'mock', fixture: fixture.description, ...await queue.importPending(candidates) };
+  } else if (command === 'live' && values.length === 3) {
+    const [venueId, name, suburb] = values;
+    await queue.list(); // Do not spend a request on a known malformed queue.
+    const candidates = await discoverCafeVideos({ venueId, name, suburb }, { mode: 'live', fetcher: options.fetcher });
+    return { notice, mode: 'live', ...await queue.importPending(candidates) };
   } else if (command === 'list' && values.length === 0) {
-    console.log(JSON.stringify({ notice, records: await queue.list() }, null, 2));
+    return { notice, records: await queue.list() };
   } else if ((command === 'approve' || command === 'reject') && values.length === 1) {
     const record = await queue.decide(values[0], command === 'approve' ? 'approved' : 'rejected');
-    console.log(JSON.stringify({ notice, record }, null, 2));
+    return { notice, record };
+  } else if (command === 'export' && values.length === 1) {
+    const output = resolve(values[0]);
+    requirePrivatePath(output);
+    return { notice, ...await exportApprovedVideos(queuePath, output) };
   } else throw new Error(usage);
-} catch (error) {
-  console.error(error instanceof Error ? error.message : 'Local review command failed.');
-  process.exitCode = 1;
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  try { console.log(JSON.stringify(await runReviewCommand(process.argv.slice(2)), null, 2)); }
+  catch (error) {
+    console.error(error instanceof Error ? error.message : 'Local review command failed.');
+    process.exitCode = 1;
+  }
 }

@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["socialDiscovery.ts", "discoveryReviewQueue.ts", "../scripts/discovery-review.ts", "../tests/openai-social-discovery.test.ts", "../tests/discovery-review-queue.test.ts", "../tests/fixtures/mock-openai-social-discovery.ts"]
+  "include": ["socialDiscovery.ts", "discoveryReviewQueue.ts", "discoveryExport.ts", "../scripts/discovery-review.ts", "../tests/openai-social-discovery.test.ts", "../tests/discovery-review-queue.test.ts", "../tests/discovery-export.test.ts", "../tests/fixtures/mock-openai-social-discovery.ts"]
 }

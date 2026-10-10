@@ -8,7 +8,7 @@ Existing uncommitted venue-video work is preserved and excluded from this chunk'
 | 1. Mock discovery pipeline | COMPLETE | Pure TypeScript, injected mock provider, source evidence and pending candidates |
 | 2. OpenAI search adapter | COMPLETE | Server-only opt-in Responses adapter; mocked tests only |
 | 3. Local review queue | COMPLETE | Ignored JSON storage, mock CLI, explicit local review decisions |
-| 4. Export, verification and handoff | NOT STARTED | Requires completed checkpoint 3 and a separate instruction |
+| 4. Export, verification and handoff | COMPLETE | Approved-only JSON export, mock demonstration and handoff |
 
 ## Rules for all chunks
 
@@ -170,4 +170,32 @@ Approvals/rejections operated only on synthetic records in disposable OS temp
 directories. The default queue and actual research entries were not accessed.
 No real discovery API calls were made. This is private local curation, not secure
 multi-user moderation. Existing uncommitted venue-video work remains excluded
-from this commit. Checkpoint 4 is unimplemented; stopped after checkpoint 3.
+from this commit. At the checkpoint 3 handoff, checkpoint 4 was unimplemented.
+
+## Checkpoint 4 verification and handoff
+
+Completed 2026-10-11. See [the handoff](DISCOVERY_HANDOFF.md) for exact mock,
+review/export commands, opt-in live setup, changed files and limitations.
+
+- Approved-only export creates a new private JSON file; it never changes the
+  queue or overwrites an existing file. No app integration was added.
+- Seven new export/CLI tests passed, including the regression excluding pending
+  and rejected records and a complete one-café mock CLI demonstration.
+- Demonstration: two pending synthetic candidates, one explicit fixture approval,
+  one exported record; rejecting the other still yielded only that approved record.
+- `npm run test:discovery`: 35 passed. `npm test`: 163 passed in the working
+  checkout (88 root, 14 mobile service, 26 events, 35 discovery). Nine mobile
+  service tests belong to the preserved uncommitted venue-video work, not the PR.
+- `npm run typecheck`, mobile lint and production build: passed.
+- No unrelated baseline failures. Existing Node module-type warnings were left
+  unchanged. A new test type-narrowing error was repaired successfully once by
+  adding an assertion; no tests were removed/weakened.
+- Diff reviewed for credentials, ignored research files and unrelated edits;
+  frontend edits remain unstaged and outside the discovery commits.
+
+Live search was NOT tested overnight; no real discovery API request was made.
+Live-command tests used an injected mock transport. Actual model/account support,
+search coverage, café/video matches, app integration and device use remain unverified.
+Publish only `discovery-bot-v1` with a draft PR targeting `expo-mobile-migration`
+if authenticated access permits; publication outcome is reported separately.
+All four checkpoints are complete. Stop; no further features are authorized.
