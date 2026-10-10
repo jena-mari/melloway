@@ -1,0 +1,9 @@
+{
+  "mode": "mock",
+  "description": "MOCK ONLY: fictional café and synthetic video links, not real research or verified posts.",
+  "cafe": { "venueId": "mock-cafe-newtown", "name": "Mock Café (Test)", "suburb": "Newtown" },
+  "sources": [
+    { "url": "https://tiktok.com/@mock_fixture/video/9000000000000000001/?share=fixture", "title": "Mock Café (Test) — Newtown", "snippet": "Fictional search fixture only; no real video is asserted." },
+    { "url": "https://instagram.com/reel/MOCK_Reel-2?igsh=fixture", "snippet": "Fictional fixture: Mock Café (Test), Newtown. Synthetic evidence only." }
+  ]
+}

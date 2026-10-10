@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "types": ["node"]
+  },
+  "include": ["socialDiscovery.ts", "discoveryReviewQueue.ts", "discoveryExport.ts", "../scripts/discovery-review.ts", "../tests/openai-social-discovery.test.ts", "../tests/discovery-review-queue.test.ts", "../tests/discovery-export.test.ts", "../tests/fixtures/mock-openai-social-discovery.ts"]
+}

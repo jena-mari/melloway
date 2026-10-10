@@ -34,3 +34,6 @@ supabase/.branches/
 
 test-results/
 playwright-report/
+
+# Private discovery research and review decisions (including locks and atomic-write files)
+/.local/discovery/
