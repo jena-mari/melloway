@@ -7,7 +7,7 @@ Existing uncommitted venue-video work is preserved and excluded from this chunk'
 | --- | --- | --- |
 | 1. Mock discovery pipeline | COMPLETE | Pure TypeScript, injected mock provider, source evidence and pending candidates |
 | 2. OpenAI search adapter | COMPLETE | Server-only opt-in Responses adapter; mocked tests only |
-| 3. Local review queue | NOT STARTED | Requires completed checkpoint 2 and a separate instruction |
+| 3. Local review queue | COMPLETE | Ignored JSON storage, mock CLI, explicit local review decisions |
 | 4. Export, verification and handoff | NOT STARTED | Requires completed checkpoint 3 and a separate instruction |
 
 ## Rules for all chunks
@@ -128,4 +128,46 @@ Completed 2026-10-11. All checks passed on their first run; no repair attempts w
 No real OpenAI API request was made. Actual model/account compatibility,
 cached source coverage and real café/video matches remain untested.
 Existing uncommitted venue-video work is preserved and excluded from this commit.
-Checkpoints 3–4 remain unimplemented; stopped after checkpoint 2.
+At the checkpoint 2 handoff, checkpoints 3–4 were unimplemented.
+
+## Checkpoint 3 contract
+
+`server/discoveryReviewQueue.ts` supplies a separate local JSON store with
+pending-only discovery imports, listing and explicit manual approve/reject
+decisions. `scripts/discovery-review.ts` provides the mock-only CLI.
+See [commands and file safety](DISCOVERY_REVIEW.md).
+
+Default storage is `.local/discovery/review-queue.json`; its entire directory
+is ignored by Git. Records preserve all discovery fields plus a generated ID
+and `decidedAt` timestamp/null. Discovery cannot import approvals. Duplicate
+imports retain the entire previous record, including approval/rejection times.
+Explicit opposite human decisions may change a decision; identical ones are idempotent.
+
+Storage validation rejects malformed schemas, URLs/provenance, timestamps,
+decision states and duplicate IDs/identities. Exclusive locks protect cooperating
+writers; flushed same-directory temporary files and atomic rename avoid
+truncating the current file. Invalid storage is never silently reset.
+
+This is private local curation, not secure multi-user moderation or publishing.
+No frontend, database, endpoint, dashboard or live CLI integration was added.
+No credentials are loaded by the CLI. Mock fixtures are explicitly labelled.
+
+## Checkpoint 3 verification
+
+Completed 2026-10-11. All executed checks passed; no unsuccessful repair attempts.
+
+- Queue tests: 15 passed, covering persistence/reopen, duplicate imports,
+  explicit decision times and updates, unchanged earlier decisions on rerun,
+  malformed storage, pending-only imports, locks/concurrent writers, symlinks,
+  CLI commands and Git exclusion.
+- `npm test`: 156 passed (88 root, 14 mobile service, 26 events, 28 discovery).
+- `npm run typecheck`: passed, including strict queue/CLI/tests checks.
+- `npm run lint --workspace @melloway/mobile`: passed.
+- `npm run build`: passed.
+- `git diff --check`: passed.
+
+Approvals/rejections operated only on synthetic records in disposable OS temp
+directories. The default queue and actual research entries were not accessed.
+No real discovery API calls were made. This is private local curation, not secure
+multi-user moderation. Existing uncommitted venue-video work remains excluded
+from this commit. Checkpoint 4 is unimplemented; stopped after checkpoint 3.
