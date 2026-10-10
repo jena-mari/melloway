@@ -15,7 +15,10 @@ export function validPreferences(prefs) {
     Number(prefs.budget) <= 200 &&
     [3, 4, 5, 6, 8].includes(Number(prefs.duration)) &&
     Array.isArray(prefs.preferences) &&
-    prefs.preferences.every((tag) => interestOptions.has(tag)),
+    prefs.preferences.every((tag) => interestOptions.has(tag)) &&
+    // Older saved plans have no free-text notes.
+    (prefs.notes === undefined ||
+      (typeof prefs.notes === "string" && prefs.notes.length <= 1200)),
   );
 }
 

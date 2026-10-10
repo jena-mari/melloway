@@ -4,6 +4,7 @@ import { Heart, ArrowUpRight, Star, ImagePlus } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { MoodImage, Field, Button } from "../components/UI";
 import { readLocal, writeLocal } from "../services/storage";
+import { createId } from "../utils/id";
 const examples = [
   {
     id: "example1",
@@ -74,7 +75,7 @@ export function Community() {
     const data = new FormData(e.target),
       p = saved.find((p) => p.id === data.get("plan"));
     const post = {
-      id: crypto.randomUUID(),
+      id: createId(),
       name: data.get("title"),
       description: data.get("description"),
       rating: Number(data.get("rating")),

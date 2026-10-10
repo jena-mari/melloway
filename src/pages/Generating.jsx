@@ -1,17 +1,38 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Heart } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Reveal } from "../components/Introduction";
+import { Button } from "../components/UI";
 import { useApp } from "../hooks/useApp";
 import { generate } from "../services/discovery";
+import { preferencesForPlan } from "../utils/interests";
 
 export default function Generating() {
   const { draft, setCurrent } = useApp(),
     navigate = useNavigate();
+  const { pathname } = useLocation();
+  const reduced = useReducedMotion();
   const [stage, setStage] = useState("getting ur preferences together…"),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [canRetry, setCanRetry] = useState(false),
+    [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    if (pathname !== "/generating") return;
     const controller = new AbortController();
-    generate(draft, 0, setStage, null, { signal: controller.signal })
+    setError("");
+    setCanRetry(false);
+    setStage("getting ur preferences together…");
+    generate(
+      {
+        ...draft,
+        selectedPreferences: draft.preferences,
+        preferences: preferencesForPlan(draft),
+      },
+      0,
+      setStage,
+      null,
+      { signal: controller.signal },
+    )
       .then((bundle) => {
         if (controller.signal.aborted) return;
         if (!bundle.plan) {
@@ -24,36 +45,57 @@ export default function Generating() {
         navigate("/itinerary", { replace: true });
       })
       .catch((error) => {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
+          setCanRetry(error.message !== "Please check your planning details.");
           setError(
             error.message === "Please check your planning details."
               ? error.message
               : "Something interrupted planning. Your preferences are saved; give it another go.",
           );
+        }
       });
     return () => controller.abort();
-  }, [draft, navigate, setCurrent]);
+  }, [draft, navigate, setCurrent, attempt, pathname]);
   return (
-    <div className="loading-page page">
-      <div className="loading-heart">
-        <Heart size={70} strokeWidth={1} />
+    <div className="intro-screen loading-intro">
+      <p className="intro-kicker">good plans start here.</p>
+      <div className="loading-centre">
+        <Reveal as="h1">{error ? "a little hiccup." : "loading..."}</Reveal>
+        <div className="loading-stage" role="status" aria-live="polite">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.p
+              key={error || stage}
+              initial={reduced ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={reduced ? { opacity: 1 } : { opacity: 0 }}
+              transition={{ duration: reduced ? 0 : 0.12 }}
+            >
+              {error || stage}
+            </motion.p>
+          </AnimatePresence>
+        </div>
+        {!error && (
+          <div className="loading-dots" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
+        )}
       </div>
-      <span className="eyebrow">A LITTLE THOUGHT GOES A LONG WAY</span>
-      <h1>
-        connecting
-        <br />
-        <em>the cute dots.</em>
-      </h1>
-      <p role="status">{error || stage}</p>
-      <p className="fine">
-        Using prototype demo data unless a live provider is configured.
-        <br />
-        We never check live events or reservations during planning.
-      </p>
       {error && (
-        <Link className="button pink" to="/plan/details">
-          tweak the details
-        </Link>
+        <div className="generation-recovery">
+          {canRetry && (
+            <Button
+              className="pink"
+              onClick={() => setAttempt((old) => old + 1)}
+            >
+              try again
+            </Button>
+          )}
+          <Link className="button" to="/plan/details">
+            tweak the details
+          </Link>
+        </div>
       )}
     </div>
   );
