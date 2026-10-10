@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>melloway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Yellowtail&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#FFFFFF; --ink:#000000; --pink:#F8A8B9; --yellow:#F5E8AA; --green:#D3E4B4; --soft:#F6F2F3; --on:#000000;
+  --script:'Maple Shore','Yellowtail','Brush Script MT',cursive;
+  --body:'Outfit',system-ui,-apple-system,'Segoe UI',sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#000000; --ink:#FFFFFF; --soft:#1a1a1a; }
+}
+:root[data-theme="dark"]{ --bg:#000000; --ink:#FFFFFF; --soft:#1a1a1a; }
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:3px}
+
+.app{position:relative;max-width:430px;min-height:100dvh;margin:0 auto;overflow:hidden;background:var(--bg)}
+@media (min-width:500px){ .app{border-left:1.5px solid var(--ink);border-right:1.5px solid var(--ink)} }
+
+/* orb motif from the wireframes */
+.orb{position:absolute;border:1.5px solid var(--ink);border-radius:50%;pointer-events:none;transition:opacity .3s}
+.o1{width:44px;height:44px;left:-22px;top:120px}
+.o2{width:92px;height:92px;right:-30px;bottom:150px}
+.o3{width:30px;height:30px;left:34px;bottom:210px}
+.o4{width:60px;height:60px;right:-30px;top:60px}
+.app.plain .orb{opacity:0}
+
+.top{position:absolute;top:18px;left:22px;right:22px;display:flex;justify-content:space-between;align-items:center;font-size:12px;z-index:3}
+.top button{background:none;border:0;padding:6px 2px;font-size:12px;font-weight:500}
+.top .hint{font-weight:400;opacity:.7}
+
+.screen{display:none;position:relative;z-index:2;min-height:100dvh;padding:76px 26px 92px;flex-direction:column;justify-content:center}
+.screen.on{display:flex;animation:in .25s ease-out}
+@keyframes in{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.screen.on{animation:none}}
+.screen.top-aligned{justify-content:flex-start}
+
+.script{font-family:var(--script);font-weight:400;line-height:1}
+.logo{font-size:76px;text-align:center;margin:0 0 6px}
+.tag{text-align:center;font-size:13px;margin:0 0 30px}
+h1{font-size:25px;line-height:1.15;font-weight:700;margin:0 0 8px;letter-spacing:-.01em}
+.sub{font-size:14px;margin:0 0 22px;max-width:34ch}
+label,.q{display:block;font-size:13px;font-weight:600;margin:20px 0 8px}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid var(--ink);background:var(--bg);color:var(--ink);border-radius:999px;padding:13px 24px;font-size:15px;font-weight:600;transition:transform .12s}
+.btn:active{transform:scale(.97)}
+.btn.pink{background:var(--pink);color:var(--on);border-color:#000}
+.btn.block{width:100%}
+.btn.small{padding:8px 16px;font-size:13px}
+.stack{display:grid;gap:10px;width:100%;max-width:300px;margin:0 auto}
+
+input[type=text]{width:100%;border:1.5px solid var(--ink);border-radius:999px;background:var(--bg);padding:13px 18px;font-size:16px}
+input[type=text]::placeholder{opacity:.45}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--ink);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 14px;font-size:14px;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--pink);color:var(--on);border-color:#000}
+
+.rangerow{display:flex;align-items:center;gap:14px}
+input[type=range]{flex:1;accent-color:#F8A8B9;height:28px}
+.val{min-width:64px;text-align:center;border:1.5px solid var(--ink);border-radius:999px;padding:4px 10px;font-size:13px;font-weight:600}
+
+.cta{margin-top:30px}
+.mark{position:absolute;left:0;right:0;bottom:26px;text-align:center;font-family:var(--script);font-size:24px;z-index:1}
+
+/* loading */
+.load{text-align:center}
+.load .script{font-size:48px;margin:0}
+.load p{font-size:13px;margin:14px 0 0;min-height:1.4em}
+.dots{display:flex;justify-content:center;gap:8px;margin-top:20px}
+.dots i{width:10px;height:10px;border-radius:50%;border:1.5px solid var(--ink);animation:bob 1s infinite ease-in-out}
+.dots i:nth-child(2){animation-delay:.15s;background:var(--pink)}
+.dots i:nth-child(3){animation-delay:.3s;background:var(--yellow)}
+@keyframes bob{50%{transform:translateY(-8px)}}
+@media (prefers-reduced-motion:reduce){.dots i{animation:none}}
+
+/* result */
+.res-title{font-size:44px;margin:0 0 4px}
+.res-sub{font-size:13px;margin:0 0 18px}
+.stats{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.stat{background:var(--yellow);color:#000;border-radius:999px;padding:5px 12px;font-size:12px;font-weight:600}
+.stat.g{background:var(--green)}
+.plan{border:1.5px solid var(--ink);border-radius:20px;overflow:hidden;margin-bottom:18px}
+.stop{padding:14px 16px;border-top:1.5px solid var(--ink)}
+.stop:first-child{border-top:0}
+.row{display:flex;gap:12px;align-items:flex-start}
+.pin{flex:none;width:28px;height:28px;border-radius:50%;background:var(--pink);color:#000;border:1.5px solid #000;display:grid;place-items:center;font-size:13px;font-weight:700}
+.sinfo{flex:1;min-width:0}
+.sname{font-weight:700;font-size:15px;margin:0}
+.smeta{font-size:12px;margin:2px 0 0;opacity:.8}
+.badge{display:inline-block;background:var(--green);color:#000;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:600;margin-left:6px}
+.sbtns{display:flex;gap:8px;margin-top:10px}
+.link{background:none;border:1.5px solid var(--ink);border-radius:999px;padding:4px 12px;font-size:12px;font-weight:500}
+.detail{display:none;font-size:13px;margin:10px 0 0}
+.stop.open .detail{display:block}
+.travel{padding:6px 16px 6px 56px;font-size:11px;border-top:1.5px dashed var(--ink);opacity:.75}
+.mapbox{border:1.5px solid var(--ink);border-radius:20px;overflow:hidden;background:var(--soft);margin-bottom:6px}
+.mapbox svg{display:block;width:100%;height:auto}
+.fine{font-size:11px;opacity:.65;margin:8px 0 18px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.empty{padding:20px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <div class="orb o1"></div><div class="orb o2"></div><div class="orb o3"></div><div class="orb o4"></div>
+
+  <div class="top" id="top" hidden>
+    <button id="back" aria-label="Go back">back</button>
+    <button id="skip">lemme skip this +</button>
+  </div>
+
+  <!-- 0 landing -->
+  <section class="screen" data-s="0">
+    <div class="top" style="position:absolute"><span class="hint">good plans start here.</span><span></span></div>
+    <h1 class="script logo" style="font-weight:400">melloway</h1>
+    <p class="tag">the right match starts with the right date.</p>
+    <p class="sub" style="text-align:center;margin:0 auto 22px">who's this for? either way is fine!</p>
+    <div class="stack">
+      <button class="btn pink" data-mode="date">a date</button>
+      <button class="btn" data-mode="hangout">just a cute hangout</button>
+    </div>
+  </section>
+
+  <!-- 1 name -->
+  <section class="screen" data-s="1">
+    <h1>hey there,</h1>
+    <p class="sub">you're here because you're planning something. a date, a hangout with friends, idk. let's start with an introduction: what's ur name?</p>
+    <input type="text" id="name" placeholder="type ur name here" autocomplete="given-name" aria-label="Your name">
+    <div class="cta"><button class="btn pink" data-next>continue</button></div>
+  </section>
+
+  <!-- 2 age & gender -->
+  <section class="screen" data-s="2">
+    <h1 id="coolname">cool name.</h1>
+    <p class="sub">we'll learn more about ur interests later, but for now, let me ask ur age and gender.</p>
+    <label for="age">age</label>
+    <div class="rangerow"><input type="range" id="age" min="18" max="60" value="24"><span class="val" id="ageV">24</span></div>
+    <div class="q">gender</div>
+    <div class="chips" id="gender"></div>
+    <div class="cta"><button class="btn pink" data-next>continue</button></div>
+  </section>
+
+  <!-- 3 who -->
+  <section class="screen" data-s="3">
+    <h1 id="whoH">great. who u hanging out with?</h1>
+    <p class="sub">same quick details for them, then where and how much.</p>
+    <label for="pname">their name</label>
+    <input type="text" id="pname" placeholder="their name" aria-label="Their name">
+    <label for="page">their age</label>
+    <div class="rangerow"><input type="range" id="page" min="18" max="60" value="24"><span class="val" id="pageV">24</span></div>
+    <div class="q">their gender</div>
+    <div class="chips" id="pgender"></div>
+    <div class="q">any specific area in mind?</div>
+    <div class="chips" id="area"></div>
+    <label for="budget">budget each</label>
+    <div class="rangerow"><input type="range" id="budget" min="20" max="150" step="5" value="80"><span class="val" id="budgetV">$80</span></div>
+    <div class="cta"><button class="btn pink" data-next>continue</button></div>
+  </section>
+
+  <!-- 4 vibe -->
+  <section class="screen top-aligned" data-s="4">
+    <h1 id="vibeH">so, it's a date. let's make it perfect.</h1>
+    <p class="sub">pick whatever fits. no wrong answers.</p>
+    <div class="q">type of hangout</div>
+    <div class="chips" id="vHang"></div>
+    <div class="q">type of food</div>
+    <div class="chips" id="vFood"></div>
+    <div class="q">type of activity</div>
+    <div class="chips" id="vAct"></div>
+    <div class="cta"><button class="btn pink block" id="go">plan it</button></div>
+  </section>
+
+  <!-- 5 loading -->
+  <section class="screen" data-s="5">
+    <div class="load">
+      <p class="script" style="font-size:48px">loading...</p>
+      <p id="loadmsg" aria-live="polite">checking what's on today</p>
+      <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    </div>
+  </section>
+
+  <!-- 6 result -->
+  <section class="screen top-aligned" data-s="6">
+    <h1 class="script res-title">here's ur date!</h1>
+    <p class="res-sub" id="resSub"></p>
+    <div class="stats" id="stats"></div>
+    <div class="plan" id="plan"></div>
+    <div class="mapbox" id="map" role="img" aria-label="Map of the planned route"></div>
+    <p class="fine">sample venues and prices for now. scraped reviews and live events plug in here next.</p>
+    <div class="actions">
+      <button class="btn pink small" id="save">save to favourites</button>
+      <button class="btn small" id="regen">try another plan</button>
+      <button class="btn small" id="restart">start over</button>
+    </div>
+  </section>
+
+  <div class="mark" aria-hidden="true">m</div>
+</div>
+
+<script>
+/* ---------- sample data (swap for scraped data later) ---------- */
+const SLOTS = ['morning','midday','arvo','evening'];
+const ANCHOR = {morning:9.5*60, midday:12*60, arvo:14.5*60, evening:18.5*60};
+const AREAS = {
+  'anywhere':{label:'sydney', lat:-33.88, lng:151.2, r:99},
+  'cbd':{label:'sydney cbd', lat:-33.8688, lng:151.2093, r:4.5},
+  'inner west':{label:'inner west', lat:-33.8965, lng:151.1794, r:6},
+  'eastern suburbs':{label:'eastern suburbs', lat:-33.8841, lng:151.2273, r:6.5},
+  'surry hills':{label:'surry hills', lat:-33.8847, lng:151.211, r:4}
+};
+const HANG = ['flea markets','matcha over coffee','coffee crawl','jazz bar','rave scene','vintage & bookshops','beach walk'];
+const FOOD = ['asian food','cafe food','brunch','dinner','dessert'];
+const ACT  = ['escape room','music festival','good photo spots','art & galleries','picnic','arcade'];
+const GENDERS = ['woman','man','non-binary','other'];
+
+const SPOTS = [
+ {id:'carriageworks',name:'Carriageworks Farmers Market',area:'Eveleigh',lat:-33.8927,lng:151.1951,slot:'morning',cost:20,mins:90,days:[6],tags:['flea markets','brunch','cafe food'],note:'Saturday market with coffee, pastries and a lot of places to wander.'},
+ {id:'brunch-sh',name:'Brunch cafe, Surry Hills',area:'Surry Hills',lat:-33.8836,lng:151.2118,slot:'morning',cost:30,mins:75,tags:['brunch','cafe food','coffee crawl'],note:'Sample pick. A sit-down brunch spot to ease into the day.'},
+ {id:'matcha-newtown',name:'Matcha cafe, Newtown',area:'Newtown',lat:-33.8978,lng:151.1792,slot:'morning',cost:14,mins:60,tags:['matcha over coffee','cafe food','coffee crawl'],note:'Sample pick. Matcha lattes and something sweet.'},
+ {id:'matcha-cbd',name:'Matcha bar, CBD',area:'Sydney CBD',lat:-33.8721,lng:151.2063,slot:'morning',cost:13,mins:45,tags:['matcha over coffee','cafe food'],note:'Sample pick. Quick matcha stop before the day gets going.'},
+ {id:'paddington',name:'Paddington Markets',area:'Paddington',lat:-33.8841,lng:151.2273,slot:'midday',cost:15,mins:90,days:[6],tags:['flea markets','vintage & bookshops','good photo spots'],note:'Saturday market: handmade, vintage and good people watching.'},
+ {id:'glebe',name:'Glebe Markets',area:'Glebe',lat:-33.88,lng:151.186,slot:'midday',cost:12,mins:80,days:[6],tags:['flea markets','vintage & bookshops'],note:'Saturday market for second-hand finds and street food.'},
+ {id:'kingst',name:'King St vintage and bookshops',area:'Newtown',lat:-33.8965,lng:151.1794,slot:'midday',cost:10,mins:75,tags:['vintage & bookshops','good photo spots','coffee crawl'],note:'Browse record stores, vintage racks and bookshops.'},
+ {id:'haymarket',name:'Noodle lunch, Haymarket',area:'Haymarket',lat:-33.8788,lng:151.204,slot:'midday',cost:22,mins:60,tags:['asian food'],note:'Sample pick. Dumplings and noodles near Chinatown.'},
+ {id:'escape',name:'Escape room, CBD',area:'Sydney CBD',lat:-33.8731,lng:151.2072,slot:'arvo',cost:38,mins:75,tags:['escape room'],note:'Sample pick. Work together or panic together.'},
+ {id:'arcade',name:'Arcade, Darling Harbour',area:'Darling Harbour',lat:-33.8731,lng:151.201,slot:'arvo',cost:25,mins:60,tags:['arcade'],note:'Sample pick. Friendly competition, easy conversation.'},
+ {id:'botanic',name:'Royal Botanic Garden picnic',area:'Sydney CBD',lat:-33.8642,lng:151.2166,slot:'arvo',cost:18,mins:90,tags:['picnic','good photo spots'],note:'Grab snacks, find a lawn, look at the harbour.'},
+ {id:'agnsw',name:'Art Gallery of NSW',area:'The Domain',lat:-33.8688,lng:151.2153,slot:'arvo',cost:0,mins:75,tags:['art & galleries','good photo spots'],note:'Free entry to the main collection. Check for paid exhibitions.'},
+ {id:'bondi',name:'Bondi to Bronte coastal walk',area:'Bondi',lat:-33.8908,lng:151.2743,slot:'arvo',cost:0,mins:100,tags:['beach walk','good photo spots'],note:'Cliffs, ocean pools and plenty of photo spots.'},
+ {id:'quay',name:'Circular Quay to Opera House',area:'Circular Quay',lat:-33.8614,lng:151.2108,slot:'arvo',cost:0,mins:60,tags:['good photo spots','art & galleries'],note:'The postcard shot, without the postcard price.'},
+ {id:'barangaroo',name:'Barangaroo Reserve at sunset',area:'Barangaroo',lat:-33.8588,lng:151.202,slot:'evening',cost:0,mins:60,tags:['good photo spots','picnic','beach walk'],note:'Headland walk with a good view of the sun going down.'},
+ {id:'chinatown',name:'Dinner and dessert, Chinatown',area:'Haymarket',lat:-33.8788,lng:151.2045,slot:'evening',cost:40,mins:90,tags:['asian food','dinner','dessert'],note:'Sample pick. Shared plates, then dessert.'},
+ {id:'dinner-sh',name:'Dinner, Surry Hills',area:'Surry Hills',lat:-33.8847,lng:151.211,slot:'evening',cost:60,mins:100,tags:['dinner','cafe food'],note:'Sample pick. A proper sit-down dinner.'},
+ {id:'jazz',name:'Jazz bar, Darlinghurst',area:'Darlinghurst',lat:-33.8786,lng:151.2216,slot:'evening',cost:30,mins:100,tags:['jazz bar','dessert'],note:'Sample pick. Live jazz and low lighting.'},
+ {id:'gig',name:'Live gig, Enmore',area:'Enmore',lat:-33.8999,lng:151.1749,slot:'evening',cost:45,mins:120,tags:['music festival','rave scene'],note:'Sample pick. Check who is playing on the day.'},
+ {id:'warehouse',name:'Warehouse party, Marrickville',area:'Marrickville',lat:-33.9108,lng:151.1553,slot:'evening',cost:35,mins:150,tags:['rave scene','music festival'],note:'Sample pick. Late one, bring water.'}
+];
+
+/* ---------- state ---------- */
+const S = {mode:'date',name:'',age:24,gender:'',pname:'',page:24,pgender:'',area:'anywhere',budget:80,
+  pick:{hang:new Set(),food:new Set(),act:new Set()},seed:0,excluded:new Set(),plan:null,saved:false};
+const $ = id => document.getElementById(id);
+const app = $('app');
+let step = 0;
+
+/* ---------- navigation ---------- */
+function show(n){
+  step = n;
+  document.querySelectorAll('.screen').forEach(el => el.classList.toggle('on', +el.dataset.s === n));
+  $('top').hidden = !(n>=1 && n<=4);
+  app.classList.toggle('plain', n===6 || n===4);
+  window.scrollTo(0,0);
+  if(n===5) runLoading();
+}
+document.querySelectorAll('[data-next]').forEach(b => b.onclick = () => advance());
+function advance(){
+  if(step===1){ S.name = $('name').value.trim(); $('coolname').textContent = S.name ? 'cool name, '+S.name+'.' : 'cool name.'; }
+  if(step===2){ $('whoH').textContent = S.mode==='date' ? 'great. who u going on a date with?' : 'great. who u hanging out with?'; }
+  if(step===3){ S.pname = $('pname').value.trim(); $('vibeH').textContent = S.mode==='date' ? "so, it's a date. let's make it perfect." : "so, a cute hangout. let's make it good."; }
+  show(step+1);
+}
+$('skip').onclick = advance;
+$('back').onclick = () => show(Math.max(0,step-1));
+document.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => { S.mode = b.dataset.mode; show(1); });
+
+/* ---------- inputs ---------- */
+function chipGroup(id, list, onChange, multi, setRef){
+  const el = $(id);
+  list.forEach(txt => {
+    const b = document.createElement('button');
+    b.type='button'; b.className='chip'; b.textContent=txt; b.setAttribute('aria-pressed','false');
+    b.onclick = () => {
+      if(multi){ const on = b.getAttribute('aria-pressed')!=='true'; b.setAttribute('aria-pressed',on); on ? setRef.add(txt) : setRef.delete(txt); }
+      else { el.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed','false')); b.setAttribute('aria-pressed','true'); onChange(txt); }
+    };
+    el.appendChild(b);
+  });
+}
+chipGroup('gender', GENDERS, v => S.gender=v);
+chipGroup('pgender', GENDERS, v => S.pgender=v);
+chipGroup('area', Object.keys(AREAS), v => S.area=v);
+document.querySelector('#area .chip:first-child').setAttribute('aria-pressed','true');
+chipGroup('vHang', HANG, null, true, S.pick.hang);
+chipGroup('vFood', FOOD, null, true, S.pick.food);
+chipGroup('vAct', ACT, null, true, S.pick.act);
+$('age').oninput = e => { S.age=+e.target.value; $('ageV').textContent=e.target.value; };
+$('page').oninput = e => { S.page=+e.target.value; $('pageV').textContent=e.target.value; };
+$('budget').oninput = e => { S.budget=+e.target.value; $('budgetV').textContent='$'+e.target.value; };
+$('go').onclick = () => { S.seed=0; S.excluded.clear(); S.saved=false; show(5); };
+
+/* ---------- route optimiser ---------- */
+const rad = d => d*Math.PI/180;
+function km(a,b){
+  const R=6371, dLat=rad(b.lat-a.lat), dLng=rad(b.lng-a.lng);
+  const x=Math.sin(dLat/2)**2+Math.cos(rad(a.lat))*Math.cos(rad(b.lat))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+function jitter(id){ let h=0; const s=id+S.seed; for(let i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0; return (h%100)/100*0.8; }
+function picked(){ return new Set([...S.pick.hang,...S.pick.food,...S.pick.act]); }
+function score(sp){
+  const p = picked(); let n=0;
+  sp.tags.forEach(t => { if(p.has(t)) n+=3; });
+  if(sp.cost <= S.budget*0.35) n+=0.5;
+  return n + jitter(sp.id);
+}
+function pool(){
+  const a = AREAS[S.area], today = new Date().getDay();
+  return SPOTS.filter(sp => !S.excluded.has(sp.id) && (!sp.days || sp.days.includes(today)) && km(a,sp) <= a.r);
+}
+function pathKm(list){ let d=0; for(let i=1;i<list.length;i++) d+=km(list[i-1],list[i]); return d; }
+
+function buildPlan(){
+  const cand = pool();
+  const layers = SLOTS.map(sl => cand.filter(c=>c.slot===sl).sort((a,b)=>score(b)-score(a)).slice(0,3)).filter(l=>l.length);
+  if(!layers.length) return null;
+  const baseline = layers.map(l=>l[0]);
+  // DFS across every combination of top candidates, one per time slot.
+  let best=null, bestCost=Infinity;
+  (function dfs(i, path){
+    if(i===layers.length){
+      const d=pathKm(path), sc=path.reduce((s,p)=>s+score(p),0), money=path.reduce((s,p)=>s+p.cost,0);
+      const cost = d - 0.6*sc + (money>S.budget ? 100+(money-S.budget) : 0);
+      if(cost<bestCost){ bestCost=cost; best=path.slice(); }
+      return;
+    }
+    for(const c of layers[i]){ path.push(c); dfs(i+1,path); path.pop(); }
+  })(0,[]);
+  // drop slots that don't match anything, keeping at least 3 stops
+  let stops = best.slice();
+  for(const sp of best.slice().sort((a,b)=>score(a)-score(b))){
+    if(stops.length>3 && score(sp)<1) stops = stops.filter(x=>x!==sp);
+  }
+  return {stops, saved: Math.max(0, pathKm(baseline)-pathKm(stops)), baselineKm:pathKm(baseline)};
+}
+
+/* ---------- render ---------- */
+const fmt = m => { m=Math.round(m); let h=Math.floor(m/60), mm=m%60; const ap=h>=12?'pm':'am'; h=h%12||12; return h+(mm?':'+String(mm).padStart(2,'0'):'')+ap; };
+const travelMins = d => Math.max(5, Math.round(d*1.3/18*60));
+
+function render(){
+  const plan = S.plan;
+  const who = S.pname ? 'you and '+S.pname : 'you two';
+  if(!plan){
+    $('resSub').textContent = '';
+    $('stats').innerHTML = '';
+    $('plan').innerHTML = '<div class="empty">nothing fits that area and budget today. try a wider area or start over.</div>';
+    $('map').innerHTML = '';
+    return;
+  }
+  const a = AREAS[S.area];
+  const stops = plan.stops;
+  const total = stops.reduce((s,p)=>s+p.cost,0);
+  const dist = pathKm(stops);
+  $('resSub').textContent = a.label+' '+(S.mode==='date'?'date':'hangout')+' for '+who+'. we thought you\'d like this plan. don\'t like it yet? don\'t worry, you can customise it below.';
+  const today = new Date().getDay();
+  let html='', t=0, mins=0;
+  stops.forEach((sp,i) => {
+    let tm = travelMins(0);
+    if(i>0){ const d=km(stops[i-1],sp); tm=travelMins(d); }
+    const start = i===0 ? ANCHOR[sp.slot] : Math.max(ANCHOR[sp.slot], t + tm);
+    if(i>0){ mins+=tm; html += '<div class="travel">~'+tm+' min from '+stops[i-1].area.toLowerCase()+' ('+km(stops[i-1],sp).toFixed(1)+' km)</div>'; }
+    t = start + sp.mins;
+    const matched = sp.tags.filter(x=>picked().has(x));
+    html += '<div class="stop" data-i="'+i+'"><div class="row"><div class="pin">'+(i+1)+'</div><div class="sinfo">'
+      + '<p class="sname">'+sp.name+(sp.days&&sp.days.includes(today)?'<span class="badge">on today</span>':'')+'</p>'
+      + '<p class="smeta">'+fmt(start)+' · '+sp.area.toLowerCase()+' · '+(sp.cost?'~$'+sp.cost+' each':'free')+'</p>'
+      + '<p class="detail">'+sp.note+(matched.length?' matches: '+matched.join(', ')+'.':'')+'</p>'
+      + '<div class="sbtns"><button class="link" data-act="open">expand</button><button class="link" data-act="swap">not feeling it</button></div>'
+      + '</div></div></div>';
+  });
+  $('plan').innerHTML = html;
+  const over = total > S.budget;
+  $('stats').innerHTML =
+    '<span class="stat">'+dist.toFixed(1)+' km route</span>'
+    + '<span class="stat">~'+mins+' min getting around</span>'
+    + '<span class="stat '+(over?'':'g')+'">~$'+total+' each'+(over?' (over $'+S.budget+')':' (under $'+S.budget+')')+'</span>'
+    + (plan.saved>0.2?'<span class="stat g">saves '+plan.saved.toFixed(1)+' km vs picking blind</span>':'');
+  $('save').textContent = S.saved ? 'saved to favourites' : 'save to favourites';
+  drawMap(stops);
+}
+
+function drawMap(stops){
+  const W=340,H=230,pad=34;
+  const others = pool();
+  const all = stops.concat(others);
+  const lats=all.map(s=>s.lat), lngs=all.map(s=>s.lng), k=Math.cos(rad(33.87));
+  const minLat=Math.min(...lats), maxLat=Math.max(...lats), minLng=Math.min(...lngs), maxLng=Math.max(...lngs);
+  const spanX=Math.max((maxLng-minLng)*k,0.01), spanY=Math.max(maxLat-minLat,0.01);
+  const sc=Math.min((W-2*pad)/spanX,(H-2*pad)/spanY);
+  const offX=(W-spanX*sc)/2, offY=(H-spanY*sc)/2;
+  const P = s => [offX+(s.lng-minLng)*k*sc, offY+(maxLat-s.lat)*sc];
+  let svg='<svg viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg">';
+  for(let x=0;x<=W;x+=34) svg+='<line x1="'+x+'" y1="0" x2="'+x+'" y2="'+H+'" stroke="currentColor" stroke-opacity=".07"/>';
+  for(let y=0;y<=H;y+=34) svg+='<line x1="0" y1="'+y+'" x2="'+W+'" y2="'+y+'" stroke="currentColor" stroke-opacity=".07"/>';
+  others.filter(o=>!stops.includes(o)).forEach(o=>{ const [x,y]=P(o); svg+='<circle cx="'+x+'" cy="'+y+'" r="3" fill="none" stroke="currentColor" stroke-opacity=".35"/>'; });
+  svg+='<polyline fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="5 5" points="'+stops.map(s=>P(s).join(',')).join(' ')+'"/>';
+  stops.forEach((s,i)=>{ const [x,y]=P(s);
+    svg+='<circle cx="'+x+'" cy="'+y+'" r="12" fill="#F8A8B9" stroke="#000" stroke-width="1.5"/><text x="'+x+'" y="'+(y+4.5)+'" text-anchor="middle" font-family="Outfit,sans-serif" font-size="12" font-weight="700" fill="#000">'+(i+1)+'</text>'; });
+  svg+='</svg>';
+  $('map').innerHTML = svg;
+  $('map').setAttribute('aria-label','Map of '+stops.length+' stops: '+stops.map(s=>s.name).join(', then '));
+}
+
+$('plan').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  const stop = b.closest('.stop'); const i = +stop.dataset.i;
+  if(b.dataset.act==='open'){ stop.classList.toggle('open'); b.textContent = stop.classList.contains('open')?'collapse':'expand'; }
+  if(b.dataset.act==='swap'){ S.excluded.add(S.plan.stops[i].id); S.plan = buildPlan(); S.saved=false; render(); }
+});
+$('regen').onclick = () => { S.seed++; S.excluded.clear(); S.plan = buildPlan(); S.saved=false; render(); window.scrollTo(0,0); };
+$('save').onclick = () => { S.saved = !S.saved; $('save').textContent = S.saved ? 'saved to favourites' : 'save to favourites'; };
+$('restart').onclick = () => { S.seed=0; S.excluded.clear(); show(0); };
+
+const MSGS = ["checking what's on today","finding spots you'd both like","working out the best route","almost there"];
+let loadTimer;
+function runLoading(){
+  let i=0; $('loadmsg').textContent = MSGS[0];
+  clearInterval(loadTimer);
+  loadTimer = setInterval(()=>{ i=(i+1)%MSGS.length; $('loadmsg').textContent=MSGS[i]; },600);
+  setTimeout(()=>{ clearInterval(loadTimer); S.plan = buildPlan(); render(); show(6); }, 2200);
+}
+
+show(0);
+</script>
+</body>
+</html>
