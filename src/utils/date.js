@@ -23,6 +23,16 @@ export function sydneyToday() {
   }).format(new Date());
 }
 
+// Dates and times are optional answers; the planner still needs a concrete schedule.
+export function withScheduleDefaults(prefs) {
+  const today = sydneyToday();
+  return {
+    ...prefs,
+    date: !prefs.date || prefs.date < today ? today : prefs.date,
+    time: prefs.time || "11:00",
+  };
+}
+
 // Form values are Sydney calendar values, regardless of the user's device timezone.
 export function outingInstant(date, time) {
   if (!validDate(date) || !validTime(time))

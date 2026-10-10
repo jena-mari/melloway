@@ -2,10 +2,16 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ideas } from "../../data/ideas";
 import { categories } from "../../data/preferences";
+import QuestionPrompt from "../QuestionPrompt";
 import { Reveal, gentleEase } from "../Introduction";
 import { Chips } from "../UI";
 import DateIllustration from "../DateIllustration";
-export default function IdeasQuestion({ draft: d, update }) {
+export default function IdeasQuestion({
+  draft: d,
+  update,
+  question,
+  onExtras,
+}) {
   const reduced = useReducedMotion();
   const index = Math.max(
     0,
@@ -17,6 +23,32 @@ export default function IdeasQuestion({ draft: d, update }) {
       idea: ideas[(index + direction + ideas.length) % ideas.length].id,
     });
   }
+  if (question > 0) {
+    const [title, options] = Object.entries(categories)[question - 1];
+    const titles = [
+      "what’s ur kinda hangout?",
+      "anything ur craving?",
+      "a little adventure?",
+    ];
+    return (
+      <QuestionPrompt
+        title={titles[question - 1]}
+        copy="pick a few, or keep going."
+      >
+        <fieldset>
+          <legend>
+            {title} <span className="optional">pick a few</span>
+          </legend>
+          <Chips
+            options={options}
+            value={d.preferences}
+            multiple
+            onChange={(preferences) => update({ preferences })}
+          />
+        </fieldset>
+      </QuestionPrompt>
+    );
+  }
   return (
     <>
       <Reveal as="h1">
@@ -24,8 +56,7 @@ export default function IdeasQuestion({ draft: d, update }) {
         let’s make it perfect.
       </Reveal>
       <Reveal as="p" className="question-copy" delay={0.06}>
-        we have a few suggestions for you. what’s the closest to the vibe ur
-        going with?
+        which one feels like ur vibe?
       </Reveal>
       <Reveal delay={0.12}>
         <section
@@ -87,24 +118,13 @@ export default function IdeasQuestion({ draft: d, update }) {
             </button>
           ))}
         </div>
-        <details className="planning-extra vibe-extra">
-          <summary>
-            make it more ur vibe <span>food, places & little adventures</span>
-          </summary>
-          {Object.entries(categories).map(([title, options]) => (
-            <fieldset key={title}>
-              <legend>
-                {title} <span className="optional">pick a few</span>
-              </legend>
-              <Chips
-                options={options}
-                value={d.preferences}
-                multiple
-                onChange={(preferences) => update({ preferences })}
-              />
-            </fieldset>
-          ))}
-        </details>
+        <button
+          type="button"
+          className="planning-extra vibe-extra extra-invitation"
+          onClick={onExtras}
+        >
+          make it more ur vibe <span>food, places & little adventures</span>
+        </button>
       </Reveal>
     </>
   );

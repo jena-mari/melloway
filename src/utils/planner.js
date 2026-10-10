@@ -1,4 +1,5 @@
 import { areas, categories } from "../data/preferences.js";
+import { planningArea, validLocation } from "./location.js";
 import { validDate, validTime } from "./date.js";
 
 const modes = ["Walking", "Public transport", "Driving"];
@@ -6,7 +7,9 @@ const interestOptions = new Set(Object.values(categories).flat());
 export function validPreferences(prefs) {
   return Boolean(
     prefs &&
-    Object.hasOwn(areas, prefs.area) &&
+    (Object.hasOwn(areas, prefs.area) ||
+      (validLocation(prefs.location) && prefs.area === prefs.location.name)) &&
+    (prefs.location == null || validLocation(prefs.location)) &&
     modes.includes(prefs.transport) &&
     validDate(prefs.date) &&
     validTime(prefs.time) &&
@@ -47,7 +50,7 @@ export const transportAllowance = (mode) =>
 
 export function selectVenues(venues, prefs, seed = 0) {
   if (!validPreferences(prefs)) return [];
-  const area = areas[prefs.area];
+  const area = planningArea(prefs);
   return venues
     .filter(
       (v) =>
@@ -153,12 +156,49 @@ export function schedule(stops, prefs, matrix, indices) {
       (s, v) => s + (v.travelFromPrevious?.distance || 0),
       0,
     ),
-    source: result
-      .slice(1)
-      .every((v) => v.travelFromPrevious.source === "google")
-      ? "google"
-      : "estimate",
+    source:
+      result.length > 1 &&
+      result.slice(1).every((v) => v.travelFromPrevious.source === "google")
+        ? "google"
+        : "estimate",
   };
+}
+
+// A manual edit keeps exactly the chosen stops and order. It never optimises
+// away the user's choices, and uses fresh timing from the candidate matrix.
+export function editRoute(stops, prefs, candidates, matrix) {
+  if (!stops.length || stops.length > 14) return null;
+  if (
+    new Set(stops.map((s) => s.id)).size !== stops.length ||
+    new Set(stops.map((s) => s.name)).size !== stops.length
+  )
+    return null;
+  const indices = stops.map((s) => candidates.findIndex((v) => v.id === s.id));
+  if (indices.some((i) => i < 0)) return null;
+  return schedule(
+    indices.map((i) => candidates[i]),
+    prefs,
+    matrix,
+    indices,
+  );
+}
+
+// Try every insertion point, choosing the least additional outing time while
+// preserving the relative order of all existing stops.
+export function addStop(plan, venue, candidates, matrix) {
+  let best = null;
+  for (let i = 0; i <= plan.stops.length; i++) {
+    const stops = [...plan.stops.slice(0, i), venue, ...plan.stops.slice(i)];
+    const next = editRoute(stops, plan.prefs, candidates, matrix);
+    if (
+      next &&
+      (!best ||
+        next.elapsed < best.elapsed ||
+        (next.elapsed === best.elapsed && next.travel < best.travel))
+    )
+      best = next;
+  }
+  return best;
 }
 
 // Bounded DFS explores feasible graph paths. Travel edges come from a routing
@@ -239,6 +279,14 @@ export function replaceStop(plan, index, candidates, prefs, matrix) {
   return best;
 }
 export function directions(stops, mode) {
+  if (stops.length === 1) {
+    const url = new URL("https://www.google.com/maps/search/");
+    url.searchParams.set("api", "1");
+    url.searchParams.set("query", `${stops[0].lat},${stops[0].lng}`);
+    if (stops[0].source === "google")
+      url.searchParams.set("query_place_id", stops[0].id);
+    return url.href;
+  }
   const url = new URL("https://www.google.com/maps/dir/");
   url.searchParams.set("api", "1");
   url.searchParams.set("origin", `${stops[0].lat},${stops[0].lng}`);

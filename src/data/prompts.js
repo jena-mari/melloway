@@ -6,7 +6,7 @@ export const namePrompts = [
     id: "introduction",
     as: "p",
     className: "question-copy introduction-copy",
-    text: "you’re here because you’re planning something — a date with ur girl, a hangout with friends, idk.",
+    text: "a date, a hangout. let’s make it a good one.",
     speed: 13,
   },
   {

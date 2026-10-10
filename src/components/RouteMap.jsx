@@ -229,7 +229,7 @@ function StreetMap({
 function MapCanvas({ stops, transport, interactive, ...selection }) {
   // Google Places content belongs on a Google map, never third-party tiles.
   if (stops.some((stop) => stop.source === "google")) {
-    if (!embedKey)
+    if (!embedKey || stops.length === 1)
       return (
         <div className="map-unavailable">
           <span className="map-unavailable-dots" aria-hidden="true">
@@ -281,6 +281,9 @@ function MapCanvas({ stops, transport, interactive, ...selection }) {
 }
 
 export default function RouteMap({
+  id = "route-map",
+  title = "ur day, mapped out.",
+  compact = false,
   stops,
   transport = "Walking",
   selectedStopId,
@@ -290,6 +293,8 @@ export default function RouteMap({
   const [open, setOpen] = useState(false);
   const [legend, setLegend] = useState(false);
   const [resetView, setResetView] = useState(0);
+  const legendId = id === "route-map" ? "map-stop-legend" : `${id}-legend`;
+  const titleId = id === "route-map" ? "expanded-map-title" : `${id}-title`;
   function selectStop(id) {
     dialog.current?.close();
     setLegend(false);
@@ -308,7 +313,7 @@ export default function RouteMap({
     };
   }, [open]);
   return (
-    <div className="route-map" id="route-map">
+    <div className="route-map" id={id}>
       <div className="route-map-hero">
         <MapCanvas
           stops={stops}
@@ -319,15 +324,17 @@ export default function RouteMap({
           resetView={resetView}
         />
         <div className="map-toolbar">
-          <button
-            className="map-legend-toggle"
-            aria-expanded={legend}
-            aria-controls="map-stop-legend"
-            onClick={() => setLegend((old) => !old)}
-          >
-            <ListOrdered size={17} /> stop order
-          </button>
-          {!google && (
+          {!compact && (
+            <button
+              className="map-legend-toggle"
+              aria-expanded={legend}
+              aria-controls={legendId}
+              onClick={() => setLegend((old) => !old)}
+            >
+              <ListOrdered size={17} /> stop order
+            </button>
+          )}
+          {!google && !compact && (
             <button
               className="map-fit"
               aria-label="show whole route"
@@ -349,7 +356,7 @@ export default function RouteMap({
           </button>
         </div>
         {legend && (
-          <ol className="map-stop-legend" id="map-stop-legend">
+          <ol className="map-stop-legend" id={legendId}>
             {stops.map((stop, i) => (
               <li key={stop.id}>
                 <button onClick={() => selectStop(stop.id)}>
@@ -365,13 +372,13 @@ export default function RouteMap({
       <dialog
         ref={dialog}
         className="route-map-dialog"
-        aria-labelledby="expanded-map-title"
+        aria-labelledby={titleId}
         onClose={() => setOpen(false)}
       >
         {open && (
           <div className="expanded-route">
             <header>
-              <h2 id="expanded-map-title">ur day, mapped out.</h2>
+              <h2 id={titleId}>{title}</h2>
               <button
                 autoFocus
                 aria-label="close map"

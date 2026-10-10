@@ -1,8 +1,15 @@
 import { test, expect } from "@playwright/test";
-import { mockMapTiles } from "./fixtures.js";
+import {
+  mockMapTiles,
+  mockLocationSearch,
+  continueQuestions,
+  chooseTime,
+  chooseArea,
+} from "./fixtures.js";
 test.use({ hasTouch: true });
 test.beforeEach(async ({ page }) => {
   await mockMapTiles(page);
+  await mockLocationSearch(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route("**/api/status", (route) =>
     route.fulfill({ json: { venues: "demo" } }),
@@ -18,7 +25,7 @@ test("landing follows the wireframe and starts the introduction", async ({
     page.getByRole("heading", { name: "melloway", exact: true }),
   ).toBeVisible();
   await expect(page.locator(".intro-bubble")).toHaveCount(0);
-  await expect(page.locator(".floating-doodle")).toHaveCount(2);
+  await expect(page.locator(".floating-doodle")).toHaveCount(6);
   await expect(page.locator(".app-topbar")).toHaveCount(0);
   await expect(
     page.getByRole("navigation", { name: "Main navigation" }),
@@ -43,29 +50,39 @@ test("landing follows the wireframe and starts the introduction", async ({
   await expect(page.getByLabel("what’s ur name?")).toBeVisible();
   expect(errors).toEqual([]);
 });
-test("name and age stay separate, with working back, skip and saved answers", async ({
+test("name, age and gender arrive separately and keep their answers", async ({
   page,
 }, info) => {
   await page.goto("/plan/profile");
   await page.getByLabel("what’s ur name?").fill("Jena");
   await expect(page.getByLabel("age", { exact: true })).toHaveCount(0);
-  await page.waitForTimeout(500);
-  await page.evaluate(() => document.fonts.ready);
-  await page.screenshot({ path: info.outputPath("name.png") });
-  await page.getByRole("button", { name: "continue", exact: true }).click();
+  await continueQuestions(page);
   await expect(page).toHaveURL(/\/plan\/about$/);
   await expect(
     page.getByRole("heading", { name: /cool name,.*Jena/ }),
   ).toBeVisible();
-  for (let i = 0; i < 3; i++)
-    await page.getByLabel("age", { exact: true }).press("ArrowRight");
+  await expect(
+    page.getByRole("button", { name: "non-binary", exact: true }),
+  ).toHaveCount(0);
+  const age = page.getByLabel("age", { exact: true });
+  await expect(age).toHaveAttribute("type", "number");
+  expect((await age.boundingBox()).width).toBeGreaterThanOrEqual(240);
+  await age.fill("17");
+  await continueQuestions(page);
+  await expect(page.getByRole("alert")).toHaveText(
+    "Enter a whole age between 18 and 100.",
+  );
+  await age.fill("");
+  await expect(age).toHaveValue("");
+  await age.fill("27");
+  await continueQuestions(page);
+  await expect(page.getByLabel("age", { exact: true })).toHaveCount(0);
   const gender = page.getByRole("button", { name: "non-binary", exact: true });
   await gender.click();
-  await expect(gender).toHaveAttribute("aria-pressed", "true");
   await page.reload();
-  await expect(page.getByLabel("age", { exact: true })).toHaveValue("27");
   await expect(gender).toHaveAttribute("aria-pressed", "true");
-  await page.waitForTimeout(500);
+  await page.getByRole("link", { name: "back", exact: true }).click();
+  await expect(page.getByLabel("age", { exact: true })).toHaveValue("27");
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({ path: info.outputPath("age.png") });
   await page.getByRole("link", { name: "back", exact: true }).click();
@@ -79,44 +96,73 @@ test("name and age stay separate, with working back, skip and saved answers", as
     .click();
   await expect(page).toHaveURL(/\/plan\/details$/);
 });
-test("hanging out keeps company, occasion, area and budget together", async ({
+test("hanging out asks one thing at a time with optional extra details", async ({
   page,
 }, info) => {
   await page.goto("/plan/details");
+  await expect(page.getByLabel("any specific location in mind?")).toHaveCount(
+    0,
+  );
   await page.getByRole("button", { name: "a friend", exact: true }).click();
+  await continueQuestions(page);
   await page.getByRole("button", { name: "just friends", exact: true }).click();
-  await page
-    .getByLabel("any specific location in mind?")
-    .selectOption("Newtown");
-  await page.getByLabel("budget each", { exact: true }).press("ArrowRight");
-  await page.getByText("a few more details", { exact: false }).click();
+  await continueQuestions(page);
+  await chooseArea(page, "Newtown");
+  await expect(page.getByLabel("budget each", { exact: true })).toHaveCount(0);
+  await continueQuestions(page);
+  const budget = page.getByLabel("budget each", { exact: true });
+  await expect(budget).toHaveAttribute("type", "number");
+  await expect(budget).toHaveAttribute("inputmode", "decimal");
+  await budget.fill("");
+  await continueQuestions(page);
+  await expect(page.getByRole("alert")).toHaveText(/\$0 to \$200 AUD/);
+  await budget.fill("201");
+  await page.getByRole("button", { name: /a few more details/ }).click();
+  await expect(page.getByRole("alert")).toHaveText(/\$0 to \$200 AUD/);
+  await page.getByRole("button", { name: "free", exact: true }).click();
+  await expect(budget).toHaveValue("0");
+  await expect(
+    page.getByRole("button", { name: "free", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await budget.fill("85.50");
+  await page.getByRole("button", { name: /a few more details/ }).click();
   await page.getByLabel("their name (optional)").fill("Alex");
-  await page.getByLabel("start around").fill("12:00");
+  await expect(page.getByLabel("hour", { exact: true })).toHaveCount(0);
+  await continueQuestions(page, 2);
+  await chooseTime(page, "12:00");
+  await continueQuestions(page);
   await page
     .getByRole("button", { name: "Public transport", exact: true })
     .click();
+  await continueQuestions(page);
   await page.getByLabel("how long have we got?").selectOption("6");
-  await page.waitForTimeout(500);
-  await page.evaluate(() => document.fonts.ready);
-  await page.screenshot({
-    path: info.outputPath("hanging-out.png"),
-    fullPage: true,
-  });
   await page.reload();
+  await expect(page.getByLabel("how long have we got?")).toHaveValue("6");
+  await page.getByRole("link", { name: "back", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Public transport", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("link", { name: "back", exact: true }).click();
+  await expect(page.getByLabel("hour", { exact: true })).toHaveValue("12");
+  await page.goto("/plan/details?q=2");
   await expect(page.getByLabel("any specific location in mind?")).toHaveValue(
     "Newtown",
   );
+  await continueQuestions(page);
   await expect(page.getByLabel("budget each", { exact: true })).toHaveValue(
-    "85",
+    "85.5",
   );
-  await expect(
-    page.getByRole("button", { name: "just friends", exact: true }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.getByText("a few more details", { exact: false }).click();
-  await expect(page.getByLabel("start around")).toHaveValue("12:00");
-  await expect(page.getByLabel("how long have we got?")).toHaveValue("6");
-  await page.getByRole("button", { name: "continue", exact: true }).click();
+  await page.evaluate(() => document.fonts.ready);
+  await page.screenshot({ path: info.outputPath("hanging-out.png") });
+  await continueQuestions(page);
   await expect(page).toHaveURL(/\/plan\/vibes$/);
+  const draft = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("melloway.draft")),
+  );
+  expect(draft.companion).toBe("a friend");
+  expect(draft.occasion).toBe("just friends");
+  expect(draft.partner).toBe("Alex");
+  expect(draft.duration).toBe(6);
 });
 test("illustrated ideas can be browsed and preferences still support multi-select", async ({
   page,
@@ -144,22 +190,23 @@ test("illustrated ideas can be browsed and preferences still support multi-selec
   await page.waitForTimeout(500);
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({ path: info.outputPath("date-idea.png") });
-  await page.locator(".vibe-extra summary").click();
+  await page.getByRole("button", { name: /make it more ur vibe/ }).click();
   const coffee = page.getByRole("button", {
     name: "Coffee shops",
     exact: true,
   });
   const museums = page.getByRole("button", { name: "Museums", exact: true });
   await coffee.click();
+  await continueQuestions(page, 2);
   await museums.click();
   await page.reload();
-  await expect(page.locator(".idea-caption")).toHaveText(
-    "bookshop browsing + coffee",
-  );
-  await page.locator(".vibe-extra summary").click();
-  await expect(coffee).toHaveAttribute("aria-pressed", "true");
   await expect(museums).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "continue", exact: true }).click();
+  await page.getByRole("link", { name: "back", exact: true }).click();
+  await page.getByRole("link", { name: "back", exact: true }).click();
+  await expect(coffee).toHaveAttribute("aria-pressed", "true");
+  await continueQuestions(page, 2);
+  await expect(museums).toHaveAttribute("aria-pressed", "true");
+  await continueQuestions(page);
   await expect(page).toHaveURL(/\/plan\/notes$/);
 });
 test("the lock-in screen keeps free-text notes through back navigation and uses them in planning", async ({
@@ -246,7 +293,7 @@ test("touch swipe changes the suggestion without changing the screen", async ({
     "bookshop browsing + coffee",
   );
 });
-test("map-first results expand the map and retain other cards and open details on swaps", async ({
+test("results show the route summary, expandable map and spot sheets while swaps preserve other cards", async ({
   page,
 }, info) => {
   await page.goto("/plan/notes");
@@ -257,11 +304,13 @@ test("map-first results expand the map and retain other cards and open details o
   const summary = await page.locator(".plan-summary").boundingBox();
   const map = await page.locator(".route-map").boundingBox();
   expect(summary.y).toBeGreaterThanOrEqual(map.y + map.height - 5);
+  const routeSummary = await page.locator(".route-summary").boundingBox();
+  expect(routeSummary.y + routeSummary.height).toBeLessThanOrEqual(map.y + 1);
   await expect(page.locator(".stop-photo")).toHaveCount(
-    await page.locator(".summary-stops li").count(),
+    await page.locator(".route-summary-list li").count(),
   );
   await expect(page.locator(".map-preview .route-pin").first()).toBeVisible();
-  const count = await page.locator(".summary-stops li").count();
+  const count = await page.locator(".route-summary-list li").count();
   const numbers = (
     await page.locator(".map-preview .pin-numbers").allTextContents()
   )
@@ -307,6 +356,9 @@ test("map-first results expand the map and retain other cards and open details o
   });
   await details.first().tap();
   await expect(details.first()).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(details.first()).toBeFocused();
   const before = await page.locator(".stop-body h2").allTextContents();
   await page
     .locator(".stop-card")
@@ -325,16 +377,17 @@ test("map-first results expand the map and retain other cards and open details o
       .first()
       .evaluate((el) => el === window.unchangedStop),
   ).toBe(true);
-  await expect(details.first()).toHaveAttribute("aria-expanded", "true");
+  await expect(details.first()).toHaveAttribute("aria-expanded", "false");
   expect(
     (await page.locator(".stop-body h2").allTextContents()).filter(
       (_, i) => i !== 1,
     ),
   ).toEqual(before.filter((_, i) => i !== 1));
   await details.first().tap();
+  await page.getByRole("button", { name: "close spot details" }).tap();
   await expect(details.first()).toHaveAttribute("aria-expanded", "false");
   await expect(page.locator(".stop-photo")).toHaveCount(
-    await page.locator(".summary-stops li").count(),
+    await page.locator(".route-summary-list li").count(),
   );
   await expand.tap();
   await expect(dialog).toBeVisible();
@@ -365,6 +418,8 @@ test("unavailable map tiles leave the plan, details and save action usable", asy
     .first()
     .tap();
   await expect(page.locator(".stop-photo").first()).toBeVisible();
+  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
+  await page.getByRole("button", { name: "close spot details" }).tap();
   await page.getByRole("button", { name: "lock this in", exact: true }).tap();
   await expect(
     page.getByRole("status").filter({ hasText: "Saved on this device." }),
@@ -416,7 +471,7 @@ test("Google Places plans keep ordered directions without using demo map tiles",
   }
   await page.getByRole("button", { name: "expand map", exact: true }).tap();
   await expect(page.getByRole("dialog").locator("ol li")).toHaveCount(
-    await page.locator(".summary-stops li").count(),
+    await page.locator(".route-summary-list li").count(),
   );
   await page.getByRole("button", { name: "close map", exact: true }).tap();
   await expect(
@@ -648,4 +703,260 @@ test("result search, filters and map selection preserve the full generated day",
     original.stops.map((s) => s.id),
   );
   expect(current.cost).toBe(original.cost);
+});
+
+test("calendar supports month navigation and keyboard selection; time remains optional", async ({
+  page,
+}) => {
+  await page.goto("/plan/details?q=5");
+  await expect(page.locator(".question-turn")).toBeFocused();
+  const today = await page
+    .locator('[aria-current="date"]')
+    .getAttribute("aria-label");
+  await expect(
+    page.getByRole("button", { name: "previous month", exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "next month", exact: true }).click();
+  const heading = await page.locator(".calendar-heading p").textContent();
+  await page
+    .locator(".date-calendar td button:not([disabled])")
+    .first()
+    .focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.locator(".date-calendar td button").nth(1)).toBeFocused();
+  await page.keyboard.press("Enter");
+  const selected = page.locator(
+    '.date-calendar td button[aria-pressed="true"]',
+  );
+  await expect(selected).toHaveText("2");
+  await page.reload();
+  await expect(page.locator(".calendar-heading p")).toHaveText(heading);
+  await expect(selected).toHaveText("2");
+  await page.getByRole("button", { name: "today", exact: true }).click();
+  await expect(selected).toHaveAttribute("aria-label", today);
+  await page.getByRole("button", { name: "not sure yet", exact: true }).click();
+  await expect(selected).toHaveCount(0);
+  await continueQuestions(page);
+  await expect(
+    page.getByRole("table", { name: "the day", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "evening 6 pm", exact: true }).click();
+  await expect(page.getByLabel("hour", { exact: true })).toHaveValue("6");
+  await expect(page.getByLabel("am or pm", { exact: true })).toHaveValue("pm");
+  await chooseTime(page, "00:30");
+  await expect(page.locator(".schedule-selection")).toHaveText(
+    "starting around 12:30 am",
+  );
+  await chooseTime(page, "12:00");
+  await expect(page.locator(".schedule-selection")).toHaveText(
+    "starting around 12:00 pm",
+  );
+  await page.getByRole("button", { name: "not sure yet", exact: true }).click();
+  await continueQuestions(page);
+  await expect(
+    page.getByRole("button", { name: "Walking", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await page.goBack();
+  await expect(page.getByLabel("hour", { exact: true })).toHaveValue("");
+  await expect(page.locator(".question-turn")).toBeFocused();
+});
+
+test("skipping calendar and time preserves other answers and generates with defaults", async ({
+  page,
+}) => {
+  await page.goto("/plan/profile");
+  await page.getByLabel("what’s ur name?").fill("Jena");
+  await page.goto("/plan/details?q=5");
+  await page.getByRole("button", { name: "today", exact: true }).click();
+  const today = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("melloway.draft")).date,
+  );
+  await page.getByRole("button", { name: "tomorrow", exact: true }).click();
+  await page
+    .getByRole("button", { name: "lemme skip this +", exact: true })
+    .click();
+  await chooseTime(page, "23:30");
+  await page
+    .getByRole("button", { name: "lemme skip this +", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Walking", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  const draft = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("melloway.draft")),
+  );
+  expect(draft.name).toBe("Jena");
+  expect(draft.date).toBe("");
+  expect(draft.time).toBe("");
+  await continueQuestions(page, 3);
+  await page.getByRole("button", { name: "submit", exact: true }).click();
+  await expect(page).toHaveURL(/\/itinerary$/);
+  await expect(page.locator(".stop-card").first()).toBeVisible();
+  const prefs = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("melloway.current")).plan.prefs,
+  );
+  expect(prefs.name).toBe("Jena");
+  expect(prefs.date).toBe(today);
+  expect(prefs.time).toBe("11:00");
+});
+
+test("Sydney location search selects resolved geometry, persists and supports keyboard suggestions", async ({
+  page,
+}) => {
+  let token;
+  await page.route("**/api/locations/search", (route) => {
+    const body = route.request().postDataJSON();
+    token = body.sessionToken;
+    return route.fulfill({
+      json: {
+        source: "google",
+        suggestions: [
+          {
+            id: "test-spot",
+            name: "A Sydney spot",
+            address: "Newtown NSW",
+            source: "google",
+          },
+        ],
+      },
+    });
+  });
+  await page.route("**/api/locations/resolve", (route) => {
+    expect(route.request().postDataJSON().sessionToken).toBe(token);
+    return route.fulfill({
+      json: {
+        location: {
+          id: "test-spot",
+          name: "A Sydney spot",
+          address: "Newtown NSW",
+          lat: -33.8965,
+          lng: 151.1794,
+          r: 3,
+          source: "google",
+        },
+      },
+    });
+  });
+  await page.goto("/plan/details?q=2");
+  const search = page.getByRole("combobox", {
+    name: "any specific location in mind?",
+  });
+  await search.fill("newtown");
+  await expect(
+    page.getByRole("option", { name: /A Sydney spot/ }),
+  ).toBeVisible();
+  await expect(page.locator(".google-search-attribution")).toHaveText(
+    "Google Maps",
+  );
+  await search.press("Enter");
+  await expect(search).toHaveValue("A Sydney spot");
+  await continueQuestions(page);
+  await expect(page.getByLabel("budget each", { exact: true })).toBeVisible();
+  await page.reload();
+  await page.getByRole("link", { name: "back", exact: true }).click();
+  await expect(search).toHaveValue("A Sydney spot");
+  await page.goto("/plan/notes");
+  await page.getByRole("button", { name: "submit", exact: true }).click();
+  await expect(page).toHaveURL(/\/itinerary$/);
+  await expect(page.locator(".stop-card").first()).toBeVisible();
+  const prefs = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("melloway.current")).plan.prefs,
+  );
+  expect(prefs.area).toBe("A Sydney spot");
+  expect(prefs.location.lat).toBe(-33.8965);
+});
+
+test("location editing cancels pending selection and failed selection can retry", async ({
+  page,
+}) => {
+  const calls = [];
+  let release;
+  const held = new Promise((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/api/locations/search", (route) => {
+    const { query } = route.request().postDataJSON();
+    return route.fulfill({
+      json: {
+        source: "google",
+        suggestions: [
+          {
+            id: query.replaceAll(" ", "-"),
+            name: query,
+            address: "Sydney NSW",
+            source: "google",
+          },
+        ],
+      },
+    });
+  });
+  let attempts = 0;
+  await page.route("**/api/locations/resolve", async (route) => {
+    const body = route.request().postDataJSON();
+    calls.push(body);
+    if (body.placeId === "old-spot") {
+      await held;
+      await route
+        .fulfill({ status: 502, json: { error: "Unavailable" } })
+        .catch(() => {});
+      return;
+    }
+    if (++attempts === 1)
+      return route.fulfill({ status: 502, json: { error: "Unavailable" } });
+    return route.fulfill({
+      json: {
+        location: {
+          id: "new-spot",
+          name: "New spot",
+          address: "Newtown NSW",
+          lat: -33.8965,
+          lng: 151.1794,
+          r: 3,
+          source: "google",
+        },
+      },
+    });
+  });
+  await page.goto("/plan/details?q=2");
+  const search = page.getByLabel("any specific location in mind?");
+  await search.fill("old spot");
+  await expect(page.getByRole("option", { name: /old spot/ })).toBeVisible();
+  await search.press("Enter");
+  await expect.poll(() => calls.length).toBe(1);
+  await search.fill("new spot");
+  await expect(page.getByRole("option", { name: /new spot/ })).toBeVisible();
+  release();
+  await search.press("Enter");
+  await expect(page.getByRole("alert")).toHaveText(/couldn’t select/);
+  await search.press("Enter");
+  await expect(search).toHaveValue("New spot");
+  expect(calls[1].sessionToken).not.toBe(calls[0].sessionToken);
+  expect(calls[2].sessionToken).toMatch(/^[a-zA-Z0-9_-]{1,36}$/);
+  await continueQuestions(page);
+  await expect(page.getByLabel("budget each", { exact: true })).toBeVisible();
+});
+
+test("unmatched location text never silently uses the previous location", async ({
+  page,
+}) => {
+  await page.goto("/plan/details?q=2");
+  const search = page.getByLabel("any specific location in mind?");
+  await search.fill("nothing like this nearby");
+  await expect(page.locator(".location-search-status")).toHaveText(
+    /no matches/,
+  );
+  await continueQuestions(page);
+  await expect(page.getByRole("alert")).toHaveText(/Choose a suggestion/);
+  await page
+    .getByRole("button", { name: "anywhere in Sydney is good", exact: true })
+    .click();
+  await continueQuestions(page);
+  await expect(page.getByLabel("budget each", { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => JSON.parse(localStorage.getItem("melloway.draft")).area,
+    ),
+  ).toBe("Anywhere in Sydney");
 });

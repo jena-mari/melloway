@@ -1,10 +1,17 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Bookmark, ArrowUpRight, Trash2 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { MoodImage } from "../components/UI";
+import { events } from "../data/events";
+import EventPoster from "../components/EventPoster";
 export default function Favourites() {
-  const { saved, setCurrent, remove } = useApp(),
+  const { saved, savedEvents, toggleEventSave, setCurrent, remove } = useApp(),
     navigate = useNavigate();
+  const [search, setSearch] = useSearchParams();
+  const tab =
+    search.get("tab") ||
+    (!saved.length && savedEvents.length ? "events" : "routes");
+  const keptEvents = events.filter((event) => savedEvents.includes(event.id));
   return (
     <div className="page collection">
       <span className="eyebrow">GOOD DAYS, KEPT CLOSE</span>
@@ -14,7 +21,63 @@ export default function Favourites() {
         <em>memory bank.</em>
       </h1>
       <p className="sub">saved on this device. ready whenever you are.</p>
-      {!saved.length ? (
+      <div
+        className="community-filters saved-tabs"
+        role="group"
+        aria-label="saved things"
+      >
+        {["routes", "events"].map((item) => (
+          <button
+            type="button"
+            key={item}
+            aria-pressed={tab === item}
+            onClick={() => setSearch({ tab: item })}
+          >
+            {item}{" "}
+            <span>{item === "routes" ? saved.length : keptEvents.length}</span>
+          </button>
+        ))}
+      </div>
+      {tab === "events" ? (
+        keptEvents.length ? (
+          <div className="saved-event-list">
+            {keptEvents.map((event) => (
+              <article key={event.id} className="saved-event-card">
+                <Link
+                  to={`/events?event=${event.id}`}
+                  aria-label={`View event ${event.title}`}
+                >
+                  <EventPoster event={event} compact />
+                </Link>
+                <div>
+                  <span className="eyebrow">{event.type} · sample</span>
+                  <h2>
+                    <Link to={`/events?event=${event.id}`}>{event.title}</Link>
+                  </h2>
+                  <p>{event.area} · date TBA</p>
+                  <button
+                    type="button"
+                    className="text-button"
+                    aria-label={`Unsave event ${event.title}`}
+                    onClick={() => toggleEventSave(event.id)}
+                  >
+                    <Bookmark size={16} fill="currentColor" /> saved · remove
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <div className="community-empty">
+            <Bookmark size={30} />
+            <h2>a little space for what’s next.</h2>
+            <p>save an event poster to come back to it here.</p>
+            <Link className="button" to="/events">
+              find something to do <ArrowUpRight size={16} />
+            </Link>
+          </div>
+        )
+      ) : !saved.length ? (
         <div className="empty-state">
           <Bookmark size={36} />
           <h2>a little empty, a lot of possibility.</h2>

@@ -11,18 +11,38 @@ import {
   Search,
   SlidersHorizontal,
   X,
+  Camera,
 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { Button, MoodImage } from "../components/UI";
-import { Reveal, gentleEase } from "../components/Introduction";
-import { formatTime, replaceStop, directions } from "../utils/planner";
-import { generate, prepareReplacement } from "../services/discovery";
+import { gentleEase } from "../components/Introduction";
+import {
+  formatTime,
+  replaceStop,
+  directions,
+  editRoute,
+  addStop,
+} from "../utils/planner";
+import {
+  generate,
+  prepareReplacement,
+  prepareAdditions,
+  prepareRouteEdit,
+} from "../services/discovery";
 import { createId } from "../utils/id";
+import RouteSummary from "../components/RouteSummary";
+import RouteExtras from "../components/RouteExtras";
+import StopPicker from "../components/StopPicker";
+import StopDetails from "../components/StopDetails";
 const RouteMap = lazy(() => import("../components/RouteMap"));
 export default function Itinerary() {
   const { current, setCurrent, setDraft, startNew, saved, save, setStatus } =
     useApp();
-  const [expanded, setExpanded] = useState({}),
+  const [detailId, setDetailId] = useState(null),
+    [picker, setPicker] = useState(null),
+    [extraPool, setExtraPool] = useState(null),
+    [extrasLoading, setExtrasLoading] = useState(false),
+    [extrasFailed, setExtrasFailed] = useState(false),
     [busy, setBusy] = useState(false),
     [busyStop, setBusyStop] = useState(null),
     [query, setQuery] = useState(""),
@@ -34,14 +54,53 @@ export default function Itinerary() {
     gripStart = useRef(null),
     gripMoved = useRef(false);
   const reduced = useReducedMotion(),
-    pending = useRef(null);
-  useEffect(() => () => pending.current?.abort(), []);
+    pending = useRef(null),
+    extrasPending = useRef(null),
+    extrasRequest = useRef(null);
+  useEffect(
+    () => () => {
+      pending.current?.abort();
+      extrasPending.current?.abort();
+    },
+    [],
+  );
+  // Load opt-in extras once for this route. Manual edits reuse its checked matrix.
+  useEffect(() => {
+    if (current?.plan) loadExtras();
+  }, []);
   function beginRequest(index = null) {
     pending.current?.abort();
     pending.current = new AbortController();
     setBusy(true);
     setBusyStop(index);
     return pending.current.signal;
+  }
+  async function loadExtras(
+    target = current?.plan,
+    pool = current?.candidates || [],
+  ) {
+    if (!target) return null;
+    extrasPending.current?.abort();
+    const controller = new AbortController();
+    extrasPending.current = controller;
+    setExtrasLoading(true);
+    setExtrasFailed(false);
+    const request = prepareAdditions(target, pool, {
+      signal: controller.signal,
+    });
+    extrasRequest.current = request;
+    try {
+      const options = await request;
+      if (controller.signal.aborted) return null;
+      setExtraPool(options);
+      return options;
+    } catch {
+      if (!controller.signal.aborted) setExtrasFailed(true);
+      return null;
+    } finally {
+      if (extrasRequest.current === request) extrasRequest.current = null;
+      if (!controller.signal.aborted) setExtrasLoading(false);
+    }
   }
   if (!current?.plan)
     return (
@@ -70,7 +129,9 @@ export default function Itinerary() {
         );
       else if (next.plan) {
         setCurrent(next);
-        setExpanded({});
+        setDetailId(null);
+        setExtraPool(null);
+        loadExtras(next.plan, next.candidates);
         setSelectedId("");
         setQuery("");
         setCategory("all");
@@ -109,10 +170,8 @@ export default function Itinerary() {
           id: createId(),
         },
       });
-      setExpanded((old) => ({
-        ...old,
-        [next.stops[i].id]: !!old[plan.stops[i].id],
-      }));
+      setExtraPool(null);
+      loadExtras({ ...plan, ...next }, options.candidates);
       setStatus("One new stop. The rest of ur day stays yours.");
     } catch {
       if (!signal.aborted)
@@ -126,9 +185,11 @@ export default function Itinerary() {
       }
     }
   }
-  const location = d.area.includes("Sydney")
-    ? d.area.toLowerCase().replace("anywhere in ", "")
-    : `${d.area.toLowerCase()}, sydney`;
+  const location = d.location
+    ? d.location.name.toLowerCase()
+    : d.area.includes("Sydney")
+      ? d.area.toLowerCase().replace("anywhere in ", "")
+      : `${d.area.toLowerCase()}, sydney`;
   const selectedStop = plan.stops.some((stop) => stop.id === selectedId)
     ? selectedId
     : plan.stops[0].id;
@@ -162,6 +223,122 @@ export default function Itinerary() {
     setQuery("");
     setCategory("all");
   }
+  function availableOptions() {
+    if (
+      extraPool &&
+      plan.stops.every((s) => extraPool.candidates.some((v) => v.id === s.id))
+    )
+      return extraPool;
+    return candidates.length
+      ? { candidates, matrix, notice: plan.notice }
+      : null;
+  }
+  function commitEdit(next, options, message) {
+    setCurrent({
+      ...current,
+      ...options,
+      plan: { ...plan, ...next, notice: options.notice, id: createId() },
+    });
+    setExtraPool(options);
+    setQuery("");
+    setCategory("all");
+    setStatus(message);
+  }
+  async function editStops(stops, message) {
+    const signal = beginRequest("edit");
+    try {
+      const options =
+        availableOptions() || (await prepareRouteEdit(plan, { signal }));
+      if (signal.aborted) return;
+      const next = editRoute(stops, d, options.candidates, options.matrix);
+      if (next) commitEdit(next, options, message);
+      else
+        setStatus(
+          "That order doesn’t fit ur budget, time or opening hours. Try another order or tweak the details.",
+        );
+    } catch {
+      if (!signal.aborted)
+        setStatus("Couldn’t check this edit. Ur current route is still here.");
+    } finally {
+      if (!signal.aborted) {
+        setBusy(false);
+        setBusyStop(null);
+      }
+    }
+  }
+  function moveStop(index, direction) {
+    const stops = [...plan.stops];
+    [stops[index], stops[index + direction]] = [
+      stops[index + direction],
+      stops[index],
+    ];
+    editStops(stops, "Order updated. Times, travel and budget checked again.");
+  }
+  async function openPicker(index = null) {
+    const signal = beginRequest("picker");
+    try {
+      const options =
+        extraPool ||
+        (await (extrasRequest.current ||
+          prepareAdditions(plan, candidates, { signal })));
+      if (signal.aborted) return;
+      setExtraPool(options);
+      setPicker({ index, options });
+    } catch {
+      if (!signal.aborted)
+        setStatus("Couldn’t load nearby spots. Try again in a moment.");
+    } finally {
+      if (!signal.aborted) {
+        setBusy(false);
+        setBusyStop(null);
+      }
+    }
+  }
+  function choiceList(options, index = null) {
+    if (!options) return [];
+    return options.candidates
+      .filter(
+        (v) => !plan.stops.some((s) => s.id === v.id || s.name === v.name),
+      )
+      .map((venue) => ({
+        venue,
+        next:
+          index === null
+            ? addStop(plan, venue, options.candidates, options.matrix)
+            : editRoute(
+                plan.stops.map((s, i) => (i === index ? venue : s)),
+                d,
+                options.candidates,
+                options.matrix,
+              ),
+      }));
+  }
+  function chooseAddition(venue, options = extraPool, index = null) {
+    if (!options || busy) return;
+    const next =
+      index === null
+        ? addStop(plan, venue, options.candidates, options.matrix)
+        : editRoute(
+            plan.stops.map((s, i) => (i === index ? venue : s)),
+            d,
+            options.candidates,
+            options.matrix,
+          );
+    if (!next) {
+      setStatus("That spot no longer fits. Try another or tweak the details.");
+      return;
+    }
+    commitEdit(
+      next,
+      options,
+      index === null
+        ? "Little extra added. Ur other stops stay in order."
+        : "Spot changed. Ur other stops stay in order.",
+    );
+    setPicker(null);
+  }
+  const detailIndex = plan.stops.findIndex((s) => s.id === detailId);
+  const extras = choiceList(extraPool);
   return (
     <div className="page itinerary wireframe-result map-result">
       <div className="result-chrome">
@@ -233,6 +410,24 @@ export default function Itinerary() {
           </div>
         )}
       </div>
+      <RouteSummary
+        plan={plan}
+        location={location}
+        busy={busy}
+        onMove={moveStop}
+        onRemove={(i) =>
+          editStops(
+            plan.stops.filter((_, index) => index !== i),
+            "Stop removed. Ur route, times and budget are updated.",
+          )
+        }
+        onChange={openPicker}
+        onAdd={() => openPicker()}
+        onSelect={(id) => {
+          setSelectedId(id);
+          setDetailId(id);
+        }}
+      />
       <div className="result-route" ref={mapArea}>
         <Suspense
           fallback={
@@ -277,47 +472,17 @@ export default function Itinerary() {
         >
           <span />
         </button>
-        <Reveal className="plan-summary" delay={0.05}>
+        <div className="plan-summary">
           <p className="sheet-count" role="status">
             {shownStops.length === plan.stops.length
               ? `${plan.stops.length} little stops for ur day`
               : `${shownStops.length} of ${plan.stops.length} stops`}
           </p>
-          <h2>
-            {location} {d.mode === "date" ? "date" : "hangout"}
-          </h2>
-          <div className="summary-stats">
-            <span>~${plan.cost} each</span>
-            <span>
-              {Math.floor(plan.elapsed / 60)}h {Math.round(plan.elapsed % 60)}m
-            </span>
-            <span>{d.transport}</span>
-          </div>
-          <details className="plan-overview">
-            <summary>
-              <span className="sr-only">ur plan at a glance</span>{" "}
-              <ChevronDown size={18} />
-            </summary>
-            <p className="summary-company">
-              {d.partner
-                ? `${d.name || "you"} & ${d.partner}`
-                : "you & good company"}{" "}
-              ·{" "}
-              {new Date(d.date + "T12:00:00").toLocaleDateString("en-AU", {
-                weekday: "short",
-                day: "numeric",
-                month: "short",
-              })}
-            </p>
-            <ol className="summary-stops">
-              {plan.stops.map((stop, i) => (
-                <li key={i}>
-                  {activityLabel(stop.category)} @ {stop.name}
-                </li>
-              ))}
-            </ol>
-          </details>
-        </Reveal>
+          <h2>the spots.</h2>
+          <p className="spots-sheet-hint">
+            tap the details to pop open a spot.
+          </p>
+        </div>
         <section
           id="plan-stops"
           aria-label="Your itinerary"
@@ -343,21 +508,27 @@ export default function Itinerary() {
                   }}
                 >
                   <div className="stop-photo">
-                    <MoodImage
-                      src={s.image}
-                      alt={
-                        s.source === "demo"
-                          ? "Illustrative mood photograph"
-                          : ""
-                      }
-                    />
+                    {s.image && (
+                      <MoodImage
+                        src={s.image}
+                        alt={
+                          s.source === "demo"
+                            ? "Illustrative mood photograph"
+                            : ""
+                        }
+                      />
+                    )}
                     <span className="stop-time">
                       0{i + 1} · {formatTime(s.arrival)}
                     </span>
                     <span className="stop-allowance">~${s.cost} each</span>
                     {!s.image && (
                       <span className="photo-placeholder">
-                        ✳
+                        {s.category === "Photo booths" ? (
+                          <Camera size={38} strokeWidth={1.3} />
+                        ) : (
+                          "✳"
+                        )}
                         <small>
                           {s.source === "google"
                             ? "Venue photo unavailable"
@@ -391,21 +562,11 @@ export default function Itinerary() {
                     </p>
                     <div className="stop-actions">
                       <button
-                        aria-expanded={!!expanded[s.id]}
-                        aria-controls={`details-${i}`}
-                        onClick={() =>
-                          setExpanded((old) => ({ ...old, [s.id]: !old[s.id] }))
-                        }
+                        aria-expanded={detailId === s.id}
+                        aria-haspopup="dialog"
+                        onClick={() => setDetailId(s.id)}
                       >
-                        the details{" "}
-                        <ChevronDown
-                          size={17}
-                          style={{
-                            transform: expanded[s.id]
-                              ? "rotate(180deg)"
-                              : "none",
-                          }}
-                        />
+                        the details <ChevronDown size={17} />
                       </button>
                       <button disabled={busy} onClick={() => swap(i)}>
                         <RefreshCw size={13} />
@@ -413,63 +574,6 @@ export default function Itinerary() {
                       </button>
                     </div>
                   </div>
-                  <AnimatePresence initial={false}>
-                    {expanded[s.id] && (
-                      <motion.div
-                        id={`details-${i}`}
-                        className="detail-reveal"
-                        initial={reduced ? false : { height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={
-                          reduced ? { opacity: 1 } : { height: 0, opacity: 0 }
-                        }
-                        style={{ overflow: "hidden" }}
-                        transition={{
-                          duration: reduced ? 0 : 0.22,
-                          ease: gentleEase,
-                        }}
-                      >
-                        <div className="stop-detail">
-                          <div className="stop-kicker">
-                            <span>
-                              {formatTime(s.arrival)} · {s.mins} min visit
-                            </span>
-                            <span>
-                              {s.cost ? `~$${s.cost} each` : "$0 allowance"}
-                            </span>
-                          </div>
-                          <p className="stop-address">
-                            <MapPin size={13} />
-                            {s.address}
-                          </p>
-                          <span className="category">{s.category}</span>
-                          <p className="match-reason">
-                            {s.tags.some((t) => d.preferences.includes(t))
-                              ? `a little bit of ur ${s.tags.filter((t) => d.preferences.includes(t)).join(" + ")} vibe.`
-                              : "a little variety to balance ur day."}
-                          </p>
-                          {i > 0 && (
-                            <p className="stop-travel">
-                              from the last stop: {s.travelFromPrevious.minutes}{" "}
-                              min {d.transport.toLowerCase()} ·{" "}
-                              {s.travelFromPrevious.source === "google"
-                                ? "Google route estimate"
-                                : `rough estimate, ${s.travelFromPrevious.distance.toFixed(1)} km straight-line`}
-                            </p>
-                          )}
-                          <p>{s.note}</p>
-                          <p>
-                            {s.rating
-                              ? `${s.rating}/5 · Google rating`
-                              : "No verified rating or availability in demo mode."}
-                          </p>
-                          <Link to={`/venue/${s.id}`}>
-                            location spotlight <ArrowUpRight size={14} />
-                          </Link>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </motion.div>
               </AnimatePresence>
             </article>
@@ -485,6 +589,15 @@ export default function Itinerary() {
             </button>
           </div>
         )}
+        <RouteExtras
+          choices={extras}
+          elapsed={plan.elapsed}
+          loading={extrasLoading}
+          failed={extrasFailed}
+          busy={busy}
+          onAdd={chooseAddition}
+          onRetry={() => loadExtras()}
+        />
         <div className="result-next">
           <p>
             you can lock this in or explore our community for more ideas. swap a
@@ -566,23 +679,24 @@ export default function Itinerary() {
           </Link>
         </div>
       </section>
+      {picker && (
+        <StopPicker
+          choices={choiceList(picker.options, picker.index)}
+          replacing={picker.index !== null}
+          onChoose={(venue) =>
+            chooseAddition(venue, picker.options, picker.index)
+          }
+          onClose={() => setPicker(null)}
+        />
+      )}
+      {detailIndex >= 0 && (
+        <StopDetails
+          stop={plan.stops[detailIndex]}
+          index={detailIndex}
+          prefs={d}
+          onClose={() => setDetailId(null)}
+        />
+      )}
     </div>
-  );
-}
-
-function activityLabel(category) {
-  return (
-    {
-      "Matcha cafés": "a little matcha",
-      "Coffee shops": "coffee + a catch-up",
-      "Vintage stores": "vintage shopping",
-      Bookshops: "bookshop browsing",
-      "Photo spots": "cute photos",
-      "Art galleries": "a gallery wander",
-      "Flea markets": "market finds",
-      "Scenic walks": "a little wander",
-      "Café food": "a café stop",
-      Desserts: "something sweet",
-    }[category] || category.toLowerCase()
   );
 }

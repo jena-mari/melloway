@@ -1,4 +1,5 @@
-import { areas, categories } from "../src/data/preferences.js";
+import { categories } from "../src/data/preferences.js";
+import { inSydney, planningArea, sydneyBounds } from "../src/utils/location.js";
 import { outingInstant } from "../src/utils/date.js";
 
 export function openingHours(periods) {
@@ -54,13 +55,15 @@ export function discoveryQueries(preferences) {
 }
 
 function allowance(tag) {
-  return /food|Dinner|Brunch|Italian|Asian/i.test(tag)
-    ? 30
-    : /caf|coffee|Matcha|Dessert/i.test(tag)
-      ? 15
-      : /Escape|Arcade|music|Jazz/i.test(tag)
-        ? 35
-        : 0;
+  return tag === "Photo booths"
+    ? 12
+    : /food|Dinner|Brunch|Italian|Asian/i.test(tag)
+      ? 30
+      : /caf|coffee|Matcha|Dessert/i.test(tag)
+        ? 15
+        : /Escape|Arcade|music|Jazz/i.test(tag)
+          ? 35
+          : 0;
 }
 
 export function createGoogleProvider(key, fetcher = fetch) {
@@ -80,13 +83,13 @@ export function createGoogleProvider(key, fetcher = fetch) {
   }
 
   async function discover(prefs) {
-    const area = areas[prefs.area];
+    const area = planningArea(prefs);
     const lists = await Promise.all(
       discoveryQueries(prefs.preferences).map(async (tag) => {
         const data = await google(
           "https://places.googleapis.com/v1/places:searchText",
           {
-            textQuery: `${tag} in ${prefs.area}, Sydney Australia`,
+            textQuery: `${tag} near ${prefs.area}, Sydney Australia`,
             pageSize: 6,
             locationBias: {
               circle: {
@@ -123,7 +126,7 @@ export function createGoogleProvider(key, fetcher = fetch) {
             weeklyHours: openingHours(p.regularOpeningHours.periods),
             source: "google",
             cost: allowance(tag),
-            mins: 45,
+            mins: tag === "Photo booths" ? 15 : 45,
             note: "Discovered with Google Places. Estimated spend is a planning allowance, not a venue quote. Check the venue before visiting.",
             mapsUri: p.googleMapsUri,
           }));
@@ -221,5 +224,66 @@ export function createGoogleProvider(key, fetcher = fetch) {
       body: Buffer.from(await image.arrayBuffer()),
     };
   }
-  return { discover, routeMatrix, photo };
+  async function searchLocations(input, sessionToken) {
+    const data = await google(
+      "https://places.googleapis.com/v1/places:autocomplete",
+      {
+        input,
+        sessionToken,
+        languageCode: "en",
+        regionCode: "au",
+        includedRegionCodes: ["au"],
+        locationRestriction: {
+          rectangle: {
+            low: { latitude: sydneyBounds.south, longitude: sydneyBounds.west },
+            high: {
+              latitude: sydneyBounds.north,
+              longitude: sydneyBounds.east,
+            },
+          },
+        },
+      },
+      "suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat,suggestions.placePrediction.text",
+    );
+    return (data.suggestions || []).flatMap(({ placePrediction: p }) =>
+      p?.placeId
+        ? [
+            {
+              id: p.placeId,
+              name: p.structuredFormat?.mainText?.text || p.text?.text || "",
+              address: p.structuredFormat?.secondaryText?.text || "",
+              source: "google",
+            },
+          ]
+        : [],
+    );
+  }
+  async function resolveLocation(placeId, sessionToken) {
+    const url = new URL(
+      `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
+    );
+    url.searchParams.set("sessionToken", sessionToken);
+    url.searchParams.set("languageCode", "en");
+    url.searchParams.set("regionCode", "au");
+    const response = await fetcher(url.toString(), {
+      headers: {
+        "X-Goog-Api-Key": key,
+        "X-Goog-FieldMask": "id,displayName,formattedAddress,location",
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new Error("Location unavailable");
+    const p = await response.json();
+    const coords = { lat: p.location?.latitude, lng: p.location?.longitude };
+    if (!inSydney(coords)) throw new Error("Choose a location near Sydney");
+    return {
+      id: p.id,
+      name: p.displayName?.text || p.formattedAddress,
+      address: p.formattedAddress || "",
+      ...coords,
+      r: 3,
+      source: "google",
+    };
+  }
+  return { discover, routeMatrix, photo, searchLocations, resolveLocation };
 }

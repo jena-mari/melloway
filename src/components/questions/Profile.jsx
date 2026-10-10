@@ -1,3 +1,4 @@
+import QuestionPrompt from "../QuestionPrompt";
 import { Reveal } from "../Introduction";
 import { Chips, Field } from "../UI";
 import { useState } from "react";
@@ -22,42 +23,48 @@ export function NameQuestion({ draft: d, update }) {
     </>
   );
 }
-export function AboutQuestion({ draft: d, update }) {
-  return (
-    <>
-      <Reveal as="h1">
-        cool name,
-        <br />
-        {d.name || "new friend"}.
-      </Reveal>
-      <Reveal as="p" className="question-copy" delay={0.06}>
-        we’ll learn more about ur interests later, but right now, let me ask ur
-        age and gender.
-      </Reveal>
-      <Reveal delay={0.12}>
-        <label className="range-label" htmlFor="age">
-          age <output htmlFor="age">{d.age}</output>
-        </label>
+export function AboutQuestion({ draft: d, update, question }) {
+  return question === 0 ? (
+    <QuestionPrompt
+      title={`cool name,\n${d.name || "new friend"}.`}
+      copy="how old are u?"
+    >
+      <label className="age-label" htmlFor="age">
+        age
+      </label>
+      <div className="age-entry">
         <input
           id="age"
-          aria-label="age"
-          type="range"
+          type="number"
+          inputMode="numeric"
           min="18"
           max="100"
+          step="1"
+          placeholder="e.g. 24"
+          aria-describedby="age-hint"
           value={d.age}
-          onChange={(e) => update({ age: Number(e.target.value) })}
+          onChange={(e) =>
+            update({ age: e.target.value === "" ? "" : Number(e.target.value) })
+          }
         />
-        <fieldset>
-          <legend>
-            gender <span className="optional">if you’d like</span>
-          </legend>
-          <Chips
-            options={["woman", "man", "non-binary", "prefer not to say"]}
-            value={d.gender}
-            onChange={(gender) => update({ gender })}
-          />
-        </fieldset>
-      </Reveal>
-    </>
+        <span aria-hidden="true">years old</span>
+      </div>
+      <p className="age-hint" id="age-hint">
+        tap the number to type ur age.
+      </p>
+    </QuestionPrompt>
+  ) : (
+    <QuestionPrompt title="and ur gender?" copy="only if you’d like to share.">
+      <fieldset>
+        <legend>
+          gender <span className="optional">optional</span>
+        </legend>
+        <Chips
+          options={["woman", "man", "non-binary", "prefer not to say"]}
+          value={d.gender}
+          onChange={(gender) => update({ gender })}
+        />
+      </fieldset>
+    </QuestionPrompt>
   );
 }

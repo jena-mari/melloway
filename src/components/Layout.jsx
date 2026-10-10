@@ -14,7 +14,7 @@ const tabs = [
 ];
 export default function Layout() {
   const { status, setStatus, current } = useApp(),
-    { pathname } = useLocation();
+    { pathname, search } = useLocation();
   const keyboardOpen = useKeyboard();
   const outlet = useOutlet(),
     reduced = useReducedMotion(),
@@ -22,6 +22,9 @@ export default function Layout() {
   const planning = pathname.startsWith("/plan/") || pathname === "/generating";
   const introduction =
     planning || pathname === "/" || pathname === "/itinerary";
+  const calendar =
+    pathname === "/plan/details" &&
+    new URLSearchParams(search).get("q") === "5";
   const result = pathname === "/itinerary";
   const navigationTabs = current?.plan
     ? [
@@ -35,7 +38,7 @@ export default function Layout() {
   }, [pathname]);
   return (
     <div
-      className={`app-shell ${planning ? "planning" : ""} ${introduction ? "journey-shell" : ""} ${keyboardOpen ? "keyboard-open" : ""}`}
+      className={`app-shell ${planning ? "planning" : ""} ${introduction ? "journey-shell" : ""} ${keyboardOpen ? "keyboard-open" : ""} ${calendar ? "calendar-shell" : ""}`}
     >
       <DoodleBackdrop screen={pathname} paused={keyboardOpen} />
       {!introduction && (

@@ -41,6 +41,33 @@ function Doodle({ kind }) {
           <path d="M26 88 Q48 92 73 86" />
         </>
       )}
+      {kind === "camera" && (
+        <>
+          <path
+            d="M15 34 L32 34 L37 24 L63 24 L68 34 L85 34 Q91 34 91 42 L91 76 Q91 84 83 84 L17 84 Q9 84 9 76 L9 42 Q9 34 15 34 Z"
+            fill="#f5e8aa"
+          />
+          <circle cx="50" cy="58" r="18" fill="white" />
+          <circle cx="50" cy="58" r="11" fill="#f8a8b9" />
+          <path d="M76 43 L82 43 M21 27 L27 27 M13 16 L13 23 M9 19 L17 19" />
+        </>
+      )}
+      {kind === "star" && (
+        <>
+          <path
+            d="M49 13 Q52 41 82 49 Q54 52 48 84 Q44 56 16 49 Q42 43 49 13 Z"
+            fill="#f5e8aa"
+          />
+          <path d="M81 13 L81 27 M74 20 L88 20 M14 72 L14 84 M8 78 L20 78" />
+        </>
+      )}
+      {kind === "leaf" && (
+        <>
+          <path d="M23 79 Q7 30 77 18 Q90 72 23 79 Z" fill="#d3e4b4" />
+          <path d="M14 88 Q42 55 67 31 M35 65 L32 45 M48 51 L70 52" />
+          <path d="M83 71 Q87 82 97 76" stroke="#f8a8b9" strokeWidth="4" />
+        </>
+      )}
       {kind === "flower" && (
         <>
           <path
@@ -66,7 +93,7 @@ function DoodleBackdrop({ screen, paused = false }) {
     return () => document.removeEventListener("visibilitychange", update);
   }, []);
   const quiet = paused || !visible;
-  const motifs = ["apple", "matcha", "flower"];
+  const motifs = ["apple", "matcha", "flower", "camera", "star", "leaf"];
   const introduction = screen.startsWith("/plan/") || screen === "/generating";
   const seed =
     [...screen].reduce((sum, letter) => sum + letter.charCodeAt(0), 0) %
@@ -76,40 +103,39 @@ function DoodleBackdrop({ screen, paused = false }) {
       className={`doodle-backdrop ${screen === "/" ? "home-doodles" : introduction ? "intro-doodles" : "edge-doodles"} ${screen === "/plan/profile" ? "name-doodles" : ""}`}
       aria-hidden="true"
     >
-      {[0, 1]
-        .filter((i) => !reduced || i === 0)
-        .map((i) => (
-          <motion.span
-            key={`${screen}-${i}`}
-            className={`floating-doodle doodle-${i + 1}`}
-            initial={false}
-            animate={
-              quiet
-                ? { opacity: 0, y: 0, rotate: 0 }
-                : reduced
-                  ? { opacity: 0.48, y: 0, rotate: -6 }
-                  : {
-                      opacity: [0, 0.7, 0.7, 0],
-                      y: [10, 0, -10, -18],
-                      rotate: [-8, -4, 3, 6],
-                    }
-            }
-            transition={
-              quiet || reduced
-                ? { duration: 0 }
+      {motifs.map((_, i) => (
+        <motion.span
+          key={`${screen}-${i}`}
+          className={`floating-doodle doodle-${i + 1}`}
+          initial={false}
+          animate={
+            quiet
+              ? { opacity: 0, y: 0, rotate: 0 }
+              : reduced
+                ? { opacity: 0.42, y: 0, rotate: -6 }
                 : {
-                    duration: 7,
-                    delay: i === 0 ? 0.2 : 11,
-                    repeat: Infinity,
-                    repeatDelay: 13,
-                    ease: "easeInOut",
-                    times: [0, 0.18, 0.76, 1],
+                    opacity:
+                      i % 2 === 0 ? [0.35, 0.6, 0.5, 0.35] : [0, 0.6, 0.5, 0],
+                    y: [10, 0, -10, -18],
+                    rotate: [-8, -4, 3, 6],
                   }
-            }
-          >
-            <Doodle kind={motifs[(seed + i) % motifs.length]} />
-          </motion.span>
-        ))}
+          }
+          transition={
+            quiet || reduced
+              ? { duration: 0 }
+              : {
+                  duration: 12,
+                  delay: 0.15 + i * 0.4,
+                  repeat: Infinity,
+                  repeatDelay: 2,
+                  ease: "easeInOut",
+                  times: [0, 0.18, 0.76, 1],
+                }
+          }
+        >
+          <Doodle kind={motifs[(seed + i) % motifs.length]} />
+        </motion.span>
+      ))}
     </div>
   );
 }

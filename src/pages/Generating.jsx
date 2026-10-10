@@ -6,6 +6,7 @@ import { Button } from "../components/UI";
 import { useApp } from "../hooks/useApp";
 import { generate } from "../services/discovery";
 import { preferencesForPlan } from "../utils/interests";
+import { withScheduleDefaults } from "../utils/date";
 
 export default function Generating() {
   const { draft, setCurrent } = useApp(),
@@ -24,7 +25,7 @@ export default function Generating() {
     setStage("getting ur preferences together…");
     generate(
       {
-        ...draft,
+        ...withScheduleDefaults(draft),
         selectedPreferences: draft.preferences,
         preferences: preferencesForPlan(draft),
       },

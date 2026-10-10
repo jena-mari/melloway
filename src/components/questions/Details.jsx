@@ -1,14 +1,19 @@
-import { Reveal } from "../Introduction";
+import { lazy, Suspense } from "react";
+import QuestionPrompt from "../QuestionPrompt";
 import { Chips, Field } from "../UI";
-import { areas, sydneyToday } from "../../data/preferences";
-export default function DetailsQuestion({ draft: d, update }) {
-  return (
-    <>
-      <Reveal as="h1">
-        great. who u<br />
-        hanging out with?
-      </Reveal>
-      <Reveal delay={0.06}>
+const TimePicker = lazy(() => import("../TimePicker"));
+const LocationSearch = lazy(() => import("../LocationSearch"));
+const DateCalendar = lazy(() => import("../DateCalendar"));
+
+export default function DetailsQuestion({
+  draft: d,
+  update,
+  question,
+  onExtras,
+}) {
+  if (question === 0)
+    return (
+      <QuestionPrompt title={"great. who u\nhanging out with?"}>
         <fieldset>
           <legend>the company</legend>
           <Chips
@@ -17,8 +22,13 @@ export default function DetailsQuestion({ draft: d, update }) {
             onChange={(companion) => update({ companion })}
           />
         </fieldset>
+      </QuestionPrompt>
+    );
+  if (question === 1)
+    return (
+      <QuestionPrompt title="like a date or…?">
         <fieldset>
-          <legend>like a date or…?</legend>
+          <legend className="sr-only">the occasion</legend>
           <Chips
             options={["a date", "just friends", "family"]}
             value={d.mode === "date" ? "a date" : d.occasion || "just friends"}
@@ -30,97 +40,159 @@ export default function DetailsQuestion({ draft: d, update }) {
             }
           />
         </fieldset>
-        <label className="field area-field" htmlFor="area">
-          <span>any specific location in mind?</span>
-          <select
-            id="area"
-            value={d.area}
-            onChange={(e) => update({ area: e.target.value })}
-          >
-            {Object.keys(areas).map((area) => (
-              <option key={area}>{area}</option>
-            ))}
-          </select>
+      </QuestionPrompt>
+    );
+  if (question === 2)
+    return (
+      <QuestionPrompt title="where are we heading?">
+        <Suspense
+          fallback={
+            <p className="location-help" role="status">
+              bringing up ur location search…
+            </p>
+          }
+        >
+          <LocationSearch draft={d} update={update} />
+        </Suspense>
+      </QuestionPrompt>
+    );
+  if (question === 3)
+    return (
+      <QuestionPrompt title="what’s the budget?">
+        <label className="age-label" htmlFor="budget">
+          budget each
         </label>
-        <label className="range-label budget-label" htmlFor="budget">
-          budget each? <output htmlFor="budget">${d.budget}</output>
-        </label>
-        <input
-          id="budget"
-          aria-label="budget each"
-          type="range"
-          min="0"
-          max="200"
-          step="5"
-          value={d.budget}
-          onChange={(e) => update({ budget: Number(e.target.value) })}
-        />
-        <p className="budget-caption">
-          {d.budget < 40
-            ? "a little goes a long way."
-            : d.budget < 100
-              ? "ok pretty good."
-              : "a little room to treat yourselves."}
+        <div className="budget-entry">
+          <span className="budget-currency" aria-hidden="true">
+            $
+          </span>
+          <input
+            id="budget"
+            type="number"
+            inputMode="decimal"
+            enterKeyHint="next"
+            min="0"
+            max="200"
+            step="0.01"
+            placeholder="e.g. 80"
+            aria-describedby="budget-hint"
+            value={d.budget}
+            onChange={(e) => update({ budget: e.target.value })}
+          />
+          <span className="budget-unit" aria-hidden="true">
+            AUD each
+          </span>
+        </div>
+        <p className="age-hint" id="budget-hint">
+          tap to type. $0–$200 AUD per person, for the whole plan.
         </p>
-        <details className="planning-extra">
-          <summary>
-            a few more details <span>day, time & getting around</span>
-          </summary>
-          <div className="extra-fields">
-            <Field
-              label="their name (optional)"
-              id="partner"
-              value={d.partner}
-              maxLength={60}
-              placeholder="your favourite human"
-              onChange={(e) => update({ partner: e.target.value })}
-            />
-            <div className="two-fields">
-              <Field
-                label="the day"
-                id="date"
-                type="date"
-                min={sydneyToday()}
-                value={d.date}
-                required
-                onChange={(e) => update({ date: e.target.value })}
-              />
-              <Field
-                label="start around"
-                id="time"
-                type="time"
-                value={d.time}
-                required
-                onChange={(e) => update({ time: e.target.value })}
-              />
+        <div
+          className="chips budget-presets"
+          role="group"
+          aria-label="quick budget amounts"
+        >
+          {[0, 40, 80, 120].map((amount) => (
+            <button
+              key={amount}
+              type="button"
+              className={`chip ${d.budget !== "" && Number(d.budget) === amount ? "selected" : ""}`}
+              aria-pressed={d.budget !== "" && Number(d.budget) === amount}
+              onClick={() => update({ budget: amount })}
+            >
+              {amount === 0 ? "free" : `$${amount}`}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className="planning-extra extra-invitation"
+          onClick={onExtras}
+        >
+          a few more details <span>day, time & getting around</span>
+        </button>
+      </QuestionPrompt>
+    );
+  if (question === 4)
+    return (
+      <QuestionPrompt
+        title="who’s coming along?"
+        copy="a name is nice. totally optional."
+      >
+        <Field
+          label="their name (optional)"
+          id="partner"
+          value={d.partner}
+          maxLength={60}
+          placeholder="your favourite human"
+          onChange={(e) => update({ partner: e.target.value })}
+        />
+      </QuestionPrompt>
+    );
+  if (question === 5)
+    return (
+      <QuestionPrompt
+        title="what day works?"
+        copy="optional. pick a day, or we’ll plan for today."
+      >
+        <Suspense
+          fallback={
+            <div className="calendar-loading" role="status">
+              bringing up the calendar…
             </div>
-            <fieldset>
-              <legend>getting around</legend>
-              <Chips
-                options={["Walking", "Public transport", "Driving"]}
-                value={d.transport}
-                onChange={(transport) =>
-                  update({ transport: transport || "Walking" })
-                }
-              />
-            </fieldset>
-            <label className="field" htmlFor="duration">
-              <span>how long have we got?</span>
-              <select
-                id="duration"
-                value={d.duration}
-                onChange={(e) => update({ duration: Number(e.target.value) })}
-              >
-                {[3, 4, 5, 6, 8].map((n) => (
-                  <option key={n} value={n}>
-                    {n} hours
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </details>
-      </Reveal>
-    </>
+          }
+        >
+          <DateCalendar value={d.date} onChange={(date) => update({ date })} />
+        </Suspense>
+      </QuestionPrompt>
+    );
+  if (question === 6)
+    return (
+      <QuestionPrompt
+        title="and what time?"
+        copy="optional. we’ll use 11 am if ur not sure yet."
+      >
+        <Suspense
+          fallback={
+            <div className="calendar-loading" role="status">
+              bringing up ur time choices…
+            </div>
+          }
+        >
+          <TimePicker value={d.time} onChange={(time) => update({ time })} />
+        </Suspense>
+      </QuestionPrompt>
+    );
+  if (question === 7)
+    return (
+      <QuestionPrompt title="how are we getting around?">
+        <fieldset>
+          <legend>getting around</legend>
+          <Chips
+            options={["Walking", "Public transport", "Driving"]}
+            value={d.transport}
+            onChange={(transport) =>
+              update({ transport: transport || "Walking" })
+            }
+          />
+        </fieldset>
+      </QuestionPrompt>
+    );
+  return (
+    <QuestionPrompt title="how long have we got?">
+      <label className="field" htmlFor="duration">
+        <span>how long have we got?</span>
+        <select
+          id="duration"
+          value={d.duration}
+          onChange={(e) => update({ duration: Number(e.target.value) })}
+        >
+          {[3, 4, 5, 6, 8].map((n) => (
+            <option key={n} value={n}>
+              {n} hours
+            </option>
+          ))}
+        </select>
+      </label>
+    </QuestionPrompt>
   );
 }

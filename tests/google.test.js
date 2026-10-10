@@ -96,3 +96,63 @@ test("departure timestamps respect the clock change itself", () => {
   );
   assert.throws(() => outingInstant("2026-10-04", "02:30"));
 });
+
+test("location autocomplete restricts results to Sydney and keeps the session token", async () => {
+  let request;
+  const provider = createGoogleProvider("test-key", async (url, options) => {
+    request = { url, body: JSON.parse(options.body), headers: options.headers };
+    return Response.json({
+      suggestions: [
+        {
+          placePrediction: {
+            placeId: "test-place",
+            structuredFormat: {
+              mainText: { text: "A Sydney spot" },
+              secondaryText: { text: "Newtown NSW" },
+            },
+          },
+        },
+        { queryPrediction: { text: { text: "not a place" } } },
+      ],
+    });
+  });
+  const result = await provider.searchLocations("new", "test-session");
+  assert.equal(
+    request.url,
+    "https://places.googleapis.com/v1/places:autocomplete",
+  );
+  assert.equal(request.body.sessionToken, "test-session");
+  assert.deepEqual(request.body.includedRegionCodes, ["au"]);
+  assert.equal(request.body.locationRestriction.rectangle.low.latitude, -34.3);
+  assert.equal(request.body.locationBias, undefined);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].id, "test-place");
+  assert.equal(result[0].name, "A Sydney spot");
+});
+
+test("selected Google locations resolve their coordinates and reject places outside Sydney", async () => {
+  let request,
+    latitude = -33.8965;
+  const provider = createGoogleProvider("test-key", async (url, options) => {
+    request = { url, options };
+    return Response.json({
+      id: "test-place",
+      displayName: { text: "A Sydney spot" },
+      formattedAddress: "Newtown NSW",
+      location: { latitude, longitude: 151.1794 },
+    });
+  });
+  const location = await provider.resolveLocation("test-place", "test-session");
+  assert.equal(
+    new URL(request.url).searchParams.get("sessionToken"),
+    "test-session",
+  );
+  assert.equal(location.lat, -33.8965);
+  assert.equal(location.r, 3);
+  assert.equal(location.source, "google");
+  latitude = -37.8;
+  await assert.rejects(
+    provider.resolveLocation("test-place", "test-session"),
+    /near Sydney/,
+  );
+});

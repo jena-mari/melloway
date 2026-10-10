@@ -1,4 +1,5 @@
 import { validPreferences } from "../utils/planner";
+import { withScheduleDefaults } from "../utils/date";
 import { createContext, useContext, useState, useEffect } from "react";
 import { defaultDraft } from "../data/preferences";
 import {
@@ -17,14 +18,15 @@ function readDraft() {
       ? stored
       : {}),
   };
-  return validPreferences(draft) ? draft : defaultDraft();
+  return validPreferences(withScheduleDefaults(draft)) ? draft : defaultDraft();
 }
 function validPlan(plan) {
   return Boolean(
     plan?.id &&
     validPreferences(plan.prefs) &&
     Array.isArray(plan.stops) &&
-    plan.stops.length >= 3 &&
+    plan.stops.length >= 1 &&
+    plan.stops.length <= 14 &&
     plan.stops.every(
       (s) =>
         typeof s.id === "string" &&
@@ -55,6 +57,12 @@ export function AppProvider({ children }) {
   const [draft, setDraft] = useState(readDraft);
   const [saved, setSaved] = useState(readSaved);
   const [current, setCurrent] = useState(readCurrent);
+  const [savedEvents, setSavedEvents] = useState(() => {
+    const ids = readLocal("melloway.savedEvents", []);
+    return Array.isArray(ids)
+      ? [...new Set(ids.filter((id) => typeof id === "string"))]
+      : [];
+  });
   const [status, setStatus] = useState("");
   useEffect(() => {
     try {
@@ -128,6 +136,21 @@ export function AppProvider({ children }) {
     setCurrent(null);
     setStatus("");
   }
+  function toggleEventSave(id) {
+    const kept = savedEvents.includes(id);
+    const next = kept
+      ? savedEvents.filter((eventId) => eventId !== id)
+      : [...savedEvents, id];
+    try {
+      writeLocal("melloway.savedEvents", next);
+      setSavedEvents(next);
+      setStatus(
+        kept ? "Event removed from saved." : "Event saved on this device.",
+      );
+    } catch {
+      setStatus("Unable to save this event. Browser storage may be full.");
+    }
+  }
   function update(values) {
     setDraft((old) => ({ ...old, ...values }));
   }
@@ -139,6 +162,8 @@ export function AppProvider({ children }) {
         startNew,
         setDraft,
         saved,
+        savedEvents,
+        toggleEventSave,
         current,
         setCurrent,
         save,

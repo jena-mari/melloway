@@ -5,12 +5,15 @@ import Layout from "./components/Layout";
 import Landing from "./pages/Landing";
 import Onboarding from "./pages/Onboarding";
 import Generating from "./pages/Generating";
-import Itinerary from "./pages/Itinerary";
-import Favourites from "./pages/Favourites";
-import { Community, Events } from "./pages/Discover";
 import Venue from "./pages/Venue";
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { useLocation } from "react-router-dom";
+const Community = lazy(() => import("./pages/Community"));
+const Itinerary = lazy(() => import("./pages/Itinerary"));
+const Favourites = lazy(() => import("./pages/Favourites"));
+const Events = lazy(() =>
+  import("./pages/Discover").then((module) => ({ default: module.Events })),
+);
 function Scroll() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -33,10 +36,62 @@ export default function App() {
               <Route path="/" element={<Landing />} />
               <Route path="/plan/:step" element={<Onboarding />} />
               <Route path="/generating" element={<Generating />} />
-              <Route path="/itinerary" element={<Itinerary />} />
-              <Route path="/favourites" element={<Favourites />} />
-              <Route path="/community" element={<Community />} />
-              <Route path="/events" element={<Events />} />
+              <Route
+                path="/itinerary"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="page" role="status">
+                        bringing up ur day…
+                      </div>
+                    }
+                  >
+                    <Itinerary />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/favourites"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="page" role="status">
+                        bringing up ur saved things…
+                      </div>
+                    }
+                  >
+                    <Favourites />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/community"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="page" role="status">
+                        bringing up the ideas…
+                      </div>
+                    }
+                  >
+                    <Community />
+                  </Suspense>
+                }
+              />
+              <Route
+                path="/events"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="page" role="status">
+                        bringing up the posters…
+                      </div>
+                    }
+                  >
+                    <Events />
+                  </Suspense>
+                }
+              />
               <Route path="/venue/:id" element={<Venue />} />
               <Route
                 path="*"

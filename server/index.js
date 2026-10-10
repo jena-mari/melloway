@@ -1,5 +1,6 @@
 import http from "node:http";
 import { validPreferences } from "../src/utils/planner.js";
+import { localLocations } from "../src/utils/location.js";
 import { createGoogleProvider } from "./google.js";
 const key = process.env.GOOGLE_MAPS_API_KEY,
   provider = createGoogleProvider(key);
@@ -32,15 +33,22 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "GET" && req.url === "/api/status")
       return reply(200, { venues: key ? "google" : "demo" });
+    const locationSearch = req.url === "/api/locations/search";
+    const locationResolve = req.url === "/api/locations/resolve";
     const photoRequest =
       req.method === "GET" && req.url.startsWith("/api/photo?");
     if (
       !photoRequest &&
       (req.method !== "POST" ||
-        !["/api/venues", "/api/matrix"].includes(req.url))
+        ![
+          "/api/venues",
+          "/api/matrix",
+          "/api/locations/search",
+          "/api/locations/resolve",
+        ].includes(req.url))
     )
       return reply(404, { error: "Endpoint not found" });
-    if (!key)
+    if (!key && !locationSearch)
       return reply(503, { error: "Google credentials are not configured" });
     const ip = req.socket.remoteAddress,
       now = Date.now();
@@ -73,6 +81,36 @@ const server = http.createServer(async (req, res) => {
       body = JSON.parse(raw);
     } catch {
       return reply(400, { error: "Invalid JSON" });
+    }
+    if (locationSearch || locationResolve) {
+      const { query, placeId, sessionToken } = body;
+      if (
+        typeof sessionToken !== "string" ||
+        !/^[a-zA-Z0-9_-]{1,36}$/.test(sessionToken)
+      )
+        return reply(400, { error: "Invalid search session" });
+      if (locationSearch) {
+        if (
+          typeof query !== "string" ||
+          query.trim().length < 2 ||
+          query.length > 150
+        )
+          return reply(400, { error: "Enter a short location search" });
+        return reply(200, {
+          source: key ? "google" : "local",
+          suggestions: key
+            ? await provider.searchLocations(query.trim(), sessionToken)
+            : localLocations(query),
+        });
+      }
+      if (
+        typeof placeId !== "string" ||
+        !/^[a-zA-Z0-9_-]{1,200}$/.test(placeId)
+      )
+        return reply(400, { error: "Invalid location" });
+      return reply(200, {
+        location: await provider.resolveLocation(placeId, sessionToken),
+      });
     }
     const { prefs } = body;
     if (!validPreferences(prefs))
