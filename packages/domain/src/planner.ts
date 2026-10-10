@@ -1,0 +1,99 @@
+import { areas } from './preferences.ts';
+import type { Candidate, Coordinates, Plan, Preferences, Transport, TravelMatrix, Venue } from './types.ts';
+
+export function km(a: Coordinates, b: Coordinates): number {
+  const r = (x: number) => x * Math.PI / 180;
+  const x = Math.sin(r(b.lat - a.lat) / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(r(b.lng - a.lng) / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(Math.min(1, x)));
+}
+export const minutes = (time: string): number => {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+};
+export const formatTime = (m: number): string => `${Math.floor(m / 60) % 12 || 12}:${String(Math.round(m) % 60).padStart(2, '0')} ${m >= 720 ? 'pm' : 'am'}`;
+
+export function selectVenues(venues: Venue[], prefs: Preferences, seed: string | number = 0): Candidate[] {
+  const area = areas[prefs.area];
+  return venues.filter(v => km(v, area) <= area.r && v.cost <= prefs.budget)
+    .map(v => ({ ...v, score: v.tags.filter(t => prefs.preferences.includes(t)).length * 5 + ((v.id + seed).split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % 100) / 100 }))
+    .sort((a, b) => b.score - a.score || km(a, area) - km(b, area))
+    .filter((v, i, list) => list.findIndex(x => x.name === v.name) === i).slice(0, 14);
+}
+export function demoMatrix(venues: Venue[], mode: Transport): TravelMatrix {
+  return venues.map(a => venues.map(b => ({
+    minutes: a.id === b.id ? 0 : Math.ceil(km(a, b) * (mode === 'Walking' ? 1.35 / 4.5 : mode === 'Driving' ? 1.5 / 22 : 1.5 / 18) * 60) + (mode === 'Public transport' ? 8 : mode === 'Driving' ? 5 : 0),
+    distance: km(a, b), source: 'estimate',
+  })));
+}
+export function schedule(stops: Venue[], prefs: Preferences, matrix: TravelMatrix, indices: number[]): Plan | null {
+  let t = minutes(prefs.time), cost = prefs.transport === 'Public transport' ? 10 : prefs.transport === 'Driving' ? 15 : 0, travel = 0;
+  const end = t + Number(prefs.duration) * 60;
+  const day = new Date(prefs.date + 'T12:00:00').getDay();
+  const result: Plan['stops'] = [];
+  for (let i = 0; i < stops.length; i++) {
+    const v = stops[i];
+    const leg = i ? matrix[indices[i - 1]][indices[i]] : null;
+    if (i && (!leg || !Number.isFinite(leg.minutes))) return null;
+    t += leg?.minutes || 0;
+    travel += leg?.minutes || 0;
+    cost += v.cost;
+    const windows = v.weeklyHours?.[day] || (v.hours ? [v.hours] : null);
+    if (!windows) return null;
+    const win = windows.find(w => Math.max(t, w.open) + v.mins <= w.close);
+    if (!win) return null;
+    t = Math.max(t, win.open);
+    if (t + v.mins > end || cost > Number(prefs.budget)) return null;
+    result.push({ ...v, arrival: t, travelFromPrevious: leg });
+    t += v.mins;
+  }
+  return {
+    stops: result, cost, transportAllowance: prefs.transport === 'Public transport' ? 10 : prefs.transport === 'Driving' ? 15 : 0,
+    travel, elapsed: t - minutes(prefs.time), distance: result.reduce((s, v) => s + (v.travelFromPrevious?.distance || 0), 0),
+    source: matrix.flat().some(x => x.source === 'google') ? 'google' : 'estimate',
+  };
+}
+// Keep the original bounded DFS scoring, pruning, candidate cap and search order.
+export function optimise(candidates: Candidate[], prefs: Preferences, matrix: TravelMatrix, { excludeSignature }: { excludeSignature?: string } = {}): Plan | null {
+  let best: Plan | null = null, bestScore = -Infinity, nodes = 0;
+  function dfs(path: number[], used: Set<number>) {
+    if (++nodes > 120000) return;
+    const plan = path.length ? schedule(path.map(i => candidates[i]), prefs, matrix, path) : null;
+    if (path.length && !plan) return;
+    if (path.length >= 3 && plan) {
+      const signature = path.map(i => candidates[i].id).sort().join('|');
+      const unique = new Set(plan.stops.flatMap(v => v.tags.filter(t => prefs.preferences.includes(t)))).size;
+      const repeated = plan.stops.length - new Set(plan.stops.map(v => v.category)).size;
+      const score = path.reduce((s, i) => s + candidates[i].score, 0) + unique * 4 + path.length * 4 - plan.travel * .18 - repeated * 9;
+      if (signature !== excludeSignature && score > bestScore) { bestScore = score; best = plan; }
+    }
+    if (path.length === 5) return;
+    for (let i = 0; i < candidates.length; i++) {
+      if (used.has(i)) continue;
+      used.add(i); dfs([...path, i], used); used.delete(i);
+    }
+  }
+  dfs([], new Set());
+  return best;
+}
+export function replaceStop(plan: Plan, index: number, candidates: Candidate[], prefs: Preferences, matrix: TravelMatrix): Plan | null {
+  const ids = plan.stops.map(s => s.id);
+  let best: Plan | null = null, bestScore = -Infinity;
+  for (const c of candidates) {
+    if (ids.includes(c.id)) continue;
+    const stops = plan.stops.map((v, i) => i === index ? c : v);
+    const indices = stops.map(v => candidates.findIndex(c => c.id === v.id));
+    if (indices.some(i => i < 0)) continue;
+    const next = schedule(stops, prefs, matrix, indices);
+    if (next && c.score - next.travel * .15 > bestScore) { best = next; bestScore = c.score - next.travel * .15; }
+  }
+  return best;
+}
+export function directions(stops: Venue[], mode: Transport): string {
+  const url = new URL('https://www.google.com/maps/dir/');
+  url.searchParams.set('api', '1');
+  url.searchParams.set('origin', `${stops[0].lat},${stops[0].lng}`);
+  url.searchParams.set('destination', `${stops.at(-1)!.lat},${stops.at(-1)!.lng}`);
+  url.searchParams.set('waypoints', stops.slice(1, -1).map(s => `${s.lat},${s.lng}`).join('|'));
+  url.searchParams.set('travelmode', mode === 'Walking' ? 'walking' : mode === 'Driving' ? 'driving' : 'transit');
+  return url.href;
+}

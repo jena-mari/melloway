@@ -1,69 +1,101 @@
-# melloway
+# Melloway
 
-Less planning, more chemistry. A mobile-first Sydney date and hangout planner, migrated from the supplied HTML and Markdown prototypes (preserved in `prototype/`).
+**Less planning, more chemistry.** A Sydney-first date and hangout planner. The first React Native migration milestone lives in `apps/mobile/`; the existing React/Vite app, Node Google adapter and original prototypes remain available.
 
-## Run locally
+## Install
 
-Use Node 22+ (tested on Node 24).
+Use Node **22.13+** (Node 22 or 24 LTS recommended) and npm. From the repository root:
 
 ```sh
 npm install
-npm run dev
 ```
 
-Open http://localhost:5173. This starts Vite and the server-only Google adapter on port 3001. Without credentials, the entire planning flow works using clearly labelled demo data. External mood images and Google Fonts require an internet connection; system fonts and pastel photo backgrounds provide fallbacks.
+This installs all npm workspaces and builds `@melloway/domain`. Keep the root `package-lock.json`; do not create separate workspace lockfiles. Subsequent clean installs can use `npm ci`. Native dependencies should be added from `apps/mobile/` using `npx expo install <package>` so their versions match the Expo SDK.
+
+## Run the Expo app
 
 ```sh
-npm test
-npm run build
+npm run mobile
+```
+
+Scan the Expo QR code with an SDK-compatible Expo Go on your phone (same network), or press `i`/`a` for a configured iOS simulator/Android emulator. You can also run `npm run ios --workspace @melloway/mobile` or `npm run android --workspace @melloway/mobile`. Those commands open Expo Go; they do not compile a native binary. To preview the React Native screens in a browser:
+
+```sh
+npm run mobile:web
+```
+
+Custom arguments are forwarded: `npm run mobile -- --clear`, or `npm run mobile:web -- --port 8081`. Full Xcode and an iOS simulator are required for local iOS testing; Android emulator tooling is required for local Android testing. Google Maps SDK credentials are required for standalone Android maps and Google Maps on standalone iOS. Use a development build when testing custom native configuration; do not equate a Metro bundle export with a successful native build.
+
+The mobile app defaults to **demo mode** and needs no `.env`, Google credentials, Supabase project or running backend. Landing → profile (or skip) → date details → interests → generation → itinerary → venue spotlight is implemented. Per-person costs, arrival times, stop swaps, regeneration and device-local saved plans are available. Date/time text inputs show their required formats. Remote mood photos and map tiles need connectivity; photo placeholders, demo planning and bundled fonts remain available offline.
+
+## Mobile environment
+
+Optionally copy `apps/mobile/.env.example` to `apps/mobile/.env`. Expo loads variables from the app directory. Every `EXPO_PUBLIC_*` value is visible in the client bundle, so never put private keys there.
+
+| Variable | Meaning |
+| --- | --- |
+| `EXPO_PUBLIC_DATA_MODE` | `demo` by default; `live` opts into the existing Google adapter, with a labelled demo fallback. |
+| `EXPO_PUBLIC_API_URL` | Absolute server origin, e.g. `http://192.168.1.10:3001`, **without `/api`**. Required for live mode. |
+| `GOOGLE_MAPS_ANDROID_KEY` | Optional native build-time Maps SDK key, restricted to Android package/signing identity. |
+| `GOOGLE_MAPS_IOS_KEY` | Optional native build-time Maps SDK key, restricted to the iOS bundle identifier. |
+
+Use your computer's LAN IP on a physical phone, `http://10.0.2.2:3001` in the Android emulator, or `http://localhost:3001` in the iOS simulator. A phone's `localhost` is the phone itself. For LAN testing, explicitly set root backend `HOST=0.0.0.0`; loopback remains the default. Restart Metro after environment changes. Native key/config changes require a rebuild. Production endpoints should use HTTPS. The adapter currently has no CORS configuration: the Expo **web preview is supported in demo mode**, while live mode is intended for native clients or a correctly configured same-origin/reverse-proxy web deployment.
+
+The native map uses `react-native-maps`: Google Maps on Android; Apple Maps on iOS Expo Go without credentials. An app-restricted iOS key enables Google Maps in a rebuilt standalone/development app. Pins show stop locations only, with no fabricated road geometry. Actual directions open externally in Google Maps.
+
+## Preserved web app and backend
+
+```sh
+npm run dev       # Vite :5173 and Node adapter :3001
+npm run server    # Node adapter alone
+npm run build    # Original web production build in dist/
 npm run preview
 ```
 
-The production build is `dist/`. Deploy to any static host with a SPA rewrite to `index.html`. To use live Google data, also host `server/index.js` in a Node service and reverse-proxy `/api/*` to it. The static build runs independently in demo mode. Do not deploy the Google adapter as an unrestricted public proxy: configure authentication, an origin allowlist and shared rate limiting for production. Its current IP rate limiter is suitable for a local hackathon demo, not distributed production traffic.
+Copy root `.env.example` to `.env` only when configuring providers. `GOOGLE_MAPS_API_KEY` belongs **only on the Node server** and must be restricted to Places API (New), Routes API and the server infrastructure. Do not prefix it with `VITE_` or `EXPO_PUBLIC_`. `PORT` defaults to 3001 and `HOST` to `127.0.0.1`. Keep Maps SDK client keys separate from the Places/Routes server key. The native adapter resolves server-relative photo URLs against the configured origin.
 
-## Integrations
+The web app uses Vite's `/api` development proxy. Production web deployments need SPA rewrites to `index.html` and a reverse proxy for `/api/*` when using live Google data. The static build works independently in demo mode. Before exposing the Node adapter publicly, add authentication, an origin policy and shared rate limiting; the existing local IP limiter is a demo implementation.
 
-Copy `.env.example` to `.env` and configure only the providers you have.
+The original web community/events, local memories, likes/photos, favourites and optional Supabase sync remain implemented. Community starter posts/ratings and all event ideas are fictional. There is no public social backend or live events provider. No scraping, payments or AI has been added.
 
-### Google Maps Platform
+## Supabase and database migrations
 
-Enable billing, Places API (New) and Routes API. Set `GOOGLE_MAPS_API_KEY` on the **server only**, restrict the key to those APIs and your server infrastructure. Never prefix it with `VITE_`. Discovery uses Text Search with geographic bias and requires known regular opening periods. Photos are fetched through a server proxy, with author names shown. Provider failures fall back to demo venues or explicit geographic travel estimates.
+Existing web sync still uses browser-safe `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` with anonymous sign-ins and RLS. Never expose a service-role key. Anonymous ownership is tied to that browser session; native authentication and cross-device sync are future milestones. Local web favourites remain available when cloud sync fails. Native drafts/current plans/favourites use AsyncStorage and a separate `melloway.mobile.v1` namespace; browser data is not automatically imported.
 
-Live Places ratings and photos are provider-supplied. Prices and visit lengths remain labelled planning allowances. Regular hours do not guarantee holiday opening, reservations or event availability. Route matrices use Google’s request-time routing, not guaranteed future-date transit timetables. Confirm your actual outing route in Google Maps. Review Google Maps Platform attribution, storage and terms before a public launch; saved plans currently store venue snapshots for demonstration.
+`server/schema.sql` is preserved. New projects should apply the ordered files in `supabase/migrations/` instead: the existing private-itinerary schema, then the PostGIS extension foundation. **If you already applied `server/schema.sql`, baseline the initial migration rather than reapplying its policy.** No live database migrations were executed for this milestone. Venue/community schemas, geospatial queries, mobile Supabase Auth and Storage integration are still to be designed.
 
-Directions always open Google Maps. The in-app route diagram is explicitly a schematic, not road geometry. The planning engine does not claim straight-line distances are actual routes.
+## Planner guarantees and limits
 
-### Supabase
+`packages/domain/` contains the single TypeScript planner used by both apps. Venue selection and scheduling are separate. Bounded DFS explores three to five stops from up to 14 candidates, with a 120,000-node cap. It scores preference coverage/diversity, penalises travel and rejects budget, opening-window, time-window or unavailable-edge violations. It is not a globally optimal search. Single-stop replacement reschedules the same ordered stops while preserving all other venue identities.
 
-Set browser-safe `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Run `server/schema.sql` in Supabase’s SQL editor and enable anonymous sign-ins. Row-level security ensures users access only their own itineraries. Never expose a service-role key. Favourites save locally first, with cloud sync when configured; sync failures are surfaced. Anonymous cloud ownership stays tied to that browser session; this MVP does not implement cross-device accounts. Configure CAPTCHA and sign-in rate limits before public use.
+Demo edges use Haversine distance adjusted by travel mode and are explicitly rough estimates. Public transport includes a sample $10/person allowance and driving $15/person; those stay inside the budget and are not fare quotes. Demo hours are sample assumptions, including for named locations. Live Google Places ratings/photos are provider-supplied, while costs/visit lengths remain planning allowances. Opening hours do not guarantee holiday access, reservations or event availability. Route matrices reflect request-time routing, not guaranteed future-date transit timetables. The starting area filters candidates; origin-to-first-stop and return travel are not scheduled yet. Confirm the actual outing route in Google Maps.
 
-## Planner
+Review Google Maps Platform attribution/storage terms before public release; saved plans currently retain venue snapshots for demonstration. Reopened mobile saved plans need regeneration before a swap because candidate graphs are not stored with favourites.
 
-Venue selection is separate from scheduling and optimisation. A bounded DFS searches paths of three to five stops across the best 14 candidates. It scores preference coverage and diversity, penalises travel, and prunes paths that violate budget, opening windows or duration. It is a bounded search, not a claim of global optimality. Live graph edges use Google Routes; demo edges use Haversine distances adjusted by mode and clearly marked as rough estimates. Driving includes a sample $15/person allowance; transit includes $10/person. These are budget allowances, not live fares.
+## Validation
 
-The requested outing date selects opening-day schedules; start time and duration constrain visits. Demo hours are deliberately sample assumptions. Missing opening data is never treated as verified availability. Individual replacement reschedules the same ordered stops with one new venue, preserving the other venue identities. It refuses replacement when none is feasible.
+```sh
+npm test                              # original constraints + migration + mobile API/config
+npm run typecheck                     # shared domain and mobile TypeScript
+npm run lint --workspace @melloway/mobile
+npm run build                         # preserved Vite app
+cd apps/mobile
+npx expo install --check
+npx expo-doctor
+npx expo export --platform all         # iOS/Android/web JS bundles, not native binaries
+```
 
-## Screens and storage
+See [docs/MIGRATION.md](docs/MIGRATION.md) for validation results, known limits and developer handoff. [docs/PRODUCT.md](docs/PRODUCT.md) records the product vision; [AGENTS.md](AGENTS.md) defines architecture and contribution conventions.
 
-Landing → profile → location/budget/date/time/transport → interests → processing → itinerary. Details expand, venues have spotlight pages, plans regenerate, directions open externally, and favourites persist across reloads. Saved plan swaps need regeneration first to refresh candidates. Community posts, optional photo uploads, ratings and likes are device-local; starter posts and all event ideas are fictional. There is no public social backend or live events provider yet.
+## Structure and team ownership
 
-Personal profile answers stay in browser storage; no sign-up is required. No profile demographics influence recommendations. Clear browser storage to remove drafts and demo posts; remove favourites in the app. Profile, itinerary, local community and cloud storage are separate concerns.
+- `apps/mobile/src/app`: Expo Router navigation; `screens`, `components`, `theme.ts`: frontend styling, interaction and map polish.
+- `apps/mobile/src/services`, `hooks`, `store`: platform adapters, asynchronous generation and device state.
+- `packages/domain/src`: shared types, exact demo data, pure planner and provider-injected generation. Node/Vite consume built ESM; native Metro consumes TypeScript.
+- `src`: preserved web screens/components/state/storage; planner and data compatibility exports.
+- `server`: preserved Node Google adapter and original Supabase SQL.
+- `supabase/migrations`: versioned database foundation.
+- `tests`: planner constraints, frozen-original parity and mobile provider/config boundaries.
+- `prototype`: preserved original design references.
 
-## Mobile
-
-Safe-area spacing, native mobile form controls, accessible labels and chip states, 44px interaction targets, responsive navigation, and reduced-motion handling. `capacitor.config.json` prepares the web build for Capacitor. No native iOS project was created. Add `@capacitor/ios` and run Capacitor on a configured macOS/Xcode environment when ready; API proxying must be configured against HTTPS when packaged for iOS.
-
-## Structure
-
-- `src/components`: shared controls, layout, route schematic
-- `src/pages`: app screens
-- `src/hooks`: draft, current plan and favourites state
-- `src/data`: prototype venues, demo coverage, preference taxonomy
-- `src/services`: discovery, Google fallback orchestration, storage
-- `src/utils`: selection, graph search, scheduling, directions
-- `server`: Google API proxy and Supabase SQL
-- `tests`: meaningful planner constraint and replacement tests
-
-## Migration notes
-
-Preserved: Outfit/Yellowtail, exact pastel palette, pill controls, orb/heart motifs, conversational tone, multi-select preferences, details, regeneration and DFS exploration. Refined: consolidated introduction and added clear progress. Partner age/gender were removed as unnecessary collection; companion and optional partner name remain. The prototype’s theme-following CSS was replaced by the requested light lifestyle palette. The fake live-loading messages and “on today” badges were removed. The old save toggle is now persistence, and full-plan replacement is now single-stop replacement. Social scraping was excluded per the brief.
+The backend developer can work on provider contracts, Supabase/PostGIS schemas, API validation, routing and planner tests. The frontend teammate can polish native screens, theme, reusable controls, animations, accessibility and map interactions independently of the planner. Agree on shared interfaces before changing them.

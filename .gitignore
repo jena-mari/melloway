@@ -4,3 +4,30 @@ dist/
 .env.*
 !.env.example
 .DS_Store
+
+# Expo / React Native generated output and local tooling
+.expo/
+web-build/
+coverage/
+*.tsbuildinfo
+.metro-health-check*
+apps/mobile/ios/
+apps/mobile/android/
+expo-env.d.ts
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Native build credentials and server secrets
+*.jks
+*.keystore
+*.p8
+*.p12
+*.pem
+*.key
+*.mobileprovision
+credentials.json
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
