@@ -4,3 +4,4 @@ export * from './venues.ts';
 export * from './planner.ts';
 export * from './generate.ts';
 export * from './socialMediaUrl.ts';
+export * from './events.ts';

@@ -1,6 +1,8 @@
 import http from "node:http";
 import { validPreferences } from "../src/utils/planner.js";
 import { createGoogleProvider } from "./google.js";
+import { createEventMapHandler } from "./eventMap.ts";
+const eventMapHandler = createEventMapHandler();
 const key = process.env.GOOGLE_MAPS_API_KEY,
   provider = createGoogleProvider(key);
 const rates = new Map();
@@ -34,13 +36,14 @@ const server = http.createServer(async (req, res) => {
       return reply(200, { venues: key ? "google" : "demo" });
     const photoRequest =
       req.method === "GET" && req.url.startsWith("/api/photo?");
+    const eventsRequest = req.method === "GET" && ["/api/events", "/api/events-map"].includes(req.url.split("?")[0]);
     if (
-      !photoRequest &&
+      !photoRequest && !eventsRequest &&
       (req.method !== "POST" ||
         !["/api/venues", "/api/matrix"].includes(req.url))
     )
       return reply(404, { error: "Endpoint not found" });
-    if (!key)
+    if (!key && !eventsRequest)
       return reply(503, { error: "Google credentials are not configured" });
     const ip = req.socket.remoteAddress,
       now = Date.now();
@@ -52,6 +55,7 @@ const server = http.createServer(async (req, res) => {
     if (++rate.count > 40)
       return reply(429, { error: "Please retry in a minute" });
     if (rates.size > 10000) rates.clear();
+    if (eventsRequest) return await eventMapHandler(req, res);
     if (photoRequest) {
       const name = new URL(req.url, "http://localhost").searchParams.get(
         "name",

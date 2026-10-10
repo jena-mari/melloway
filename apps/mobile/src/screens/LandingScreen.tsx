@@ -19,6 +19,8 @@ export default function LandingScreen() {
     <Text style={common.label}>what are we planning? ↴</Text>
     <Button label="a date ♡" onPress={() => start('date')} />
     <Button label="just a cute hangout ✳" tone="yellow" onPress={() => start('hangout')} />
+    <Button label="paste a TikTok or Reel link" tone="green" onPress={() => router.push('/social-link')} />
+    <Button label="Ticketmaster venue map" tone="yellow" onPress={() => router.push('/events-map')} />
     <View style={styles.art}>
       <MoodImage uri="https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?auto=format&fit=crop&w=900&q=80" height={260} />
       <View style={styles.sticker}><Text style={styles.stickerText}>less scrolling{"\n"}♡{"\n"}more living</Text></View>

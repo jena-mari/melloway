@@ -29,6 +29,8 @@ export default function RootLayout() {
         <Stack.Screen name="itinerary" />
         <Stack.Screen name="venue/[id]" />
         <Stack.Screen name="saved" />
+        <Stack.Screen name="social-link" />
+        <Stack.Screen name="events-map" />
         <Stack.Screen name="+not-found" />
       </Stack>}
     {!!status && <View accessibilityLiveRegion="polite" style={styles.toast}><Text style={styles.toastText}>{status}</Text><Pressable accessibilityRole="button" accessibilityLabel="Dismiss notification" onPress={() => setStatus('')} style={styles.saved}><Text style={styles.toastText}>×</Text></Pressable></View>}
