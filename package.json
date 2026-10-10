@@ -18,7 +18,9 @@
     "mobile": "npm run start --workspace @melloway/mobile --",
     "mobile:web": "npm run web --workspace @melloway/mobile --",
     "typecheck": "npm run typecheck --workspace @melloway/domain && npm run typecheck --workspace @melloway/mobile",
-    "test:mobile": "node --experimental-strip-types --test tests/mobile/*.test.ts"
+    "test:mobile": "node --experimental-strip-types --test tests/mobile/*.test.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:setup": "playwright install chromium"
   },
   "dependencies": {
     "react": "19.2.3",
@@ -36,7 +38,8 @@
     "tailwindcss": "^4.0.0",
     "@tailwindcss/vite": "^4.0.0",
     "@capacitor/cli": "^7.0.0",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "@playwright/test": "^1.64.0"
   },
   "workspaces": [
     "apps/mobile",

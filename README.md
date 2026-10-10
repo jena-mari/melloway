@@ -39,7 +39,7 @@ Optionally copy `apps/mobile/.env.example` to `apps/mobile/.env`. Expo loads var
 | `GOOGLE_MAPS_ANDROID_KEY` | Optional native build-time Maps SDK key, restricted to Android package/signing identity. |
 | `GOOGLE_MAPS_IOS_KEY` | Optional native build-time Maps SDK key, restricted to the iOS bundle identifier. |
 
-Use your computer's LAN IP on a physical phone, `http://10.0.2.2:3001` in the Android emulator, or `http://localhost:3001` in the iOS simulator. A phone's `localhost` is the phone itself. For LAN testing, explicitly set root backend `HOST=0.0.0.0`; loopback remains the default. Restart Metro after environment changes. Native key/config changes require a rebuild. Production endpoints should use HTTPS. The adapter currently has no CORS configuration: the Expo **web preview is supported in demo mode**, while live mode is intended for native clients or a correctly configured same-origin/reverse-proxy web deployment.
+Use your computer's LAN IP on a physical phone, `http://10.0.2.2:3001` in the Android emulator, or `http://localhost:3001` in the iOS simulator. A phone's `localhost` is the phone itself. For LAN testing, explicitly set root backend `HOST=0.0.0.0`; loopback remains the default. Restart Metro after environment changes. Native key/config changes require a rebuild. Production endpoints should use HTTPS. The server supports an explicit `APP_ORIGINS` CORS allowlist. Expo **web preview works in demo mode**; live web preview requires its exact origin in that allowlist or a same-origin reverse proxy.
 
 The native map uses `react-native-maps`: Google Maps on Android; Apple Maps on iOS Expo Go without credentials. An app-restricted iOS key enables Google Maps in a rebuilt standalone/development app. Pins show stop locations only, with no fabricated road geometry. Actual directions open externally in Google Maps.
 
@@ -52,9 +52,18 @@ npm run build    # Original web production build in dist/
 npm run preview
 ```
 
+The web app retains the newer phone-sized shell, local Maple Shore/Outfit fonts, saved-plan replacement, cancellation handling and Google provider validation already on `main`. The Expo app uses Outfit/Yellowtail. To run the preserved web journey tests:
+
+```sh
+npm run test:e2e:setup
+npm run test:e2e
+```
+
+Playwright starts the web app/API and uses demo data without paid Google requests. `PLAYWRIGHT_EXECUTABLE_PATH` can select an installed Chrome executable. These tests cover Chromium phone viewports, not native iOS/Android devices.
+
 Copy root `.env.example` to `.env` only when configuring providers. `GOOGLE_MAPS_API_KEY` belongs **only on the Node server** and must be restricted to Places API (New), Routes API and the server infrastructure. Do not prefix it with `VITE_` or `EXPO_PUBLIC_`. `PORT` defaults to 3001 and `HOST` to `127.0.0.1`. Keep Maps SDK client keys separate from the Places/Routes server key. The native adapter resolves server-relative photo URLs against the configured origin.
 
-The web app uses Vite's `/api` development proxy. Production web deployments need SPA rewrites to `index.html` and a reverse proxy for `/api/*` when using live Google data. The static build works independently in demo mode. Before exposing the Node adapter publicly, add authentication, an origin policy and shared rate limiting; the existing local IP limiter is a demo implementation.
+The web app uses Vite's `/api` development proxy. Production web deployments need SPA rewrites to `index.html` and a reverse proxy for `/api/*` when using live Google data. A packaged Capacitor app uses `VITE_API_BASE_URL` for its HTTPS backend origin and the backend's `APP_ORIGINS` allowlist for its exact origins. The static build works independently in demo mode. Before exposing the Node adapter publicly, add authentication and shared rate limiting; the existing local IP limiter is a demo implementation.
 
 The original web community/events, local memories, likes/photos, favourites and optional Supabase sync remain implemented. Community starter posts/ratings and all event ideas are fictional. There is no public social backend or live events provider. No scraping, payments or AI has been added.
 
@@ -66,9 +75,9 @@ Existing web sync still uses browser-safe `VITE_SUPABASE_URL` and `VITE_SUPABASE
 
 ## Planner guarantees and limits
 
-`packages/domain/` contains the single TypeScript planner used by both apps. Venue selection and scheduling are separate. Bounded DFS explores three to five stops from up to 14 candidates, with a 120,000-node cap. It scores preference coverage/diversity, penalises travel and rejects budget, opening-window, time-window or unavailable-edge violations. It is not a globally optimal search. Single-stop replacement reschedules the same ordered stops while preserving all other venue identities.
+`packages/domain/` contains the TypeScript planner used by Expo, with regression checks against the original algorithm. The web app retains the newer JavaScript planner already on `main`, including input validation and overnight scheduling; reconciling those improvements into the shared package remains a follow-up. Both planners use bounded DFS for three to five stops from up to 14 candidates, with a 120,000-node cap. They score preference coverage/diversity, penalise travel and reject budget, opening-window, time-window or unavailable-edge violations. This is not a globally optimal search. Single-stop replacement reschedules the same ordered stops while preserving all other venue identities.
 
-Demo edges use Haversine distance adjusted by travel mode and are explicitly rough estimates. Public transport includes a sample $10/person allowance and driving $15/person; those stay inside the budget and are not fare quotes. Demo hours are sample assumptions, including for named locations. Live Google Places ratings/photos are provider-supplied, while costs/visit lengths remain planning allowances. Opening hours do not guarantee holiday access, reservations or event availability. Route matrices reflect request-time routing, not guaranteed future-date transit timetables. The starting area filters candidates; origin-to-first-stop and return travel are not scheduled yet. Confirm the actual outing route in Google Maps.
+Demo edges use Haversine distance adjusted by travel mode and are explicitly rough estimates. Public transport includes a sample $10/person allowance and driving $15/person; those stay inside the budget and are not fare quotes. Demo hours are sample assumptions, including for named locations. Live Google Places ratings/photos are provider-supplied, while costs/visit lengths remain planning allowances. Opening hours do not guarantee holiday access, reservations or event availability. The Google adapter batches transit matrices and uses the selected Sydney date/start time, including daylight saving; later legs may depart at different times and future timetables can change. Walking/driving matrices use request-time routing. The starting area filters candidates; origin-to-first-stop and return travel are not scheduled yet. Confirm the actual outing route in Google Maps.
 
 Review Google Maps Platform attribution/storage terms before public release; saved plans currently retain venue snapshots for demonstration. Reopened mobile saved plans need regeneration before a swap because candidate graphs are not stored with favourites.
 
@@ -92,7 +101,7 @@ See [docs/MIGRATION.md](docs/MIGRATION.md) for validation results, known limits 
 - `apps/mobile/src/app`: Expo Router navigation; `screens`, `components`, `theme.ts`: frontend styling, interaction and map polish.
 - `apps/mobile/src/services`, `hooks`, `store`: platform adapters, asynchronous generation and device state.
 - `packages/domain/src`: shared types, exact demo data, pure planner and provider-injected generation. Node/Vite consume built ESM; native Metro consumes TypeScript.
-- `src`: preserved web screens/components/state/storage; planner and data compatibility exports.
+- `src`: preserved web screens/components/state/storage and the newer web planner/data/provider modules from `main`.
 - `server`: preserved Node Google adapter and original Supabase SQL.
 - `supabase/migrations`: versioned database foundation.
 - `tests`: planner constraints, frozen-original parity and mobile provider/config boundaries.

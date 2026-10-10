@@ -1,5 +1,13 @@
 # First Expo migration milestone
 
+## Integration with remote main
+
+The completed Expo snapshot was merged with the newer `main` commit `9965cb6` before publishing. The newer web screens, local Maple Shore/Outfit fonts, planner validation and overnight scheduling, saved-plan replacement, Google provider batching/CORS and Playwright tests are preserved. Root dependency scripts and the lockfile include both Expo workspaces and the web test tooling. The Node adapter retains the optional `HOST` setting for native LAN testing.
+
+The Expo domain package and frozen-original regression fixture are unchanged. Web planner/data/discovery modules retain the newer implementation from `main` rather than the compatibility exports described in the original migration below. Bringing those newer web behaviours into the shared package remains follow-up work. No ongoing social-link work from the other chat is included in this checkpoint.
+
+Merged-checkout validation passes: clean `npm ci`, **25 Node/domain/mobile tests**, typecheck, mobile lint, Vite production build, **7 Playwright web journey tests**, Expo dependency version check, Expo Doctor **21/21**, and iOS/Android/web bundle export. The existing native browser-flow checks below apply to the unchanged Expo screens. Native binaries and device testing remain unverified.
+
 ## Original architecture
 
 The repository was a React 19/Vite single-page app with React Router, CSS/Tailwind, Framer Motion and Lucide. `src/pages/` contained landing, three onboarding steps, generation, itinerary, venue spotlight, favourites and fictional community/events. `src/hooks/useApp.jsx` held context state and browser-local persistence. `src/services/` provided browser-relative Google API discovery and optional anonymous Supabase sync. `src/utils/planner.js` implemented candidate selection, Haversine travel estimates, weekday-aware scheduling, bounded DFS, single-stop replacement and external Google Maps URLs. `src/data/` held the Sydney taxonomy and demo venues. `server/index.js` was a dependency-light Node HTTP Google adapter; `server/schema.sql` created private itineraries with RLS. Nine Node tests protected planner constraints. Capacitor configuration existed; no native app had been built.

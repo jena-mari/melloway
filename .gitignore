@@ -31,3 +31,6 @@ credentials.json
 # Supabase CLI local state
 supabase/.temp/
 supabase/.branches/
+
+test-results/
+playwright-report/
