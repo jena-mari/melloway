@@ -55,4 +55,6 @@ export const defaultDraft = () => ({
   transport: "Walking",
   duration: 5,
   preferences: [],
+  idea: "",
+  notes: "",
 });

@@ -1,267 +1,98 @@
 import { useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { motion, useReducedMotion } from "framer-motion";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useApp } from "../hooks/useApp";
-import { areas, categories, sydneyToday } from "../data/preferences";
-import { Chips, Field, Next } from "../components/UI";
-const steps = ["profile", "details", "vibes"];
+import { sydneyToday } from "../data/preferences";
+import { NameQuestion, AboutQuestion } from "../components/questions/Profile";
+import DetailsQuestion from "../components/questions/Details";
+import IdeasQuestion from "../components/questions/Ideas";
+import NotesQuestion from "../components/questions/Notes";
+import { ideas } from "../data/ideas";
+import { Button } from "../components/UI";
+const steps = ["profile", "about", "details", "vibes", "notes"];
 export default function Onboarding() {
   const { step } = useParams(),
-    { draft: d, update } = useApp(),
-    navigate = useNavigate(),
-    reduced = useReducedMotion();
+    { draft, update } = useApp(),
+    navigate = useNavigate();
   const [error, setError] = useState("");
   const index = steps.indexOf(step);
   if (index < 0)
     return (
       <div className="page">
         <h1>let’s start at the beginning.</h1>
-        <Link to="/plan/profile">Build your profile</Link>
+        <Link to="/plan/profile">say hello</Link>
       </div>
     );
-  function submit(e) {
-    e.preventDefault();
+  function advance(skipped = false) {
     setError("");
-    if (index === 1 && (d.date < sydneyToday() || !d.time || !d.date)) {
+    if (
+      index >= 2 &&
+      (draft.date < sydneyToday() || !draft.time || !draft.date)
+    ) {
       setError("Pick today or a future date, and a starting time.");
       return;
     }
-    navigate(index === 2 ? "/generating" : `/plan/${steps[index + 1]}`);
+    if (index === 3) update({ idea: skipped ? "" : draft.idea || ideas[0].id });
+    navigate(
+      index === steps.length - 1 ? "/generating" : `/plan/${steps[index + 1]}`,
+    );
+  }
+  function submit(e) {
+    e.preventDefault();
+    advance();
   }
   return (
-    <div className="onboarding page">
-      <div className="progress">
-        <Link to={index ? `/plan/${steps[index - 1]}` : "/"} className="back">
-          <ArrowLeft size={17} /> back
+    <div className={`intro-screen question-screen question-${step}`}>
+      <div className="question-top">
+        <Link
+          to={index ? `/plan/${steps[index - 1]}` : "/"}
+          className="back"
+          aria-label="back"
+        >
+          <ArrowLeft size={16} />
         </Link>
         <div
+          className="question-progress"
           role="progressbar"
-          aria-valuemin={1}
-          aria-valuemax={3}
-          aria-valuenow={index + 1}
           aria-label="Planning progress"
-          className="progress-steps"
+          aria-valuemin={1}
+          aria-valuemax={steps.length}
+          aria-valuenow={index + 1}
         >
           {steps.map((s, i) => (
-            <span className={i <= index ? "active" : ""} key={s}>
-              {i + 1}
-              <span>{["the people", "the details", "the vibe"][i]}</span>
-            </span>
+            <span key={s} className={i <= index ? "active" : ""} />
           ))}
         </div>
-        <span className="step-count">0{index + 1} / 03</span>
-      </div>
-      <div className="form-layout">
-        <motion.form
-          key={step}
-          initial={reduced ? false : { opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          onSubmit={submit}
-          className="form-card"
-          id={`plan-${step}`}
+        <button
+          type="button"
+          className="question-skip"
+          onClick={() => advance(true)}
         >
-          {index === 0 ? (
-            <>
-              <span className="pill-label">the people make the plan</span>
-              <h1>
-                hey there,
-                <br />
-                <em>let’s meet you.</em>
-              </h1>
-              <p className="sub">
-                you bring the company. we’ll bring the ideas.
-              </p>
-              <Field
-                label="what’s ur name?"
-                id="name"
-                placeholder="your first name"
-                autoComplete="given-name"
-                value={d.name}
-                onChange={(e) => update({ name: e.target.value })}
-                required
-                maxLength={60}
-              />
-              <div className="two-fields">
-                <Field
-                  label="ur age"
-                  id="age"
-                  type="number"
-                  min={18}
-                  max={100}
-                  value={d.age}
-                  onChange={(e) => update({ age: e.target.value })}
-                  required
-                />
-                <Field
-                  label="their name (optional)"
-                  id="partner"
-                  value={d.partner}
-                  placeholder="your favourite human"
-                  maxLength={60}
-                  onChange={(e) => update({ partner: e.target.value })}
-                />
-              </div>
-              <fieldset>
-                <legend>gender, if you’d like to share</legend>
-                <Chips
-                  options={["woman", "man", "non-binary", "prefer not to say"]}
-                  value={d.gender}
-                  onChange={(gender) => update({ gender })}
-                />
-              </fieldset>
-              <fieldset>
-                <legend>who are you hanging out with?</legend>
-                <Chips
-                  options={[
-                    "my person",
-                    "someone new",
-                    "a friend",
-                    "my friends",
-                  ]}
-                  value={d.companion}
-                  onChange={(companion) => update({ companion })}
-                />
-              </fieldset>
-              <p className="fine">
-                Optional questions can stay blank. No account needed.
-              </p>
-            </>
-          ) : index === 1 ? (
-            <>
-              <span className="pill-label">a little room for serendipity</span>
-              <h1>
-                where to,
-                <br />
-                <em>{d.name || "daydreamer"}?</em>
-              </h1>
-              <p className="sub">
-                let’s keep the day within reach. and within budget.
-              </p>
-              <fieldset>
-                <legend>any specific area in mind?</legend>
-                <Chips
-                  options={Object.keys(areas)}
-                  value={d.area}
-                  onChange={(area) =>
-                    update({ area: area || "Anywhere in Sydney" })
-                  }
-                />
-              </fieldset>
-              <label className="range-label" htmlFor="budget">
-                budget per person <strong>${d.budget} AUD</strong>
-              </label>
-              <input
-                id="budget"
-                type="range"
-                min="0"
-                max="200"
-                step="5"
-                value={d.budget}
-                onChange={(e) => update({ budget: Number(e.target.value) })}
-              />
-              <div className="range-captions">
-                <span>free & lovely</span>
-                <span>a little splurge</span>
-              </div>
-              <div className="two-fields">
-                <Field
-                  label="the day"
-                  id="date"
-                  type="date"
-                  min={sydneyToday()}
-                  value={d.date}
-                  required
-                  onChange={(e) => update({ date: e.target.value })}
-                />
-                <Field
-                  label="start around"
-                  id="time"
-                  type="time"
-                  value={d.time}
-                  required
-                  onChange={(e) => update({ time: e.target.value })}
-                />
-              </div>
-              <fieldset>
-                <legend>getting around</legend>
-                <Chips
-                  options={["Walking", "Public transport", "Driving"]}
-                  value={d.transport}
-                  onChange={(transport) =>
-                    update({ transport: transport || "Walking" })
-                  }
-                />
-              </fieldset>
-              <label className="field" htmlFor="duration">
-                <span>how long have we got?</span>
-                <select
-                  id="duration"
-                  value={d.duration}
-                  onChange={(e) => update({ duration: Number(e.target.value) })}
-                >
-                  {[3, 4, 5, 6, 8].map((n) => (
-                    <option key={n} value={n}>
-                      {n} hours · {n < 5 ? "short & sweet" : "make a day of it"}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </>
-          ) : (
-            <>
-              <span className="pill-label">the vibe check</span>
-              <h1>
-                so, it’s {d.mode === "date" ? "a date" : "a hangout"}.<br />
-                <em>make it ur own.</em>
-              </h1>
-              <p className="sub">
-                pick whatever fits. no wrong answers, no limit.
-              </p>
-              {Object.entries(categories).map(([title, options]) => (
-                <fieldset key={title}>
-                  <legend>
-                    {title} <span className="optional">pick a few</span>
-                  </legend>
-                  <Chips
-                    options={options}
-                    value={d.preferences}
-                    multiple
-                    onChange={(preferences) => update({ preferences })}
-                  />
-                </fieldset>
-              ))}
-              <div className="selection-note">
-                {d.preferences.length
-                  ? `${d.preferences.length} little clues to ur perfect day.`
-                  : "Nothing picked? We’ll keep it varied."}
-              </div>
-            </>
-          )}
-          {error && (
-            <p role="alert" className="error">
-              {error}
-            </p>
-          )}
-        </motion.form>
-        <div className="form-actions">
-          <Next type="submit" form={`plan-${step}`}>
-            {index === 2 ? "make a little magic" : "keep going"}
-          </Next>
-          {index === 0 && (
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => {
-                update({ gender: "", partner: "" });
-                navigate("/plan/details");
-              }}
-            >
-              skip the introduction <ArrowRight size={16} />
-            </button>
-          )}
-        </div>
+          lemme skip this +
+        </button>
       </div>
+      <form
+        className="question-form"
+        id={`plan-${step}`}
+        onSubmit={submit}
+        noValidate
+      >
+        {index === 0 && <NameQuestion draft={draft} update={update} />}
+        {index === 1 && <AboutQuestion draft={draft} update={update} />}
+        {index === 2 && <DetailsQuestion draft={draft} update={update} />}
+        {index === 3 && <IdeasQuestion draft={draft} update={update} />}
+        {index === 4 && <NotesQuestion draft={draft} update={update} />}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="question-actions">
+          <Button type="submit" className="pink">
+            {index === 4 ? "submit" : "continue"}
+          </Button>
+        </div>
+      </form>
     </div>
   );
 }

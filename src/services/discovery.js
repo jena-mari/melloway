@@ -1,4 +1,5 @@
 import { venues } from "../data/venues.js";
+import { createId } from "../utils/id.js";
 import {
   selectVenues,
   demoMatrix,
@@ -112,7 +113,7 @@ export async function generate(
     plan: plan
       ? {
           ...plan,
-          id: unchanged ? previous.id : crypto.randomUUID(),
+          id: unchanged ? previous.id : createId(),
           prefs,
           notice,
           createdAt: new Date().toISOString(),

@@ -1,9 +1,15 @@
 import { ArrowRight } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
 export function Button({ children, className = "", ...props }) {
+  const reduced = useReducedMotion();
   return (
-    <button className={`button ${className}`} {...props}>
+    <motion.button
+      className={`button ${className}`}
+      whileTap={reduced ? {} : { scale: 0.97 }}
+      {...props}
+    >
       {children}
-    </button>
+    </motion.button>
   );
 }
 export function Next({ children = "keep going", ...props }) {
@@ -15,16 +21,24 @@ export function Next({ children = "keep going", ...props }) {
   );
 }
 export function Chips({ options, value, onChange, multiple = false }) {
+  const reduced = useReducedMotion();
   return (
     <div className="chips">
       {options.map((option) => {
         const selected = multiple ? value.includes(option) : value === option;
         return (
-          <button
+          <motion.button
             key={option}
             type="button"
             className={`chip ${selected ? "selected" : ""}`}
             aria-pressed={selected}
+            whileTap={reduced ? {} : { scale: 0.95 }}
+            animate={{
+              backgroundColor: selected ? "#111111" : "#ffffff",
+              color: selected ? "#ffffff" : "#111111",
+              borderColor: selected ? "#111111" : "#11111180",
+            }}
+            transition={{ duration: reduced ? 0 : 0.18 }}
             onClick={() =>
               onChange(
                 multiple
@@ -38,8 +52,10 @@ export function Chips({ options, value, onChange, multiple = false }) {
             }
           >
             {option}
-            {selected && <span aria-hidden="true"> ✓</span>}
-          </button>
+            <span className="chip-check" aria-hidden="true">
+              {selected ? "✓" : ""}
+            </span>
+          </motion.button>
         );
       })}
     </div>

@@ -1,5 +1,9 @@
-import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
-import { Heart, Compass, Sparkles, Bookmark, MapPin } from "lucide-react";
+import { NavLink, Link, useOutlet, useLocation } from "react-router-dom";
+import { useRef, useEffect } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { gentleEase } from "./Introduction";
+import DoodleBackdrop from "./DoodleBackdrop";
+import { Heart, Compass, Sparkles, Bookmark, MapPin, Map } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import useKeyboard from "../hooks/useKeyboard";
 const tabs = [
@@ -9,36 +13,99 @@ const tabs = [
   { to: "/favourites", name: "saved", label: "saved", icon: Bookmark },
 ];
 export default function Layout() {
-  const { status, setStatus } = useApp(),
+  const { status, setStatus, current } = useApp(),
     { pathname } = useLocation();
   const keyboardOpen = useKeyboard();
+  const outlet = useOutlet(),
+    reduced = useReducedMotion(),
+    menu = useRef(null);
   const planning = pathname.startsWith("/plan/") || pathname === "/generating";
+  const introduction =
+    planning || pathname === "/" || pathname === "/itinerary";
+  const result = pathname === "/itinerary";
+  const navigationTabs = current?.plan
+    ? [
+        tabs[0],
+        { to: "/itinerary", name: "ur day", label: "ur day", icon: Map },
+        ...tabs.slice(1),
+      ]
+    : tabs;
+  useEffect(() => {
+    menu.current?.close();
+  }, [pathname]);
   return (
     <div
-      className={`app-shell ${planning ? "planning" : ""} ${keyboardOpen ? "keyboard-open" : ""}`}
+      className={`app-shell ${planning ? "planning" : ""} ${introduction ? "journey-shell" : ""} ${keyboardOpen ? "keyboard-open" : ""}`}
     >
-      <header className="app-topbar">
-        <Link to="/" className="wordmark" aria-label="melloway home">
-          melloway<span>✳</span>
-        </Link>
-        <span className="city-label">
-          <MapPin size={13} /> Sydney
-        </span>
-      </header>
+      <DoodleBackdrop screen={pathname} paused={keyboardOpen} />
+      {!introduction && (
+        <header className="app-topbar">
+          <Link to="/" className="wordmark" aria-label="melloway home">
+            melloway<span>✳</span>
+          </Link>
+          <span className="city-label">
+            <MapPin size={13} /> Sydney
+          </span>
+        </header>
+      )}
       <main id="main" tabIndex={-1}>
-        <Outlet />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={pathname}
+            initial={reduced ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduced ? { opacity: 1 } : { opacity: 0, y: -6 }}
+            transition={{ duration: reduced ? 0 : 0.18, ease: gentleEase }}
+          >
+            {outlet}
+          </motion.div>
+        </AnimatePresence>
       </main>
-      {!planning && (
+      {introduction && !result && (
+        <button
+          className="intro-signature"
+          aria-label="Open melloway menu"
+          onClick={() => menu.current?.showModal()}
+        >
+          m
+        </button>
+      )}
+      <dialog
+        ref={menu}
+        className="mellow-menu"
+        aria-labelledby="mellow-menu-title"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) menu.current.close();
+        }}
+      >
+        <div>
+          <h2 id="mellow-menu-title">a little more melloway.</h2>
+          <nav aria-label="Explore melloway">
+            {navigationTabs.map(({ to, name, label }) => (
+              <Link
+                key={to}
+                to={to}
+                onClick={() => menu.current.close()}
+                aria-label={name}
+              >
+                {label}
+              </Link>
+            ))}
+          </nav>
+          <button className="button" onClick={() => menu.current.close()}>
+            close
+          </button>
+        </div>
+      </dialog>
+      {(!introduction || result) && (
         <nav className="bottom-tabs" aria-label="Main navigation">
-          {tabs.map(({ to, name, label, icon: Icon }) => (
+          {navigationTabs.map(({ to, name, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               end={to === "/"}
               aria-label={name}
-              className={({ isActive }) =>
-                `tab ${isActive || (to === "/" && (pathname === "/itinerary" || pathname.startsWith("/venue/"))) ? "active" : ""}`
-              }
+              className={({ isActive }) => `tab ${isActive ? "active" : ""}`}
             >
               <span className="tab-icon">
                 <Icon size={21} strokeWidth={1.6} />
