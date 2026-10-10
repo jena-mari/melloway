@@ -1,6 +1,6 @@
 # Melloway development guide
 
-Melloway is a Sydney-first date and hangout planner. Preserve the working React/Vite app while React Native equivalents are developed. Use a reviewed feature branch (default prefix `codex/`); never overwrite `main` or remove legacy screens without working replacements and review.
+Melloway is a Sydney-first date and hangout planner. Preserve the working React/Vite app while React Native equivalents are developed. Use a reviewed feature branch without a `codex/` prefix; never overwrite `main` or remove legacy screens without working replacements and review.
 
 ## Architecture and decisions
 
