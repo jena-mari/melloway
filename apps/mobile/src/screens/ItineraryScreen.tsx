@@ -1,4 +1,5 @@
-import { Linking, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Linking, Share, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { directions, formatTime, replaceStop } from '@melloway/domain';
 import { randomUUID } from 'expo-crypto';
@@ -8,8 +9,11 @@ import PlanMap from '../components/PlanMap';
 import { useGeneratePlan } from '../hooks/useGeneratePlan';
 import { useAppStore } from '../store/useAppStore';
 import { common } from '../theme';
+import { sharePlanText } from '../services/sharePlan';
 
 export default function ItineraryScreen() {
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState(false);
   const current = useAppStore(state => state.current);
   const setCurrent = useAppStore(state => state.setCurrent);
   const save = useAppStore(state => state.save);
@@ -26,6 +30,13 @@ export default function ItineraryScreen() {
       if (next.plan) { setCurrent(next); setStatus('A fresh plan, made for ur vibe.'); }
       else setStatus('No other plan fits. Try tweaking the details.');
     } catch (reason) { setStatus(reason instanceof Error ? reason.message : 'Could not regenerate. Your plan is safe.'); }
+  }
+  async function sharePlan() {
+    setShareError(false);
+    setSharing(true);
+    const outcome = await sharePlanText(plan, content => Share.share(content));
+    setSharing(false);
+    setShareError(outcome === 'failed');
   }
   function swap(index: number) {
     const next = replaceStop(plan, index, candidates, prefs, matrix);
@@ -56,6 +67,8 @@ export default function ItineraryScreen() {
     <Button label="open Google Maps ↗" tone="green" onPress={() => { Linking.openURL(directions(plan.stops, prefs.transport)).catch(() => setStatus('Could not open Google Maps.')); }} />
     <Text style={common.fine}>Google Maps recalculates the real route. Demo stop coordinates are approximate.</Text>
     <Button label={saved.some(p => p.id === plan.id) ? 'saved on this device ♡' : 'save this memory ♡'} onPress={() => save(plan)} />
+    <Button label="Share this plan" tone="cream" busy={sharing} onPress={() => { void sharePlan(); }} />
+    {shareError && <Text accessibilityRole="alert" style={common.error}>Could not open sharing. Please try again on a device or browser that supports sharing.</Text>}
     <Button label="try another plan ↻" tone="cream" busy={isPending} onPress={regenerate} />
     <Button label="tweak the details" tone="yellow" onPress={() => router.push('/preferences')} />
     <Button label="home, sweet home" tone="cream" onPress={() => router.dismissTo('/')} />

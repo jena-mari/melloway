@@ -52,3 +52,53 @@ Not tested on a real iOS/Android device or in Expo Go. No real Ticketmaster list
 Official references consulted: [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/) and [React Native Linking](https://reactnative.dev/docs/linking), plus the installed Linking types and web implementation.
 
 This checkpoint is complete. No subsequent chunk, push, merge or deployment was performed.
+
+
+## Extra chunk 2 — Share an itinerary as text
+
+Status: COMPLETE
+
+Chunk 1 passed. Work continued only in the same isolated `app-usability-v1` worktree.
+
+### Result
+
+One **Share this plan** button opens React Native's built-in share sheet with a single text message, only after an explicit press. The existing itinerary controls, design, saved plans and planning behavior remain intact. The button stays busy while sharing is open. Cancellation is quiet; a failure shows a helpful error and allows retry. No success message claims that a recipient received anything.
+
+A separate pure TypeScript formatter produces the Melloway heading, outing date, ordered venue names/arrival times, transport mode, estimated spending per person in the app's existing AUD currency, venue map links when usable, and brief demo/estimate disclaimers. Overnight arrivals indicate the following day. Missing date/time/cost/transport data stays explicitly unavailable. Valid venue coordinates produce venue-only links; a supplied HTTP(S) venue map link is used when coordinates are absent, excluding credential-bearing links and origin/waypoint routes.
+
+The formatter allowlists fields rather than serializing a plan: profile names, ages, genders, companion details, interests, private notes, personal starting addresses and free-form notices are excluded. No automatic sending, public plan links, hosted pages, accounts, posting integrations or collaboration features were added. No dependency, route, storage, database or provider changes were made.
+
+### Verification
+
+All checks passed; there were no pre-existing test failures:
+
+- `npm test`: 125 tests passed (79 existing root tests, 20 mobile tests including 9 new sharing/formatting tests, 26 existing event/backend tests).
+- `npm run typecheck`: domain and mobile passed.
+- `npm run lint --workspace @melloway/mobile`: passed.
+- `npm run build`: passed (preserved Vite application).
+- 15 mocked mobile browser tests passed: 4 new sharing tests and all 11 event-map regressions.
+
+Browser command:
+
+```sh
+CI=1 PLAYWRIGHT_EXECUTABLE_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' npx playwright test --config playwright.mobile.config.js tests/mobile-e2e/share-plan.spec.js tests/mobile-e2e/events-map.spec.js
+```
+
+Unit tests cover exact text formatting, privacy exclusions, unchanged input, missing optional fields, invalid maps, midnight/overnight times, demo/estimate disclaimers, success, iOS dismissal, Web Share cancellation and failures. Browser tests confirm no share before a press, a text-only payload, a busy button, quiet cancellation, helpful failure/retry, unchanged saved-plan storage and no share button without a plan. Share calls and external requests were mocked; nothing was actually sent. The separate test app used port 8084; the user's app/backend were not restarted.
+
+### Changed files in this checkpoint
+
+- `apps/mobile/src/screens/ItineraryScreen.tsx`
+- `apps/mobile/src/services/itineraryText.ts`
+- `apps/mobile/src/services/sharePlan.ts`
+- `tests/mobile/share-plan.test.ts`
+- `tests/mobile-e2e/share-plan.spec.js`
+- `docs/USABILITY_PROGRESS.md`
+
+### Real-phone limitations and publication
+
+Still to test on real iOS/Android phones: opening the native share sheet in Expo Go, dismissing/reopening it, supported target apps and the final appearance of text/map links in those apps, plus accessibility/large-text behavior. No native build, device share or recipient delivery was tested. Android's built-in Share result cannot establish delivery or distinguish dismissal; the app makes no delivery claim. Web sharing depends on browser support.
+
+Official references consulted: [React Native 0.86 Share](https://reactnative.dev/docs/0.86/share), [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/), and the installed Share types/web implementation.
+
+Repository push permission was confirmed. This checkpoint authorizes publishing only `app-usability-v1` and a draft PR targeting `expo-mobile-migration`, containing chunks 1 and 2. Publication outcome is reported with the task; no merge, force-push or deployment is authorized. Discovery and its uncommitted files remain untouched. Stop after this checkpoint.
