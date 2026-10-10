@@ -1,11 +1,108 @@
-import http from 'node:http';
-import {areas} from '../src/data/preferences.js';
-const key=process.env.GOOGLE_MAPS_API_KEY;
-const rates=new Map();
-async function google(url,body,mask){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':key,'X-Goog-FieldMask':mask},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error('Google provider unavailable');return r.json();}
-function hours(periods){const days=Array.from({length:7},()=>[]);for(const p of periods||[]){if(!p.open)continue;if(!p.close){days.forEach(d=>d.push({open:0,close:1440}));continue;}const open=p.open.hour*60+(p.open.minute||0),close=p.close.hour*60+(p.close.minute||0);if(p.open.day===p.close.day)days[p.open.day].push({open,close});else{days[p.open.day].push({open,close:1440});days[p.close.day].push({open:0,close});}}return days;}
-const server=http.createServer(async(req,res)=>{res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store');try{if(!key){res.writeHead(503);return res.end(JSON.stringify({error:'Google credentials are not configured'}));}if(req.method==='GET'&&req.url.startsWith('/api/photo?')){const name=new URL(req.url,'http://localhost').searchParams.get('name');if(!/^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(name||''))throw new Error('Invalid photo');const response=await fetch(`https://places.googleapis.com/v1/${name}/media?maxWidthPx=900&skipHttpRedirect=true`,{headers:{'X-Goog-Api-Key':key},signal:AbortSignal.timeout(10000)});if(!response.ok)throw new Error('Photo unavailable');const data=await response.json();const photo=await fetch(data.photoUri,{signal:AbortSignal.timeout(10000)});if(!photo.ok)throw new Error('Photo unavailable');res.setHeader('Content-Type',photo.headers.get('content-type')||'image/jpeg');return res.end(Buffer.from(await photo.arrayBuffer()));}if(req.method!=='POST'||!['/api/venues','/api/matrix'].includes(req.url)){res.writeHead(404);return res.end('{}');}const ip=req.socket.remoteAddress;const now=Date.now();let rate=rates.get(ip);if(!rate||now-rate.start>60000){rate={start:now,count:0};rates.set(ip,rate);}if(++rate.count>20){res.writeHead(429);return res.end('{"error":"Please retry in a minute"}');}if(rates.size>10000)rates.clear();let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>100000)throw new Error('Request too large');}const body=JSON.parse(raw);const prefs=body.prefs;if(!prefs||!areas[prefs.area]||!['Walking','Driving','Public transport'].includes(prefs.transport))throw new Error('Invalid preferences');let result;
-if(req.url==='/api/venues'){const a=areas[prefs.area];const interests=Array.isArray(prefs.preferences)?prefs.preferences.slice(0,4):[];const queries=interests.length?interests:['Coffee shops','Art galleries','Scenic walks'];const lists=await Promise.all(queries.map(async tag=>{const data=await google('https://places.googleapis.com/v1/places:searchText',{textQuery:`${tag} in ${prefs.area}, Sydney Australia`,pageSize:6,locationBias:{circle:{center:{latitude:a.lat,longitude:a.lng},radius:Math.min(30000,a.r*1000)}}},'places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.regularOpeningHours,places.photos,places.googleMapsUri,places.businessStatus');return (data.places||[]).filter(p=>p.businessStatus==='OPERATIONAL'&&p.regularOpeningHours?.periods).map(p=>({id:p.id,name:p.displayName.text,address:p.formattedAddress,area:prefs.area,lat:p.location.latitude,lng:p.location.longitude,rating:p.rating,image:p.photos?.[0]?'/api/photo?name='+encodeURIComponent(p.photos[0].name):undefined,attribution:p.photos?.[0]?.authorAttributions?.map(a=>a.displayName).join(', '),tags:[tag],category:tag,weeklyHours:hours(p.regularOpeningHours.periods),source:'google',cost:/food|Dinner|Brunch|Italian|Asian/i.test(tag)?30:/caf|coffee|Matcha|Dessert/i.test(tag)?15:/Escape|Arcade|music|Jazz/i.test(tag)?35:0,mins:45,note:'Discovered with Google Places. Estimated spend is a planning allowance, not a venue quote. Check the venue before visiting.',mapsUri:p.googleMapsUri}));}));const merged=new Map();for(const v of lists.flat()){if(merged.has(v.id)){const old=merged.get(v.id);old.tags=[...new Set([...old.tags,...v.tags])];old.cost=Math.max(old.cost,v.cost);}else merged.set(v.id,v);}result={venues:[...merged.values()]};
-}else{const v=body.venues;if(!Array.isArray(v)||v.length>14||v.some(p=>!Number.isFinite(p.lat)||!Number.isFinite(p.lng)||p.lat< -34.3||p.lat> -33.3||p.lng<150.5||p.lng>151.6))throw new Error('Invalid venue coordinates');const point=p=>({waypoint:{location:{latLng:{latitude:p.lat,longitude:p.lng}}}});const mode=prefs.transport==='Walking'?'WALK':prefs.transport==='Driving'?'DRIVE':'TRANSIT';const rows=await google('https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix',{origins:v.map(point),destinations:v.map(point),travelMode:mode},'originIndex,destinationIndex,duration,distanceMeters,status,condition');const matrix=v.map(()=>v.map(()=>({minutes:Infinity,distance:0,source:'google'})));for(const row of rows){if(row.condition==='ROUTE_EXISTS'&&(!row.status?.code)){matrix[row.originIndex][row.destinationIndex]={minutes:Math.ceil(parseFloat(row.duration)/60),distance:row.distanceMeters/1000,source:'google'};}}result={matrix};}
-res.end(JSON.stringify(result));}catch(e){res.writeHead(502);res.end(JSON.stringify({error:e.message==='Google provider unavailable'?e.message:'Request or provider failed'}));}});
-server.listen(Number(process.env.PORT)||3001,'127.0.0.1',()=>console.log('melloway API listening on http://127.0.0.1:3001'));
+import http from "node:http";
+import { validPreferences } from "../src/utils/planner.js";
+import { createGoogleProvider } from "./google.js";
+const key = process.env.GOOGLE_MAPS_API_KEY,
+  provider = createGoogleProvider(key);
+const rates = new Map();
+const allowedOrigins = (process.env.APP_ORIGINS || "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const server = http.createServer(async (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Cache-Control", "no-store");
+  const reply = (status, data) => {
+    res.writeHead(status);
+    res.end(JSON.stringify(data));
+  };
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  }
+  if (req.method === "OPTIONS") {
+    if (!origin || !allowedOrigins.includes(origin))
+      return reply(403, { error: "Origin is not configured" });
+    res.writeHead(204);
+    return res.end();
+  }
+  try {
+    if (req.method === "GET" && req.url === "/api/status")
+      return reply(200, { venues: key ? "google" : "demo" });
+    const photoRequest =
+      req.method === "GET" && req.url.startsWith("/api/photo?");
+    if (
+      !photoRequest &&
+      (req.method !== "POST" ||
+        !["/api/venues", "/api/matrix"].includes(req.url))
+    )
+      return reply(404, { error: "Endpoint not found" });
+    if (!key)
+      return reply(503, { error: "Google credentials are not configured" });
+    const ip = req.socket.remoteAddress,
+      now = Date.now();
+    let rate = rates.get(ip);
+    if (!rate || now - rate.start > 60000) {
+      rate = { start: now, count: 0 };
+      rates.set(ip, rate);
+    }
+    if (++rate.count > 40)
+      return reply(429, { error: "Please retry in a minute" });
+    if (rates.size > 10000) rates.clear();
+    if (photoRequest) {
+      const name = new URL(req.url, "http://localhost").searchParams.get(
+        "name",
+      );
+      if (!/^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(name || ""))
+        return reply(400, { error: "Invalid photo" });
+      const photo = await provider.photo(name);
+      res.setHeader("Content-Type", photo.type);
+      return res.end(photo.body);
+    }
+    let raw = "";
+    for await (const chunk of req) {
+      raw += chunk;
+      if (raw.length > 100000)
+        return reply(413, { error: "Request too large" });
+    }
+    let body;
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return reply(400, { error: "Invalid JSON" });
+    }
+    const { prefs } = body;
+    if (!validPreferences(prefs))
+      return reply(400, { error: "Invalid planning details" });
+    if (req.url === "/api/venues")
+      return reply(200, { venues: await provider.discover(prefs) });
+    const { venues } = body;
+    if (
+      !Array.isArray(venues) ||
+      !venues.length ||
+      venues.length > 14 ||
+      venues.some(
+        (p) =>
+          !p ||
+          !Number.isFinite(p.lat) ||
+          !Number.isFinite(p.lng) ||
+          p.lat < -34.3 ||
+          p.lat > -33.3 ||
+          p.lng < 150.5 ||
+          p.lng > 151.6,
+      )
+    )
+      return reply(400, { error: "Invalid venue coordinates" });
+    return reply(200, { matrix: await provider.routeMatrix(venues, prefs) });
+  } catch {
+    reply(502, { error: "External provider unavailable" });
+  }
+});
+server.listen(Number(process.env.PORT) || 3001, "127.0.0.1", () =>
+  console.log(
+    "melloway API listening on http://127.0.0.1:" + (process.env.PORT || 3001),
+  ),
+);

@@ -1,4 +1,64 @@
-import {NavLink,Link,Outlet} from 'react-router-dom';
-import {Heart,Compass,Sparkles,Bookmark,ArrowUpRight} from 'lucide-react';
-import {useApp} from '../hooks/useApp';
-export default function Layout(){const {status,setStatus}=useApp();return <><header className="header"><Link to="/" className="wordmark" aria-label="melloway home">melloway<span>✳</span></Link><nav aria-label="Main navigation"><NavLink to="/" end><Heart size={17}/><span>make a plan</span></NavLink><NavLink to="/community"><Compass size={17}/><span>the community</span></NavLink><NavLink to="/events"><Sparkles size={17}/><span>what’s on</span></NavLink><NavLink to="/favourites"><Bookmark size={17}/><span>saved</span></NavLink></nav><span className="header-note">made for a little chemistry <ArrowUpRight size={16}/></span></header><main id="main" tabIndex={-1}><Outlet/></main><footer className="footer"><Link to="/" className="wordmark">melloway</Link><span>less planning, more chemistry.</span><span>Sydney, with love ♡</span></footer>{status&&<div className="toast" role="status">{status}<button aria-label="Dismiss notification" onClick={()=>setStatus('')}>×</button></div>}</>}
+import { NavLink, Link, Outlet, useLocation } from "react-router-dom";
+import { Heart, Compass, Sparkles, Bookmark, MapPin } from "lucide-react";
+import { useApp } from "../hooks/useApp";
+import useKeyboard from "../hooks/useKeyboard";
+const tabs = [
+  { to: "/", name: "make a plan", label: "plan", icon: Heart },
+  { to: "/community", name: "the community", label: "ideas", icon: Compass },
+  { to: "/events", name: "what’s on", label: "what’s on", icon: Sparkles },
+  { to: "/favourites", name: "saved", label: "saved", icon: Bookmark },
+];
+export default function Layout() {
+  const { status, setStatus } = useApp(),
+    { pathname } = useLocation();
+  const keyboardOpen = useKeyboard();
+  const planning = pathname.startsWith("/plan/") || pathname === "/generating";
+  return (
+    <div
+      className={`app-shell ${planning ? "planning" : ""} ${keyboardOpen ? "keyboard-open" : ""}`}
+    >
+      <header className="app-topbar">
+        <Link to="/" className="wordmark" aria-label="melloway home">
+          melloway<span>✳</span>
+        </Link>
+        <span className="city-label">
+          <MapPin size={13} /> Sydney
+        </span>
+      </header>
+      <main id="main" tabIndex={-1}>
+        <Outlet />
+      </main>
+      {!planning && (
+        <nav className="bottom-tabs" aria-label="Main navigation">
+          {tabs.map(({ to, name, label, icon: Icon }) => (
+            <NavLink
+              key={to}
+              to={to}
+              end={to === "/"}
+              aria-label={name}
+              className={({ isActive }) =>
+                `tab ${isActive || (to === "/" && (pathname === "/itinerary" || pathname.startsWith("/venue/"))) ? "active" : ""}`
+              }
+            >
+              <span className="tab-icon">
+                <Icon size={21} strokeWidth={1.6} />
+              </span>
+              <span>{label}</span>
+            </NavLink>
+          ))}
+        </nav>
+      )}
+      {status && (
+        <div className="toast" role="status">
+          {status}
+          <button
+            aria-label="Dismiss notification"
+            onClick={() => setStatus("")}
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

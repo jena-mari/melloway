@@ -1,4 +1,158 @@
-import {venues} from '../data/venues.js';
-import {selectVenues,demoMatrix,optimise} from '../utils/planner.js';
-async function api(path,body){const response=await fetch('/api/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});if(!response.ok)throw new Error('Provider unavailable');return response.json();}
-export async function generate(prefs,seed=0,onStage=()=>{},previous=null){onStage('finding spots that fit ur vibe…');let all=venues,notice='Demo venues, sample hours and estimated prices. Mood photos are illustrative.';try{const live=await api('venues',{prefs});if(live.venues.length>=3){all=live.venues;notice='Google Places data. Costs and visit durations are planning allowances; confirm availability before booking.';}}catch{/* Demonstrable offline fallback. */}let candidates=selectVenues(all,prefs,seed);onStage('checking budget, hours & distance…');let matrix=demoMatrix(candidates,prefs.transport);try{if(all!==venues){matrix=(await api('matrix',{venues:candidates,prefs})).matrix;}}catch{notice+=' Routing unavailable: travel uses rough geographic estimates.';}onStage('exploring the best order for ur stops…');let plan=optimise(candidates,prefs,matrix,{excludeSignature:previous?.stops.map(v=>v.id).sort().join('|')});if(!plan&&previous)plan=optimise(candidates,prefs,matrix);return {plan:plan?{...plan,id:crypto.randomUUID(),prefs,notice,createdAt:new Date().toISOString()}:null,candidates,matrix,notice};}
+import { venues } from "../data/venues.js";
+import {
+  selectVenues,
+  demoMatrix,
+  optimise,
+  validPreferences,
+} from "../utils/planner.js";
+
+// Native Capacitor builds point to an HTTPS backend instead of the web dev proxy.
+const apiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+const apiUrl = (endpoint) => `${apiBase}/api/${endpoint}`;
+const withApiPhoto = (venue) => ({
+  ...venue,
+  image: venue.image?.startsWith("/api/") ? apiBase + venue.image : venue.image,
+});
+
+async function api(path, body, signal) {
+  const response = await fetch(apiUrl(path), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(20000)])
+      : AbortSignal.timeout(20000),
+  });
+  if (!response.ok) throw new Error("Provider unavailable");
+  return response.json();
+}
+const demoNotice =
+  "Demo venues, sample hours and estimated prices. Mood photos are illustrative.";
+const liveNotice =
+  "Google Places data. Costs and visit durations are planning allowances; confirm availability before booking.";
+const signature = (plan) =>
+  plan?.stops
+    .map((v) => v.id)
+    .sort()
+    .join("|");
+function checkCancelled(signal) {
+  signal?.throwIfAborted();
+}
+async function stage(message, onStage, signal) {
+  checkCancelled(signal);
+  onStage(message);
+  // Yield a browser task so actual processing progress can paint before DFS work.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  checkCancelled(signal);
+}
+async function routeMatrix(candidates, prefs, live, signal) {
+  if (live) {
+    try {
+      return {
+        matrix: (await api("matrix", { venues: candidates, prefs }, signal))
+          .matrix,
+        routeNotice: "",
+      };
+    } catch {
+      checkCancelled(signal);
+      return {
+        matrix: demoMatrix(candidates, prefs.transport),
+        routeNotice:
+          " Routing unavailable: travel uses rough geographic estimates.",
+      };
+    }
+  }
+  return { matrix: demoMatrix(candidates, prefs.transport), routeNotice: "" };
+}
+
+export async function generate(
+  prefs,
+  seed = 0,
+  onStage = () => {},
+  previous = null,
+  { signal } = {},
+) {
+  if (!validPreferences(prefs))
+    throw new Error("Please check your planning details.");
+  await stage("finding spots that fit ur vibe…", onStage, signal);
+  let all = venues,
+    notice = demoNotice;
+  try {
+    const response = await fetch(apiUrl("status"), {
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(5000)])
+        : AbortSignal.timeout(5000),
+    });
+    if (response.ok && (await response.json()).venues === "google") {
+      const live = await api("venues", { prefs }, signal);
+      if (Array.isArray(live.venues) && live.venues.length >= 3) {
+        all = live.venues.map(withApiPhoto);
+        notice = liveNotice;
+      }
+    }
+  } catch {
+    checkCancelled(signal);
+  }
+  const candidates = selectVenues(all, prefs, seed);
+  await stage("checking budget, hours & distance…", onStage, signal);
+  const { matrix, routeNotice } = await routeMatrix(
+    candidates,
+    prefs,
+    all !== venues,
+    signal,
+  );
+  notice += routeNotice;
+  await stage("exploring the best order for ur stops…", onStage, signal);
+  let plan = optimise(candidates, prefs, matrix, {
+    excludeSignature: signature(previous),
+  });
+  const unchanged = !plan && !!previous;
+  if (unchanged) plan = previous;
+  return {
+    plan: plan
+      ? {
+          ...plan,
+          id: unchanged ? previous.id : crypto.randomUUID(),
+          prefs,
+          notice,
+          createdAt: new Date().toISOString(),
+        }
+      : null,
+    candidates,
+    matrix,
+    notice,
+    unchanged,
+  };
+}
+
+// Rebuild only the replacement pool for a saved plan. Keep its chosen stops.
+export async function prepareReplacement(plan, { signal } = {}) {
+  const live = plan.stops.some((v) => v.source === "google");
+  const all = live
+    ? (await api("venues", { prefs: plan.prefs }, signal)).venues.map(
+        withApiPhoto,
+      )
+    : venues;
+  const options = selectVenues(all, plan.prefs);
+  const currentIds = new Set(plan.stops.map((v) => v.id));
+  const candidates = [
+    ...plan.stops.map((v) => ({
+      ...v,
+      score: options.find((c) => c.id === v.id)?.score || 0,
+    })),
+    ...options
+      .filter((v) => !currentIds.has(v.id))
+      .slice(0, 14 - plan.stops.length),
+  ];
+  const { matrix, routeNotice } = await routeMatrix(
+    candidates,
+    plan.prefs,
+    live,
+    signal,
+  );
+  return {
+    candidates,
+    matrix,
+    notice: (live ? liveNotice : demoNotice) + routeNotice,
+  };
+}
