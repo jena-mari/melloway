@@ -18,7 +18,7 @@ This installs all npm workspaces and builds `@melloway/domain`. Keep the root `p
 npm run mobile
 ```
 
-This branch targets Expo SDK 54, matching the iPhone App Store Expo Go runtime. Scan the Expo QR code with SDK 54-compatible Expo Go on your phone (same network), or press `i`/`a` for a configured iOS simulator/Android emulator. You can also run `npm run ios --workspace @melloway/mobile` or `npm run android --workspace @melloway/mobile`. Those commands open Expo Go; they do not compile a native binary. To preview the React Native screens in a browser:
+Scan the Expo QR code with an SDK-compatible Expo Go on your phone (same network), or press `i`/`a` for a configured iOS simulator/Android emulator. You can also run `npm run ios --workspace @melloway/mobile` or `npm run android --workspace @melloway/mobile`. Those commands open Expo Go; they do not compile a native binary. To preview the React Native screens in a browser:
 
 ```sh
 npm run mobile:web

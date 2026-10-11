@@ -9,18 +9,17 @@ const config: ExpoConfig = {
   scheme: 'melloway',
   orientation: 'portrait',
   userInterfaceStyle: 'light',
-  ios: {
-    supportsTablet: true, bundleIdentifier: 'com.melloway.app',
-    ...(iosKey ? { config: { googleMapsApiKey: iosKey } } : {}),
-  },
-  android: {
-    package: 'com.melloway.app',
-    ...(androidKey ? { config: { googleMaps: { apiKey: androidKey } } } : {}),
-  },
+  ios: { supportsTablet: true, bundleIdentifier: 'com.melloway.app' },
+  android: { package: 'com.melloway.app' },
   web: { bundler: 'metro', output: 'single' },
   plugins: [
     'expo-router',
     'expo-font',
+    'expo-status-bar',
+    ...(androidKey || iosKey ? [['react-native-maps', {
+      ...(androidKey ? { androidGoogleMapsApiKey: androidKey } : {}),
+      ...(iosKey ? { iosGoogleMapsApiKey: iosKey } : {}),
+    }] as [string, Record<string, string>]] : []),
   ],
   experiments: { typedRoutes: true },
   extra: { googleMapsIOS: Boolean(iosKey) },

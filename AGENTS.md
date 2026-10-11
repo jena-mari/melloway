@@ -12,7 +12,7 @@ Melloway is a Sydney-first date and hangout planner. Preserve the working React/
 - `supabase/migrations/`: versioned database schema and PostGIS foundation. Never apply migrations to a live project without authorization. Do not run the initial schema migration over a project where `server/schema.sql` has already been applied; baseline it.
 - `tests/`: original constraints, migration regression tests, pure mobile API/config tests. `tests/fixtures/legacy-planner.js` is the frozen pre-migration algorithm; do not alter it to make parity checks pass.
 
-Use npm workspaces and one root lockfile. Expo SDK 54 targets React Native 0.81 and React 19.1.0; keep one React version across apps. Install native dependencies from `apps/mobile/` with `npx expo install`, then run Expo Doctor. Metro uses Expo's default monorepo configuration. The domain package emits ESM/declarations into ignored `dist/` for Node/Vite, while native Metro uses TypeScript source. `npm install` builds the package; rebuild after domain edits before running Node services or the web app.
+Use npm workspaces and one root lockfile. Expo SDK 57 targets React Native 0.86 and React 19.2.3; keep one React version across apps. Install native dependencies from `apps/mobile/` with `npx expo install`, then run Expo Doctor. Metro uses Expo's default monorepo configuration. The domain package emits ESM/declarations into ignored `dist/` for Node/Vite, while native Metro uses TypeScript source. `npm install` builds the package; rebuild after domain edits before running Node services or the web app.
 
 ## Responsibilities and conventions
 
