@@ -1,14 +1,15 @@
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { venues } from "../data/venues";
+import { sydneyVenues } from "../data/sydneyVenues";
 import { useApp } from "../hooks/useApp";
 import { MoodImage } from "../components/UI";
-export default function Venue() {
+export default function Venue({ route, backTo = "/itinerary" }) {
   const { id } = useParams(),
     { current } = useApp();
   const v =
-    current?.plan?.stops.find((s) => s.id === id) ||
-    venues.find((s) => s.id === id);
+    (route || current)?.plan?.stops.find((s) => s.id === id) ||
+    [...sydneyVenues, ...venues].find((s) => s.id === id);
   if (!v)
     return (
       <div className="page">
@@ -18,7 +19,7 @@ export default function Venue() {
     );
   return (
     <div className="page venue">
-      <Link className="back" to="/itinerary">
+      <Link className="back" to={backTo} state={route ? { route } : undefined}>
         <ArrowLeft size={17} /> back to ur day
       </Link>
       <div className="venue-layout">
@@ -30,11 +31,12 @@ export default function Venue() {
           <span className="pill-label">
             {v.source === "demo"
               ? "demo venue · mood imagery"
-              : `Google Places${v.attribution ? " · " + v.attribution : ""}`}
+              : v.source === "curated"
+                ? "sourced Sydney venue"
+                : `Google Places${v.attribution ? " · " + v.attribution : ""}`}
           </span>
         </div>
         <div>
-          <span className="eyebrow">LOCATION SPOTLIGHT</span>
           <h1>{v.name}</h1>
           <p>{v.address}</p>
           <div className="chips">
@@ -44,31 +46,25 @@ export default function Venue() {
               </span>
             ))}
           </div>
+          {v.reason && <p>{v.reason}</p>}
           <p className="venue-description">{v.note}</p>
+          {v.website && (
+            <a href={v.website} target="_blank" rel="noreferrer">
+              venue source ↗
+            </a>
+          )}
           <dl>
             <div>
               <dt>estimated spend</dt>
-              <dd>${v.cost} per person · planning allowance</dd>
+              <dd>~${v.cost} each</dd>
             </div>
             <div>
-              <dt>make a little time</dt>
+              <dt>visit</dt>
               <dd>{v.mins} minutes</dd>
             </div>
             <div>
-              <dt>ratings & reviews</dt>
-              <dd>
-                {v.rating
-                  ? `${v.rating}/5 from Google. Open the venue link for current reviews.`
-                  : "No verified ratings or reviews in demo mode."}
-              </dd>
-            </div>
-            <div>
-              <dt>why it might be ur vibe</dt>
-              <dd>
-                {v.tags
-                  .filter((t) => current?.plan?.prefs.preferences.includes(t))
-                  .join(", ") || "A little variety and a place to connect."}
-              </dd>
+              <dt>rating</dt>
+              <dd>{v.rating ? `${v.rating}/5 · Google` : "not available"}</dd>
             </div>
           </dl>
           <a

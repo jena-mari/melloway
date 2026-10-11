@@ -9,8 +9,10 @@ import Venue from "./pages/Venue";
 import { useEffect, lazy, Suspense } from "react";
 import { useLocation } from "react-router-dom";
 const Community = lazy(() => import("./pages/Community"));
+const CommunityRoute = lazy(() => import("./pages/CommunityRoute"));
 const Itinerary = lazy(() => import("./pages/Itinerary"));
 const Favourites = lazy(() => import("./pages/Favourites"));
+const Profile = lazy(() => import("./pages/Profile"));
 const Events = lazy(() =>
   import("./pages/Discover").then((module) => ({ default: module.Events })),
 );
@@ -36,6 +38,20 @@ export default function App() {
               <Route path="/" element={<Landing />} />
               <Route path="/plan/:step" element={<Onboarding />} />
               <Route path="/generating" element={<Generating />} />
+              <Route
+                path="/profile"
+                element={
+                  <Suspense
+                    fallback={
+                      <div className="page" role="status">
+                        opening your profile…
+                      </div>
+                    }
+                  >
+                    <Profile />
+                  </Suspense>
+                }
+              />
               <Route
                 path="/itinerary"
                 element={
@@ -78,6 +94,25 @@ export default function App() {
                   </Suspense>
                 }
               />
+              {["/community/:postId", "/community/:postId/venue/:id"].map(
+                (path) => (
+                  <Route
+                    key={path}
+                    path={path}
+                    element={
+                      <Suspense
+                        fallback={
+                          <div className="page" role="status">
+                            opening the full route…
+                          </div>
+                        }
+                      >
+                        <CommunityRoute />
+                      </Suspense>
+                    }
+                  />
+                ),
+              )}
               <Route
                 path="/events"
                 element={

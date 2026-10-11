@@ -15,7 +15,7 @@ test("wireframe-style notes contribute recognised interests", () => {
     "Matcha cafés",
     "Flea markets",
     "Vintage stores",
-    "Photo spots",
+    "Photo booths",
   ])
     assert.ok(parsed.included.includes(tag));
 });

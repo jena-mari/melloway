@@ -18,6 +18,7 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     env: {
       GOOGLE_MAPS_API_KEY: "",
+      OPENAI_API_KEY: "",
       VITE_SUPABASE_URL: "",
       VITE_SUPABASE_ANON_KEY: "",
     },

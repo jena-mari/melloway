@@ -32,7 +32,7 @@ async function planDay(page) {
   await continueQuestions(page, 3);
   await page.getByRole("button", { name: /make it more ur vibe/ }).click();
   await page.getByRole("button", { name: "Matcha cafés", exact: true }).click();
-  await page.getByRole("button", { name: "Bookshops", exact: true }).click();
+  await page.getByRole("button", { name: "Thrifting", exact: true }).click();
   await continueQuestions(page, 3);
   await page.getByRole("button", { name: "submit", exact: true }).click();
   await expect(page).toHaveURL(/\/itinerary$/);
@@ -55,7 +55,7 @@ async function swapOnly(page, index) {
 test.beforeEach(async ({ page }) => {
   await mockMapTiles(page);
   await mockLocationSearch(page);
-  // Tests are deterministic demo flows and never charge external APIs.
+  // Sourced catalog with deterministic local scoring; never charge external APIs.
   await page.route("**/api/status", (route) =>
     route.fulfill({ json: { venues: "demo" } }),
   );
@@ -76,11 +76,9 @@ test("plan, replace, save, reopen, replace again, and start fresh", async ({
     .getByRole("button", { name: "the details", exact: true })
     .first()
     .click();
-  await expect(
-    page.getByText("No verified rating or availability in demo mode."),
-  ).toBeVisible();
+  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
   await page.getByRole("link", { name: "location spotlight" }).click();
-  await expect(page.getByText("LOCATION SPOTLIGHT")).toBeVisible();
+  await expect(page.locator(".venue h1")).toHaveText(titles[0]);
   await page.getByRole("link", { name: "back to ur day" }).click();
   await page.getByRole("button", { name: "lock this in" }).click();
   await openSaved(page);
@@ -112,7 +110,7 @@ test("plan, replace, save, reopen, replace again, and start fresh", async ({
   await page.reload();
   await expect(
     page.getByRole("heading", {
-      name: "a little empty, a lot of possibility.",
+      name: "no saved plans",
     }),
   ).toBeVisible();
   expect(errors).toEqual([]);
@@ -154,9 +152,9 @@ test("community posts, ratings and likes persist; event filters work", async ({
 }) => {
   await page.goto("/community");
   await page.getByRole("button", { name: "share a route" }).click();
-  await page.getByLabel("give it a little title").fill("A lovely day");
+  await page.getByLabel("title", { exact: true }).fill("A lovely day");
   await page
-    .getByLabel("the little details")
+    .getByLabel("post", { exact: true })
     .fill("A slow afternoon with good company.");
   await page.getByLabel("your rating").selectOption("4");
   await page.getByRole("button", { name: "save to device feed" }).click();
@@ -176,10 +174,12 @@ test("community posts, ratings and likes persist; event filters work", async ({
   ).toBeVisible();
 });
 
-test("community feed maps keep identities, filters, saved routes and shared routes usable", async ({
+test("compact community feed supports threads, saves and expanded itineraries", async ({
   page,
 }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/community");
   const posts = page.locator(".community-post");
   await expect(posts).toHaveCount(3);
@@ -187,90 +187,144 @@ test("community feed maps keep identities, filters, saved routes and shared rout
   await expect(posts.first().locator(".community-person")).toContainText(
     "@zoe.takes.it.slow",
   );
-  await expect(posts.first().locator(".community-stops li")).toHaveCount(3);
-  for (let i = 0; i < 3; i++) {
-    await posts.nth(i).scrollIntoViewIfNeeded();
-    await expect(posts.nth(i).locator(".map-canvas")).toBeVisible();
-  }
-  const duplicates = await page.evaluate(() => {
-    const ids = [...document.querySelectorAll("[id]")].map(
-      (element) => element.id,
-    );
-    return ids.filter((id, i) => ids.indexOf(id) !== i);
-  });
-  expect(duplicates).toEqual([]);
-  await posts
-    .nth(1)
-    .getByRole("button", { name: "expand map", exact: true })
-    .click();
-  const dialog = page.getByRole("dialog", {
-    name: "harbour views & happy hearts",
-  });
-  await expect(dialog).toBeVisible();
-  await expect(dialog.locator("li")).toHaveCount(3);
-  await page.keyboard.press("Escape");
-  await expect(dialog).not.toBeVisible();
+  await expect(posts.first().locator(".community-stop-photo")).toHaveCount(3);
+  await expect(posts.first().locator(".community-stop-photo img")).toHaveCount(
+    3,
+  );
+  await expect
+    .poll(() =>
+      posts
+        .first()
+        .locator(".community-stop-photo img")
+        .evaluateAll((images) =>
+          images.every((img) => img.complete && img.naturalWidth > 0),
+        ),
+    )
+    .toBe(true);
+  await expect(page.locator(".map-canvas")).toHaveCount(0);
+  await expect(page.locator(".app-topbar")).toHaveCount(0);
+  await expect(page.getByLabel("search ideas")).toBeVisible();
   await expect(
-    posts.nth(1).getByRole("button", { name: "expand map", exact: true }),
-  ).toBeFocused();
-  await posts
-    .first()
+    page.locator(".community-page > .community-filters"),
+  ).toHaveCount(0);
+  await expect(page.locator(".community-feed-header")).toHaveCount(1);
+  expect((await posts.first().boundingBox()).y).toBeLessThan(100);
+  expect(
+    await posts
+      .first()
+      .evaluate((card) => getComputedStyle(card).borderTopWidth),
+  ).toBe("2px");
+  await expect(
+    posts.first().locator(".community-route-line > span"),
+  ).toHaveCount(0);
+  const first = posts.first();
+  await first
     .getByRole("button", {
       name: "Like a slow saturday in newtown",
       exact: true,
     })
     .click();
-  await page.getByRole("button", { name: "liked", exact: true }).click();
-  await expect(posts).toHaveCount(1);
+  await page.getByRole("link", { name: "Your profile", exact: true }).click();
+  await page.getByRole("tab", { name: "Your Likes" }).click();
+  await expect(page.locator(".profile-content .community-post")).toHaveCount(1);
+  await page
+    .getByRole("link", { name: "Back to community", exact: true })
+    .click();
   await page.getByLabel("search ideas").fill("@zoe.takes.it.slow");
   await expect(posts).toHaveCount(1);
   await page.getByLabel("search ideas").fill("somewhere that does not exist");
-  await expect(
-    page.getByRole("heading", { name: "no little plans found." }),
-  ).toBeVisible();
+  await expect(page.locator(".community-empty")).toContainText(
+    "no posts found",
+  );
   await page
     .getByRole("button", { name: "see all ideas", exact: true })
     .click();
-  await posts
-    .first()
+  await expect(posts).toHaveCount(3);
+  await page.getByLabel("search ideas").fill("Newtown");
+  await page.getByRole("button", { name: "clear search", exact: true }).click();
+  await expect(page.getByLabel("search ideas")).toHaveValue("");
+  await expect(page.getByLabel("search ideas")).toBeFocused();
+  await expect(posts).toHaveCount(3);
+  await first
+    .getByRole("button", {
+      name: "Replies to a slow saturday in newtown",
+      exact: true,
+    })
+    .click();
+  await first
+    .getByLabel("reply as you @you")
+    .fill("is this a good route for a slow afternoon?");
+  await first.getByRole("button", { name: "reply", exact: true }).click();
+  await expect(first.locator(".community-thread li")).toHaveCount(1);
+  await expect(first.locator(".community-thread")).toContainText(
+    "is this a good route for a slow afternoon?",
+  );
+  await first
+    .getByRole("button", {
+      name: "Replies to a slow saturday in newtown",
+      exact: true,
+    })
+    .click();
+  await first
     .getByRole("button", {
       name: "Save route a slow saturday in newtown",
       exact: true,
     })
     .click();
-  await expect(
-    posts.first().getByRole("button", {
-      name: "Unsave route a slow saturday in newtown",
-      exact: true,
-    }),
-  ).toHaveAttribute("aria-pressed", "true");
   await page.reload();
   await expect(
-    posts.first().getByRole("button", {
+    first.getByRole("button", {
       name: "Unsave route a slow saturday in newtown",
       exact: true,
     }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.evaluate(() => document.fonts.ready);
-  await expect(posts.first().locator(".map-canvas")).toBeVisible();
   await expect(
-    posts.first().locator(".leaflet-tile-loaded").first(),
-  ).toBeVisible();
+    first.getByRole("button", {
+      name: "Like a slow saturday in newtown",
+      exact: true,
+    }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    first.getByRole("button", {
+      name: "Replies to a slow saturday in newtown",
+      exact: true,
+    }),
+  ).toHaveText("1");
+  await page.evaluate(() => document.fonts.ready);
   await page.screenshot({
-    path: info.outputPath("community-feed.png"),
+    path: info.outputPath("community-feed-390.png"),
     fullPage: true,
   });
-  const stops = await posts
-    .first()
-    .locator(".community-stops strong")
+  const stopNames = await first
+    .locator(".community-stop-photo strong")
     .allTextContents();
-  await posts
-    .first()
-    .getByRole("button", { name: "see this route", exact: true })
+  await first
+    .getByRole("link", { name: "check full route here", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/community\/example1$/);
+  await expect(page.locator(".community-place-list li")).toHaveCount(3);
+  await expect(page.locator(".stop-card")).toHaveCount(0);
+  await expect(page.locator(".community-place-info strong")).toHaveText(
+    stopNames,
+  );
+  await expect(page.locator(".map-preview .route-pin").first()).toBeVisible();
+  await page.screenshot({
+    path: info.outputPath("expanded-community-route-390.png"),
+    fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: `open ${stopNames[0]} details`, exact: true })
+    .click();
+  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
+  await page.getByRole("link", { name: "location spotlight" }).click();
+  await expect(page).toHaveURL(/\/community\/example1\/venue\//);
+  await expect(page.locator(".venue h1")).toHaveText(stopNames[0]);
+  await page.getByRole("link", { name: "back to ur day" }).click();
+  await page
+    .getByRole("button", { name: "make this my day", exact: true })
     .click();
   await expect(page).toHaveURL(/\/itinerary$/);
-  await expect(page.locator(".stop-card")).toHaveCount(3);
-  expect(await page.locator(".stop-body h2").allTextContents()).toEqual(stops);
+  await expect(page.locator(".stop-body h2")).toHaveText(stopNames);
   await page.goto("/community");
   await page
     .getByRole("button", { name: "share a route", exact: true })
@@ -278,25 +332,134 @@ test("community feed maps keep identities, filters, saved routes and shared rout
   await page.getByLabel("display name").fill("Jena");
   await page.getByLabel("your @").fill("@jena_routes");
   await page
-    .getByLabel("give it a little title")
+    .getByLabel("title", { exact: true })
     .fill("our little Newtown loop");
   await page
-    .getByLabel("the little details")
+    .getByLabel("post", { exact: true })
     .fill("kept this one for a slow afternoon.");
   await page.getByRole("button", { name: "save to device feed" }).click();
-  await expect(posts.first().locator(".community-person")).toContainText(
+  await expect(first.locator(".community-person")).toContainText(
     "@jena_routes",
   );
   expect(
-    await posts.first().locator(".community-stops strong").allTextContents(),
-  ).toEqual(stops);
-  await page.getByRole("button", { name: "your posts", exact: true }).click();
-  await expect(posts).toHaveCount(1);
+    await first.locator(".community-stop-photo strong").allTextContents(),
+  ).toEqual(stopNames);
+  await page.getByRole("link", { name: "Your profile", exact: true }).click();
+  await page.getByRole("tab", { name: "Your Posts" }).click();
+  await expect(page.locator(".profile-content .community-post")).toHaveCount(1);
   await page.reload();
   await expect(
     page.getByRole("heading", { name: "our little Newtown loop", exact: true }),
   ).toBeVisible();
-  await expect(posts.first().locator(".community-stops li")).toHaveCount(3);
+  await expect(first.locator(".community-stop-photo")).toHaveCount(3);
+  await page
+    .getByRole("link", { name: "Back to community", exact: true })
+    .click();
+  await page.setViewportSize({ width: 320, height: 740 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("community-feed-320.png"),
+    fullPage: true,
+  });
+  expect(errors).toEqual([]);
+});
+
+test("simple community route opens place details and suggested posts without replacing the current outing", async ({
+  page,
+}, info) => {
+  await page.goto("/community/example3");
+  await page
+    .getByRole("button", { name: "make this my day", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/itinerary$/);
+  const readCurrent = () =>
+    page.evaluate(() => JSON.parse(localStorage.getItem("melloway.current")));
+  const original = await readCurrent();
+  await page.goto("/community/example1");
+  await expect(
+    page.locator(".community-expanded-post .community-person"),
+  ).toContainText("Zoe");
+  await expect(page.locator(".community-place-list li")).toHaveCount(3);
+  await expect(
+    page.locator(
+      ".route-summary, .result-searchbar, .stop-card, .route-extras",
+    ),
+  ).toHaveCount(0);
+  const names = await page
+    .locator(".community-place-info strong")
+    .allTextContents();
+  const arrow = page.getByRole("button", {
+    name: `open ${names[1]} details`,
+    exact: true,
+  });
+  await arrow.click();
+  const dialog = page.getByRole("dialog", { name: names[1], exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator(".stop-address")).not.toBeEmpty();
+  await expect(dialog).toContainText("min visit");
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(arrow).toBeFocused();
+  const save = page.getByRole("button", {
+    name: "Save route a slow saturday in newtown",
+    exact: true,
+  });
+  await save.click();
+  await page.reload();
+  await expect(
+    page.getByRole("button", {
+      name: "Unsave route a slow saturday in newtown",
+      exact: true,
+    }),
+  ).toHaveAttribute("aria-pressed", "true");
+  const grid = page.locator(".community-explore-grid");
+  await expect(grid.locator("a")).toHaveCount(2);
+  await expect(grid.locator("a").first()).toContainText("@kai.outside");
+  await grid
+    .getByRole("link", {
+      name: "view route harbour views & happy hearts by Kai",
+      exact: true,
+    })
+    .click();
+  await expect(page).toHaveURL(/\/community\/example2$/);
+  await expect(page.locator(".community-route-title")).toContainText(
+    "harbour views & happy hearts",
+  );
+  await expect(page.locator(".community-place-info strong").first()).toHaveText(
+    "Art Gallery of NSW",
+  );
+  expect(await readCurrent()).toEqual(original);
+  await page.goto("/community/example1?stop=kingst");
+  await expect(
+    page.getByRole("dialog", { name: "King Street, Newtown", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 320, height: 740 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("expanded-post-320.png"),
+    fullPage: true,
+  });
+  expect(await readCurrent()).toEqual(original);
+  await page
+    .getByRole("button", { name: "make this my day", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/itinerary$/);
+  const copied = await readCurrent();
+  expect(copied.plan.id).not.toBe(original.plan.id);
+  expect(copied.plan.stops.map((stop) => stop.name)).toEqual(names);
+  await page.goto("/community/missing-post");
+  await expect(
+    page.getByRole("heading", { name: "that route has wandered off." }),
+  ).toBeVisible();
 });
 
 test("event posters support likes, saves, details and saved-event navigation", async ({
@@ -435,7 +598,7 @@ test("impossible hours show a recoverable empty state", async ({ page }) => {
   await continueQuestions(page, 4);
   await page.getByRole("button", { name: "submit", exact: true }).click();
   await expect(page.getByRole("status")).toContainText(
-    "No three-stop plan fits",
+    "No cohesive route fits",
   );
   await page.getByRole("link", { name: "tweak the details" }).click();
   await continueQuestions(page, 3);

@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
-import { communityExamples } from "../../src/data/community.js";
+import { venues } from "../../src/data/venues.js";
+import { curatedVenuesForDate } from "../../src/data/sydneyVenues.js";
+import { defaultDraft } from "../../src/data/preferences.js";
+import { schedule, demoMatrix } from "../../src/utils/planner.js";
 import { mockMapTiles } from "./fixtures.js";
 
 test.use({
@@ -10,7 +13,21 @@ test.use({
 });
 test.beforeEach(async ({ page }) => {
   await mockMapTiles(page);
-  const plan = communityExamples()[0].plan;
+  await page.route("**/api/status", (route) =>
+    route.fulfill({ json: { venues: "curated", recommendations: "planner" } }),
+  );
+  const prefs = { ...defaultDraft(), area: "Newtown", date: "2026-10-18" };
+  const stops = [
+    "sydney-maeda",
+    "sydney-uturn-vintage",
+    "sydney-better-read",
+  ].map((id) => curatedVenuesForDate(prefs.date).find((v) => v.id === id));
+  const plan = {
+    ...schedule(stops, prefs, demoMatrix(stops, prefs.transport), [0, 1, 2]),
+    prefs,
+    id: "real-newtown-fixture",
+    notice: "Sourced venues; estimated costs and map positions.",
+  };
   await page.addInitScript((plan) => {
     if (!localStorage.getItem("melloway.current"))
       localStorage.setItem(
@@ -24,6 +41,85 @@ const storedPlan = (page) =>
     () => JSON.parse(localStorage.getItem("melloway.current")).plan,
   );
 
+test("place names replace legacy nicknames across current, saved and shared routes", async ({
+  page,
+}) => {
+  const stops = ["newtown-0", "newtown-1", "newtown-4"].map((id) =>
+    venues.find((v) => v.id === id),
+  );
+  const prefs = { ...defaultDraft(), area: "Newtown" };
+  const matrix = demoMatrix(stops, prefs.transport);
+  const result = schedule(stops, prefs, matrix, [0, 1, 2]);
+  const oldPlan = {
+    ...result,
+    id: "old-names",
+    prefs,
+    notice: "Sample route",
+    stops: result.stops.map((s) => ({ ...s, name: s.legacyName })),
+  };
+  await page.addInitScript(
+    ({ plan, candidates, matrix }) => {
+      if (sessionStorage.getItem("name-fixture")) return;
+      sessionStorage.setItem("name-fixture", "ready");
+      localStorage.setItem(
+        "melloway.current",
+        JSON.stringify({ plan, candidates, matrix }),
+      );
+      localStorage.setItem("melloway.saved", JSON.stringify([plan]));
+      localStorage.setItem(
+        "melloway.posts",
+        JSON.stringify([
+          {
+            id: "old-post",
+            name: "our saved route",
+            author: "Jena",
+            handle: "jena",
+            description: "A day in Newtown.",
+            area: "Newtown",
+            plan,
+          },
+        ]),
+      );
+    },
+    { plan: oldPlan, candidates: oldPlan.stops, matrix },
+  );
+  await page.goto("/itinerary");
+  const names = stops.map((s) => s.name);
+  await expect(page.locator(".stop-body h2")).toHaveText(names);
+  await expect(page.locator(".route-summary-spot strong")).toHaveText(names);
+  const current = await storedPlan(page);
+  expect(current.cost).toBe(oldPlan.cost);
+  expect(current.stops.map((s) => [s.id, s.lat, s.lng, s.arrival])).toEqual(
+    oldPlan.stops.map((s) => [s.id, s.lat, s.lng, s.arrival]),
+  );
+  await expect(page.locator(".route-extras")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  expect(
+    await page.locator(".route-extras h3").allTextContents(),
+  ).not.toContain("a photobooth moment");
+  expect(
+    await page.locator(".route-extras h3").allTextContents(),
+  ).not.toContain("Sample photobooth");
+  await page.goto("/favourites");
+  await page.getByRole("button", { name: "open plan", exact: true }).click();
+  await expect(page.locator(".stop-body h2")).toHaveText(names);
+  await page.goto("/community");
+  await expect(
+    page
+      .locator(".community-post")
+      .first()
+      .locator(".community-stop-photo strong"),
+  ).toHaveText(names);
+  await page
+    .locator(".community-post")
+    .first()
+    .getByRole("link", { name: "check full route here", exact: true })
+    .click();
+  await expect(page.locator(".community-place-info strong")).toHaveText(names);
+});
+
 test("editable summary updates order, totals, map and directions; extras stay opt-in and persist", async ({
   page,
 }, info) => {
@@ -34,7 +130,7 @@ test("editable summary updates order, totals, map and directions; extras stay op
   const initial = await storedPlan(page);
   await expect(
     page.getByRole("button", {
-      name: "add Sample photobooth to route",
+      name: "add Mapo Newtown to route",
       exact: true,
     }),
   ).toBeEnabled();
@@ -71,16 +167,16 @@ test("editable summary updates order, totals, map and directions; extras stay op
   await page.getByRole("button", { name: "done", exact: true }).tap();
   await page
     .getByRole("button", {
-      name: "add Sample photobooth to route",
+      name: "add Mapo Newtown to route",
       exact: true,
     })
     .tap();
   await expect(page.locator(".route-summary-list li")).toHaveCount(3);
   await expect(page.locator(".stop-card")).toHaveCount(3);
   const added = await storedPlan(page);
-  expect(added.cost).toBe(removed.cost + 12);
+  expect(added.cost).toBe(removed.cost + 10);
   expect(
-    added.stops.filter((s) => s.category !== "Photo booths").map((s) => s.id),
+    added.stops.filter((s) => s.id !== "sydney-mapo").map((s) => s.id),
   ).toEqual(removed.stops.map((s) => s.id));
   expect(added.elapsed).toBeLessThanOrEqual(added.prefs.duration * 60);
   await expect(page.locator(".route-summary-total")).toContainText(
@@ -154,33 +250,33 @@ test("changing a specific stop uses the searchable picker and spot details open 
     .getByRole("button", { name: "change spot", exact: true })
     .nth(1)
     .tap();
-  const picker = page.getByRole("dialog", { name: "pick another spot." });
+  const picker = page.getByRole("dialog", { name: "change stop" });
   await expect(picker).toBeVisible();
-  await picker.getByLabel("search available spots").fill("photobooth");
+  await picker.getByLabel("search available spots").fill("Mapo");
   await page.screenshot({ path: info.outputPath("stop-picker-390.png") });
   await picker
-    .getByRole("button", { name: "choose Sample photobooth", exact: true })
+    .getByRole("button", { name: "choose Mapo Newtown", exact: true })
     .tap();
   await expect(picker).not.toBeVisible();
   await expect
     .poll(async () => (await storedPlan(page)).stops[1].name)
-    .toBe("Sample photobooth");
+    .toBe("Mapo Newtown");
   const after = await storedPlan(page);
   expect(after.stops[0].id).toBe(before.stops[0].id);
   expect(after.stops[2].id).toBe(before.stops[2].id);
   await page.getByRole("button", { name: "done", exact: true }).tap();
   const spot = page.getByRole("button", {
-    name: "view Sample photobooth details",
+    name: "view Mapo Newtown details",
     exact: true,
   });
   await spot.tap();
   const details = page.getByRole("dialog", {
-    name: "Sample photobooth",
+    name: "Mapo Newtown",
     exact: true,
   });
   await expect(details).toBeVisible();
-  await expect(details).toContainText("15 min visit");
-  await expect(details).toContainText("not a verified business");
+  await expect(details).toContainText("20 min visit");
+  await expect(details).toContainText("approximate map position");
   const box = await details.boundingBox();
   expect(box.y + box.height).toBeCloseTo(844, 0);
   await page.screenshot({ path: info.outputPath("spot-detail-sheet-390.png") });
@@ -218,14 +314,14 @@ test("extras beyond the remaining budget cannot change the route", async ({
   );
   await expect(
     page.getByRole("button", {
-      name: "add Sample photobooth to route",
+      name: "add Mapo Newtown to route",
       exact: true,
     }),
   ).toBeDisabled();
   await page.getByRole("button", { name: "add a stop", exact: true }).tap();
-  await page.getByLabel("search available spots").fill("photo");
+  await page.getByLabel("search available spots").fill("Mapo");
   await expect(
-    page.getByRole("button", { name: "add Sample photobooth", exact: true }),
+    page.getByRole("button", { name: "add Mapo Newtown", exact: true }),
   ).toBeDisabled();
   await page.keyboard.press("Escape");
   expect((await storedPlan(page)).stops).toEqual(before.stops);

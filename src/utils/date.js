@@ -30,6 +30,8 @@ export function withScheduleDefaults(prefs) {
     ...prefs,
     date: !prefs.date || prefs.date < today ? today : prefs.date,
     time: prefs.time || "11:00",
+    timeExplicit:
+      prefs.timeExplicit ?? Boolean(prefs.time && prefs.time !== "11:00"),
   };
 }
 

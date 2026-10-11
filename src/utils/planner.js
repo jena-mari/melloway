@@ -1,6 +1,7 @@
 import { areas, categories } from "../data/preferences.js";
 import { planningArea, validLocation } from "./location.js";
 import { validDate, validTime } from "./date.js";
+import { closedOn, offsetDate } from "./openingHours.js";
 
 const modes = ["Walking", "Public transport", "Driving"];
 const interestOptions = new Set(Object.values(categories).flat());
@@ -95,13 +96,19 @@ export function demoMatrix(venues, mode) {
   );
 }
 
-function openingWindow(venue, day, earliest) {
+function openingWindow(venue, day, earliest, date) {
   // Close values may exceed 1440 for overnight hours. Also examine the next
   // day's hours because an outing of up to eight hours can cross midnight.
-  const windows = [0, 1]
+  const hasClosures = !!(
+    venue.closedDates?.length ||
+    venue.closedMonthDays?.length ||
+    venue.closesGoodFriday
+  );
+  const windows = [-1, 0, 1]
     .flatMap((offset) => {
+      if (hasClosures && closedOn(venue, offsetDate(date, offset))) return [];
       const hours = venue.weeklyHours
-        ? venue.weeklyHours[(day + offset) % 7]
+        ? venue.weeklyHours[(day + offset + 7) % 7]
         : venue.hours
           ? [venue.hours]
           : [];
@@ -111,9 +118,16 @@ function openingWindow(venue, day, earliest) {
       }));
     })
     .sort((a, b) => a.open - b.open);
-  return windows.find(
-    (w) => Math.max(earliest, w.open) + venue.mins <= w.close,
-  );
+  return windows.find((w) => {
+    const arrival = Math.max(earliest, w.open),
+      finish = arrival + venue.mins;
+    return (
+      finish <= w.close &&
+      (!hasClosures ||
+        (!closedOn(venue, offsetDate(date, Math.floor(arrival / 1440))) &&
+          !closedOn(venue, offsetDate(date, Math.floor((finish - 1) / 1440)))))
+    );
+  });
 }
 
 export function schedule(stops, prefs, matrix, indices) {
@@ -139,7 +153,7 @@ export function schedule(stops, prefs, matrix, indices) {
     time += leg?.minutes || 0;
     travel += leg?.minutes || 0;
     cost += venue.cost;
-    const window = openingWindow(venue, day, time);
+    const window = openingWindow(venue, day, time, prefs.date);
     if (!window) return null;
     time = Math.max(time, window.open);
     if (time + venue.mins > end || cost > Number(prefs.budget)) return null;
@@ -176,7 +190,7 @@ export function editRoute(stops, prefs, candidates, matrix) {
   const indices = stops.map((s) => candidates.findIndex((v) => v.id === s.id));
   if (indices.some((i) => i < 0)) return null;
   return schedule(
-    indices.map((i) => candidates[i]),
+    indices.map((i, position) => ({ ...candidates[i], ...stops[position] })),
     prefs,
     matrix,
     indices,

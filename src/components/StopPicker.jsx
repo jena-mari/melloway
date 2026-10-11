@@ -30,9 +30,8 @@ export default function StopPicker({ choices, replacing, onChoose, onClose }) {
       <div className="stop-picker-content">
         <header>
           <div>
-            <p>make it ur own</p>
             <h2 id="stop-picker-title">
-              {replacing ? "pick another spot." : "one more little stop?"}
+              {replacing ? "change stop" : "add a stop"}
             </h2>
           </div>
           <button
@@ -53,12 +52,6 @@ export default function StopPicker({ choices, replacing, onChoose, onClose }) {
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
-        <p className="stop-picker-hint">
-          {replacing
-            ? "Ur other stops stay in the same order."
-            : "We’ll slot it in where it fits best."}{" "}
-          Budget, travel and opening hours are checked.
-        </p>
         <ul>
           {shown.map(({ venue, next }) => (
             <li key={venue.id}>
@@ -73,7 +66,7 @@ export default function StopPicker({ choices, replacing, onChoose, onClose }) {
                 </small>
                 {!next && (
                   <small className="stop-fit-warning">
-                    doesn’t fit ur budget, time or opening hours
+                    doesn’t fit this plan
                   </small>
                 )}
               </div>
@@ -90,11 +83,7 @@ export default function StopPicker({ choices, replacing, onChoose, onClose }) {
             </li>
           ))}
         </ul>
-        {!shown.length && (
-          <p className="stops-empty">
-            no available spots match. try another search.
-          </p>
-        )}
+        {!shown.length && <p className="stops-empty">no matching spots.</p>}
       </div>
     </dialog>
   );

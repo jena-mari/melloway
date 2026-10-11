@@ -14,13 +14,7 @@ export default function Favourites() {
   const keptEvents = events.filter((event) => savedEvents.includes(event.id));
   return (
     <div className="page collection">
-      <span className="eyebrow">GOOD DAYS, KEPT CLOSE</span>
-      <h1>
-        ur little
-        <br />
-        <em>memory bank.</em>
-      </h1>
-      <p className="sub">saved on this device. ready whenever you are.</p>
+      <h1>saved</h1>
       <div
         className="community-filters saved-tabs"
         role="group"
@@ -70,8 +64,7 @@ export default function Favourites() {
         ) : (
           <div className="community-empty">
             <Bookmark size={30} />
-            <h2>a little space for what’s next.</h2>
-            <p>save an event poster to come back to it here.</p>
+            <h2>no saved events</h2>
             <Link className="button" to="/events">
               find something to do <ArrowUpRight size={16} />
             </Link>
@@ -80,8 +73,7 @@ export default function Favourites() {
       ) : !saved.length ? (
         <div className="empty-state">
           <Bookmark size={36} />
-          <h2>a little empty, a lot of possibility.</h2>
-          <p>make a plan, save it here, and come back for round two.</p>
+          <h2>no saved plans</h2>
           <Link className="button pink" to="/plan/profile">
             find ur next good day <ArrowUpRight size={18} />
           </Link>

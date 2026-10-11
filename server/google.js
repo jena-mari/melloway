@@ -55,15 +55,19 @@ export function discoveryQueries(preferences) {
 }
 
 function allowance(tag) {
-  return tag === "Photo booths"
-    ? 12
-    : /food|Dinner|Brunch|Italian|Asian/i.test(tag)
+  return tag === "Fine dining"
+    ? 110
+    : ["Speakeasies", "Cocktail bars"].includes(tag)
       ? 30
-      : /caf|coffee|Matcha|Dessert/i.test(tag)
-        ? 15
-        : /Escape|Arcade|music|Jazz/i.test(tag)
-          ? 35
-          : 0;
+      : tag === "Photo booths"
+        ? 12
+        : /food|Dinner|Brunch|Italian|Asian/i.test(tag)
+          ? 30
+          : /caf|coffee|Matcha|Dessert/i.test(tag)
+            ? 15
+            : /Escape|Arcade|music|Jazz/i.test(tag)
+              ? 35
+              : 0;
 }
 
 export function createGoogleProvider(key, fetcher = fetch) {
@@ -126,7 +130,14 @@ export function createGoogleProvider(key, fetcher = fetch) {
             weeklyHours: openingHours(p.regularOpeningHours.periods),
             source: "google",
             cost: allowance(tag),
-            mins: tag === "Photo booths" ? 15 : 45,
+            mins:
+              tag === "Fine dining"
+                ? 120
+                : ["Speakeasies", "Cocktail bars"].includes(tag)
+                  ? 60
+                  : tag === "Photo booths"
+                    ? 15
+                    : 45,
             note: "Discovered with Google Places. Estimated spend is a planning allowance, not a venue quote. Check the venue before visiting.",
             mapsUri: p.googleMapsUri,
           }));

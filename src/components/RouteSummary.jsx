@@ -28,7 +28,6 @@ export default function RouteSummary({
     >
       <div className="route-summary-heading">
         <div>
-          <p>ur day, at a glance</p>
           <h2>{location}</h2>
         </div>
         <button
@@ -58,8 +57,7 @@ export default function RouteSummary({
             >
               <strong>{stop.name}</strong>
               <span>
-                {formatTime(stop.arrival)} · {stop.category.toLowerCase()} · ~$
-                {stop.cost}
+                {formatTime(stop.arrival)} · ~${stop.cost}
               </span>
             </button>
             {!editing && (
@@ -126,7 +124,7 @@ export default function RouteSummary({
         </span>
       </div>
       <p className="route-summary-footnote">
-        {plan.prefs.transport} · times & costs are estimates
+        {plan.prefs.transport} · estimated
         {plan.stops.length === 1 && editing ? " · keep at least one stop" : ""}
       </p>
     </section>

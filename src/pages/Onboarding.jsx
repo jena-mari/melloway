@@ -55,7 +55,11 @@ export default function Onboarding() {
     setError("");
     if (step === "details")
       update({ budget: budgetIsValid() ? Number(draft.budget) : 80 });
-    if (index === 3) update({ idea: skipped ? "" : draft.idea || ideas[0].id });
+    if (index === 3)
+      update({
+        idea: skipped ? "" : draft.idea || ideas[0].id,
+        ideaExplicit: skipped ? false : !!draft.ideaExplicit,
+      });
     navigate(
       index === steps.length - 1 ? "/generating" : `/plan/${steps[index + 1]}`,
     );
@@ -81,7 +85,10 @@ export default function Onboarding() {
       return;
     }
     if (step === "details" && (question === 5 || question === 6)) {
-      update({ [question === 5 ? "date" : "time"]: "" });
+      update({
+        [question === 5 ? "date" : "time"]: "",
+        ...(question === 6 ? { timeExplicit: false } : {}),
+      });
       nextQuestion(question + 1);
     } else advance(true);
   }
@@ -212,12 +219,12 @@ export default function Onboarding() {
             (step === "vibes" && question > 0)) && (
             <p className="question-beat" aria-live="polite">
               {step === "about"
-                ? `${question + 1} of 2 little questions`
+                ? `${question + 1} of 2`
                 : step === "details"
                   ? question < 4
-                    ? `${question + 1} of 4 little questions`
-                    : `${question - 3} of 5 extra details`
-                  : `${question} of 3 little interests`}
+                    ? `${question + 1} of 4`
+                    : `${question - 3} of 5`
+                  : `${question} of 3`}
             </p>
           )}
           <Button type="submit" className="pink">

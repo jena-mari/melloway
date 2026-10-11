@@ -174,7 +174,6 @@ export function Events() {
     <div className="page events-page">
       <header className="events-heading">
         <h1>what’s on?</h1>
-        <p>something worth getting out for.</p>
         <Link to="/favourites?tab=events" aria-label="view saved events">
           <Bookmark size={20} />
           <span>{savedEvents.length || "saved"}</span>

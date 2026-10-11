@@ -41,7 +41,6 @@ export function AboutQuestion({ draft: d, update, question }) {
           max="100"
           step="1"
           placeholder="e.g. 24"
-          aria-describedby="age-hint"
           value={d.age}
           onChange={(e) =>
             update({ age: e.target.value === "" ? "" : Number(e.target.value) })
@@ -49,12 +48,9 @@ export function AboutQuestion({ draft: d, update, question }) {
         />
         <span aria-hidden="true">years old</span>
       </div>
-      <p className="age-hint" id="age-hint">
-        tap the number to type ur age.
-      </p>
     </QuestionPrompt>
   ) : (
-    <QuestionPrompt title="and ur gender?" copy="only if you’d like to share.">
+    <QuestionPrompt title="and ur gender?">
       <fieldset>
         <legend>
           gender <span className="optional">optional</span>

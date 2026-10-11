@@ -1,0 +1,11 @@
+These are the app's existing Unsplash mood photographs, bundled at 480px
+for the fictional starter posts. They are illustrative, not verified photos
+of the locations named in those posts. User uploads and live venue imagery
+are separate.
+
+matcha.jpg: https://images.unsplash.com/photo-1515823064-d6e0c04616a7
+books.jpg: https://images.unsplash.com/photo-1507842217343-583bb7270b66
+dessert.jpg: https://images.unsplash.com/photo-1488477181946-6428a0291777
+art.jpg: https://images.unsplash.com/photo-1577083552431-6e5fd01aa342
+sydney.jpg: https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9
+food.jpg: https://images.unsplash.com/photo-1555939594-58d7cb561ad1

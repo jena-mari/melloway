@@ -303,7 +303,9 @@ export default function RouteMap({
   const google = stops.some((stop) => stop.source === "google");
   const caption = google
     ? "Confirm directions and opening times before heading out."
-    : "Sample stops · dotted line shows visit order, not a road route.";
+    : stops.some((stop) => stop.source === "curated")
+      ? "Approximate pins · dotted line shows visit order, not a road route."
+      : "Sample stops · dotted line shows visit order, not a road route.";
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;

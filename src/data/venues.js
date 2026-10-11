@@ -133,7 +133,8 @@ export const venues = [
   },
   {
     id: "kingst",
-    name: "King St vintage and bookshops",
+    name: "King Street, Newtown",
+    legacyName: "King St vintage and bookshops",
     area: "Newtown",
     lat: -33.8965,
     lng: 151.1794,
@@ -223,7 +224,8 @@ export const venues = [
   },
   {
     id: "botanic",
-    name: "Royal Botanic Garden picnic",
+    name: "Royal Botanic Garden",
+    legacyName: "Royal Botanic Garden picnic",
     area: "Sydney CBD",
     lat: -33.8642,
     lng: 151.2166,
@@ -307,7 +309,8 @@ export const venues = [
   },
   {
     id: "barangaroo",
-    name: "Barangaroo Reserve at sunset",
+    name: "Barangaroo Reserve",
+    legacyName: "Barangaroo Reserve at sunset",
     area: "Barangaroo",
     lat: -33.8588,
     lng: 151.202,
@@ -328,7 +331,8 @@ export const venues = [
   },
   {
     id: "chinatown",
-    name: "Dinner and dessert, Chinatown",
+    name: "Chinatown, Sydney",
+    legacyName: "Dinner and dessert, Chinatown",
     area: "Haymarket",
     lat: -33.8788,
     lng: 151.2045,
@@ -433,7 +437,8 @@ export const venues = [
   },
   {
     id: "cbd-0",
-    name: "a little matcha moment",
+    name: "Matcha café, Sydney CBD",
+    legacyName: "a little matcha moment",
     area: "Sydney CBD",
     lat: -33.875,
     lng: 151.205,
@@ -453,7 +458,8 @@ export const venues = [
   },
   {
     id: "cbd-1",
-    name: "a browse through the shelves",
+    name: "Bookshop, Sydney CBD",
+    legacyName: "a browse through the shelves",
     area: "Sydney CBD",
     lat: -33.872,
     lng: 151.205,
@@ -473,7 +479,8 @@ export const venues = [
   },
   {
     id: "cbd-2",
-    name: "a gallery detour",
+    name: "Art gallery, Sydney CBD",
+    legacyName: "a gallery detour",
     area: "Sydney CBD",
     lat: -33.869,
     lng: 151.205,
@@ -493,7 +500,8 @@ export const venues = [
   },
   {
     id: "cbd-3",
-    name: "something delicious",
+    name: "Restaurant, Sydney CBD",
+    legacyName: "something delicious",
     area: "Sydney CBD",
     lat: -33.875,
     lng: 151.208,
@@ -513,7 +521,8 @@ export const venues = [
   },
   {
     id: "cbd-4",
-    name: "a sweet little ending",
+    name: "Dessert café, Sydney CBD",
+    legacyName: "a sweet little ending",
     area: "Sydney CBD",
     lat: -33.872,
     lng: 151.208,
@@ -533,7 +542,8 @@ export const venues = [
   },
   {
     id: "cbd-5",
-    name: "a walk, a talk, a view",
+    name: "Scenic walk, Sydney CBD",
+    legacyName: "a walk, a talk, a view",
     area: "Sydney CBD",
     lat: -33.869,
     lng: 151.208,
@@ -553,7 +563,8 @@ export const venues = [
   },
   {
     id: "cbd-6",
-    name: "a playful pit stop",
+    name: "Arcade, Sydney CBD",
+    legacyName: "a playful pit stop",
     area: "Sydney CBD",
     lat: -33.875,
     lng: 151.21099999999998,
@@ -573,7 +584,8 @@ export const venues = [
   },
   {
     id: "cbd-7",
-    name: "one more song",
+    name: "Jazz bar, Sydney CBD",
+    legacyName: "one more song",
     area: "Sydney CBD",
     lat: -33.872,
     lng: 151.21099999999998,
@@ -593,7 +605,8 @@ export const venues = [
   },
   {
     id: "cbd-8",
-    name: "a market morning",
+    name: "Markets, Sydney CBD",
+    legacyName: "a market morning",
     area: "Sydney CBD",
     lat: -33.869,
     lng: 151.21099999999998,
@@ -613,7 +626,8 @@ export const venues = [
   },
   {
     id: "newtown-0",
-    name: "a little matcha moment",
+    name: "Matcha café, Newtown",
+    legacyName: "a little matcha moment",
     area: "Newtown",
     lat: -33.8995,
     lng: 151.1764,
@@ -633,7 +647,8 @@ export const venues = [
   },
   {
     id: "newtown-1",
-    name: "a browse through the shelves",
+    name: "Bookshop, Newtown",
+    legacyName: "a browse through the shelves",
     area: "Newtown",
     lat: -33.8965,
     lng: 151.1764,
@@ -653,7 +668,8 @@ export const venues = [
   },
   {
     id: "newtown-2",
-    name: "a gallery detour",
+    name: "Art gallery, Newtown",
+    legacyName: "a gallery detour",
     area: "Newtown",
     lat: -33.8935,
     lng: 151.1764,
@@ -673,7 +689,8 @@ export const venues = [
   },
   {
     id: "newtown-3",
-    name: "something delicious",
+    name: "Restaurant, Newtown",
+    legacyName: "something delicious",
     area: "Newtown",
     lat: -33.8995,
     lng: 151.1794,
@@ -693,7 +710,8 @@ export const venues = [
   },
   {
     id: "newtown-4",
-    name: "a sweet little ending",
+    name: "Dessert café, Newtown",
+    legacyName: "a sweet little ending",
     area: "Newtown",
     lat: -33.8965,
     lng: 151.1794,
@@ -713,7 +731,8 @@ export const venues = [
   },
   {
     id: "newtown-5",
-    name: "a walk, a talk, a view",
+    name: "Scenic walk, Newtown",
+    legacyName: "a walk, a talk, a view",
     area: "Newtown",
     lat: -33.8935,
     lng: 151.1794,
@@ -733,7 +752,8 @@ export const venues = [
   },
   {
     id: "newtown-6",
-    name: "a playful pit stop",
+    name: "Arcade, Newtown",
+    legacyName: "a playful pit stop",
     area: "Newtown",
     lat: -33.8995,
     lng: 151.18239999999997,
@@ -753,7 +773,8 @@ export const venues = [
   },
   {
     id: "newtown-7",
-    name: "one more song",
+    name: "Jazz bar, Newtown",
+    legacyName: "one more song",
     area: "Newtown",
     lat: -33.8965,
     lng: 151.18239999999997,
@@ -773,7 +794,8 @@ export const venues = [
   },
   {
     id: "newtown-8",
-    name: "a market morning",
+    name: "Markets, Newtown",
+    legacyName: "a market morning",
     area: "Newtown",
     lat: -33.8935,
     lng: 151.18239999999997,
@@ -793,7 +815,8 @@ export const venues = [
   },
   {
     id: "surry-0",
-    name: "a little matcha moment",
+    name: "Matcha café, Surry Hills",
+    legacyName: "a little matcha moment",
     area: "Surry Hills",
     lat: -33.8877,
     lng: 151.20800000000003,
@@ -813,7 +836,8 @@ export const venues = [
   },
   {
     id: "surry-1",
-    name: "a browse through the shelves",
+    name: "Bookshop, Surry Hills",
+    legacyName: "a browse through the shelves",
     area: "Surry Hills",
     lat: -33.8847,
     lng: 151.20800000000003,
@@ -833,7 +857,8 @@ export const venues = [
   },
   {
     id: "surry-2",
-    name: "a gallery detour",
+    name: "Art gallery, Surry Hills",
+    legacyName: "a gallery detour",
     area: "Surry Hills",
     lat: -33.8817,
     lng: 151.20800000000003,
@@ -853,7 +878,8 @@ export const venues = [
   },
   {
     id: "surry-3",
-    name: "something delicious",
+    name: "Restaurant, Surry Hills",
+    legacyName: "something delicious",
     area: "Surry Hills",
     lat: -33.8877,
     lng: 151.211,
@@ -873,7 +899,8 @@ export const venues = [
   },
   {
     id: "surry-4",
-    name: "a sweet little ending",
+    name: "Dessert café, Surry Hills",
+    legacyName: "a sweet little ending",
     area: "Surry Hills",
     lat: -33.8847,
     lng: 151.211,
@@ -893,7 +920,8 @@ export const venues = [
   },
   {
     id: "surry-5",
-    name: "a walk, a talk, a view",
+    name: "Scenic walk, Surry Hills",
+    legacyName: "a walk, a talk, a view",
     area: "Surry Hills",
     lat: -33.8817,
     lng: 151.211,
@@ -913,7 +941,8 @@ export const venues = [
   },
   {
     id: "surry-6",
-    name: "a playful pit stop",
+    name: "Arcade, Surry Hills",
+    legacyName: "a playful pit stop",
     area: "Surry Hills",
     lat: -33.8877,
     lng: 151.214,
@@ -933,7 +962,8 @@ export const venues = [
   },
   {
     id: "surry-7",
-    name: "one more song",
+    name: "Jazz bar, Surry Hills",
+    legacyName: "one more song",
     area: "Surry Hills",
     lat: -33.8847,
     lng: 151.214,
@@ -953,7 +983,8 @@ export const venues = [
   },
   {
     id: "surry-8",
-    name: "a market morning",
+    name: "Markets, Surry Hills",
+    legacyName: "a market morning",
     area: "Surry Hills",
     lat: -33.8817,
     lng: 151.214,
@@ -973,7 +1004,8 @@ export const venues = [
   },
   {
     id: "west-0",
-    name: "a little matcha moment",
+    name: "Matcha café, Inner West",
+    legacyName: "a little matcha moment",
     area: "Inner West",
     lat: -33.8995,
     lng: 151.1764,
@@ -993,7 +1025,8 @@ export const venues = [
   },
   {
     id: "west-1",
-    name: "a browse through the shelves",
+    name: "Bookshop, Inner West",
+    legacyName: "a browse through the shelves",
     area: "Inner West",
     lat: -33.8965,
     lng: 151.1764,
@@ -1013,7 +1046,8 @@ export const venues = [
   },
   {
     id: "west-2",
-    name: "a gallery detour",
+    name: "Art gallery, Inner West",
+    legacyName: "a gallery detour",
     area: "Inner West",
     lat: -33.8935,
     lng: 151.1764,
@@ -1033,7 +1067,8 @@ export const venues = [
   },
   {
     id: "west-3",
-    name: "something delicious",
+    name: "Restaurant, Inner West",
+    legacyName: "something delicious",
     area: "Inner West",
     lat: -33.8995,
     lng: 151.1794,
@@ -1053,7 +1088,8 @@ export const venues = [
   },
   {
     id: "west-4",
-    name: "a sweet little ending",
+    name: "Dessert café, Inner West",
+    legacyName: "a sweet little ending",
     area: "Inner West",
     lat: -33.8965,
     lng: 151.1794,
@@ -1073,7 +1109,8 @@ export const venues = [
   },
   {
     id: "west-5",
-    name: "a walk, a talk, a view",
+    name: "Scenic walk, Inner West",
+    legacyName: "a walk, a talk, a view",
     area: "Inner West",
     lat: -33.8935,
     lng: 151.1794,
@@ -1093,7 +1130,8 @@ export const venues = [
   },
   {
     id: "west-6",
-    name: "a playful pit stop",
+    name: "Arcade, Inner West",
+    legacyName: "a playful pit stop",
     area: "Inner West",
     lat: -33.8995,
     lng: 151.18239999999997,
@@ -1113,7 +1151,8 @@ export const venues = [
   },
   {
     id: "west-7",
-    name: "one more song",
+    name: "Jazz bar, Inner West",
+    legacyName: "one more song",
     area: "Inner West",
     lat: -33.8965,
     lng: 151.18239999999997,
@@ -1133,7 +1172,8 @@ export const venues = [
   },
   {
     id: "west-8",
-    name: "a market morning",
+    name: "Markets, Inner West",
+    legacyName: "a market morning",
     area: "Inner West",
     lat: -33.8935,
     lng: 151.18239999999997,
@@ -1153,7 +1193,8 @@ export const venues = [
   },
   {
     id: "east-0",
-    name: "a little matcha moment",
+    name: "Matcha café, Eastern Suburbs",
+    legacyName: "a little matcha moment",
     area: "Eastern Suburbs",
     lat: -33.8871,
     lng: 151.22430000000003,
@@ -1173,7 +1214,8 @@ export const venues = [
   },
   {
     id: "east-1",
-    name: "a browse through the shelves",
+    name: "Bookshop, Eastern Suburbs",
+    legacyName: "a browse through the shelves",
     area: "Eastern Suburbs",
     lat: -33.8841,
     lng: 151.22430000000003,
@@ -1193,7 +1235,8 @@ export const venues = [
   },
   {
     id: "east-2",
-    name: "a gallery detour",
+    name: "Art gallery, Eastern Suburbs",
+    legacyName: "a gallery detour",
     area: "Eastern Suburbs",
     lat: -33.881099999999996,
     lng: 151.22430000000003,
@@ -1213,7 +1256,8 @@ export const venues = [
   },
   {
     id: "east-3",
-    name: "something delicious",
+    name: "Restaurant, Eastern Suburbs",
+    legacyName: "something delicious",
     area: "Eastern Suburbs",
     lat: -33.8871,
     lng: 151.2273,
@@ -1233,7 +1277,8 @@ export const venues = [
   },
   {
     id: "east-4",
-    name: "a sweet little ending",
+    name: "Dessert café, Eastern Suburbs",
+    legacyName: "a sweet little ending",
     area: "Eastern Suburbs",
     lat: -33.8841,
     lng: 151.2273,
@@ -1253,7 +1298,8 @@ export const venues = [
   },
   {
     id: "east-5",
-    name: "a walk, a talk, a view",
+    name: "Scenic walk, Eastern Suburbs",
+    legacyName: "a walk, a talk, a view",
     area: "Eastern Suburbs",
     lat: -33.881099999999996,
     lng: 151.2273,
@@ -1273,7 +1319,8 @@ export const venues = [
   },
   {
     id: "east-6",
-    name: "a playful pit stop",
+    name: "Arcade, Eastern Suburbs",
+    legacyName: "a playful pit stop",
     area: "Eastern Suburbs",
     lat: -33.8871,
     lng: 151.2303,
@@ -1293,7 +1340,8 @@ export const venues = [
   },
   {
     id: "east-7",
-    name: "one more song",
+    name: "Jazz bar, Eastern Suburbs",
+    legacyName: "one more song",
     area: "Eastern Suburbs",
     lat: -33.8841,
     lng: 151.2303,
@@ -1313,7 +1361,8 @@ export const venues = [
   },
   {
     id: "east-8",
-    name: "a market morning",
+    name: "Markets, Eastern Suburbs",
+    legacyName: "a market morning",
     area: "Eastern Suburbs",
     lat: -33.881099999999996,
     lng: 151.2303,

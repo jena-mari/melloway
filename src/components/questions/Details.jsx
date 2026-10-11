@@ -15,7 +15,7 @@ export default function DetailsQuestion({
     return (
       <QuestionPrompt title={"great. who u\nhanging out with?"}>
         <fieldset>
-          <legend>the company</legend>
+          <legend className="sr-only">the company</legend>
           <Chips
             options={["my person", "someone new", "a friend", "my friends"]}
             value={d.companion}
@@ -84,7 +84,7 @@ export default function DetailsQuestion({
           </span>
         </div>
         <p className="age-hint" id="budget-hint">
-          tap to type. $0–$200 AUD per person, for the whole plan.
+          $0–$200 per person
         </p>
         <div
           className="chips budget-presets"
@@ -114,16 +114,13 @@ export default function DetailsQuestion({
     );
   if (question === 4)
     return (
-      <QuestionPrompt
-        title="who’s coming along?"
-        copy="a name is nice. totally optional."
-      >
+      <QuestionPrompt title="who’s coming along?">
         <Field
           label="their name (optional)"
           id="partner"
           value={d.partner}
           maxLength={60}
-          placeholder="your favourite human"
+          placeholder="name"
           onChange={(e) => update({ partner: e.target.value })}
         />
       </QuestionPrompt>
@@ -132,7 +129,7 @@ export default function DetailsQuestion({
     return (
       <QuestionPrompt
         title="what day works?"
-        copy="optional. pick a day, or we’ll plan for today."
+        copy="optional · defaults to today"
       >
         <Suspense
           fallback={
@@ -149,7 +146,7 @@ export default function DetailsQuestion({
     return (
       <QuestionPrompt
         title="and what time?"
-        copy="optional. we’ll use 11 am if ur not sure yet."
+        copy="optional · defaults to 11 am"
       >
         <Suspense
           fallback={
@@ -158,7 +155,10 @@ export default function DetailsQuestion({
             </div>
           }
         >
-          <TimePicker value={d.time} onChange={(time) => update({ time })} />
+          <TimePicker
+            value={d.time}
+            onChange={(time) => update({ time, timeExplicit: !!time })}
+          />
         </Suspense>
       </QuestionPrompt>
     );
@@ -166,7 +166,7 @@ export default function DetailsQuestion({
     return (
       <QuestionPrompt title="how are we getting around?">
         <fieldset>
-          <legend>getting around</legend>
+          <legend className="sr-only">getting around</legend>
           <Chips
             options={["Walking", "Public transport", "Driving"]}
             value={d.transport}
@@ -180,7 +180,7 @@ export default function DetailsQuestion({
   return (
     <QuestionPrompt title="how long have we got?">
       <label className="field" htmlFor="duration">
-        <span>how long have we got?</span>
+        <span className="sr-only">how long have we got?</span>
         <select
           id="duration"
           value={d.duration}

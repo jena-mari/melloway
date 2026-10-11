@@ -516,7 +516,7 @@ test("preset introduction types in order without moving the name input", async (
   await page.screenshot({ path: info.outputPath("introduction-typing.png") });
   await expect(prompts).toHaveAttribute("data-typing", "false");
   await expect(prompts.locator("p .typed-ink").last()).toHaveText(
-    "let’s start with an introduction. what’s ur name?",
+    "what’s ur name?",
   );
   const after = await input.boundingBox();
   expect(after.y).toBeCloseTo(before.y, 0);
@@ -565,7 +565,7 @@ test("reduced motion shows the complete preset introduction immediately", async 
   const prompts = page.locator(".typed-prompts");
   await expect(prompts).toHaveAttribute("data-typing", "false");
   await expect(prompts.locator("p .typed-ink").last()).toHaveText(
-    "let’s start with an introduction. what’s ur name?",
+    "what’s ur name?",
   );
   await expect(prompts.locator(".typing-caret")).toHaveCount(0);
   await expect(page.getByLabel("what’s ur name?")).toBeVisible();
@@ -576,7 +576,7 @@ test("reduced motion shows the complete preset introduction immediately", async 
   ).toBe(true);
 });
 
-test("an interrupted generation can retry without repeating the introduction", async ({
+test("incomplete discovery recovers with sourced venues without repeating the introduction", async ({
   page,
 }) => {
   let interrupted = true;
@@ -584,7 +584,7 @@ test("an interrupted generation can retry without repeating the introduction", a
     route.fulfill({ json: { venues: interrupted ? "google" : "demo" } }),
   );
   await page.route("**/api/venues", async (route) => {
-    // An incomplete discovery response must show recovery instead of a blank result.
+    // Incomplete provider facts must not replace the usable sourced catalog.
     await route.fulfill({
       json: {
         venues: Array.from({ length: 3 }, (_, i) => ({
@@ -598,16 +598,27 @@ test("an interrupted generation can retry without repeating the introduction", a
     });
     interrupted = false;
   });
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "melloway.draft",
+      JSON.stringify({
+        area: "Newtown",
+        date: "2026-10-18",
+        notes: "we love matcha and vintage finds",
+      }),
+    ),
+  );
   await page.goto("/plan/notes");
   await page
     .getByLabel("anything else for ur plan?")
     .fill("we love matcha and vintage finds");
   await page.getByRole("button", { name: "submit", exact: true }).tap();
-  await expect(
-    page.getByRole("heading", { name: "a little hiccup.", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("button", { name: "try again", exact: true }).tap();
   await expect(page).toHaveURL(/\/itinerary$/);
+  const plan = await page.evaluate(
+    () => JSON.parse(localStorage.getItem("melloway.current")).plan,
+  );
+  expect(plan.stops.every((v) => v.source === "curated")).toBe(true);
+  expect(plan.notice).toContain("Discovery unavailable");
   await expect(
     page.getByRole("heading", { name: "here’s ur date!", exact: true }),
   ).toBeVisible();

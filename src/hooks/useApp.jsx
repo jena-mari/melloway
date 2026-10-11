@@ -2,6 +2,8 @@ import { validPreferences } from "../utils/planner";
 import { withScheduleDefaults } from "../utils/date";
 import { createContext, useContext, useState, useEffect } from "react";
 import { defaultDraft } from "../data/preferences";
+import { normalisePlanNames, normaliseRouteNames } from "../utils/venueNames";
+import { readProfile } from "../utils/profile";
 import {
   readLocal,
   writeLocal,
@@ -40,14 +42,15 @@ function validPlan(plan) {
 }
 function readSaved() {
   const stored = readLocal("melloway.saved", []);
-  return Array.isArray(stored) ? stored.filter(validPlan) : [];
+  return Array.isArray(stored)
+    ? stored.filter(validPlan).map(normalisePlanNames)
+    : [];
 }
 function readCurrent() {
   const stored = readLocal("melloway.current", null);
   return validPlan(stored?.plan)
     ? {
-        ...stored,
-        candidates: Array.isArray(stored.candidates) ? stored.candidates : [],
+        ...normaliseRouteNames(stored),
         matrix: Array.isArray(stored.matrix) ? stored.matrix : [],
       }
     : null;
@@ -55,6 +58,9 @@ function readCurrent() {
 
 export function AppProvider({ children }) {
   const [draft, setDraft] = useState(readDraft);
+  const [profile, setProfile] = useState(() =>
+    readProfile(readLocal("melloway.profile", null)),
+  );
   const [saved, setSaved] = useState(readSaved);
   const [current, setCurrent] = useState(readCurrent);
   const [savedEvents, setSavedEvents] = useState(() => {
@@ -76,7 +82,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     loadCloud()
       .then((plans) => {
-        plans = plans.filter(validPlan);
+        plans = plans.filter(validPlan).map(normalisePlanNames);
         if (plans.length)
           setSaved((old) =>
             Array.from(
@@ -154,10 +160,25 @@ export function AppProvider({ children }) {
   function update(values) {
     setDraft((old) => ({ ...old, ...values }));
   }
+  function updateProfile(values) {
+    const next = readProfile(values);
+    if (!next) return false;
+    try {
+      writeLocal("melloway.profile", next);
+      setProfile(next);
+      setStatus("Profile saved on this device.");
+      return true;
+    } catch {
+      setStatus("Couldn’t save your profile. Device storage may be full.");
+      return false;
+    }
+  }
   return (
     <Context.Provider
       value={{
         draft,
+        profile,
+        updateProfile,
         update,
         startNew,
         setDraft,

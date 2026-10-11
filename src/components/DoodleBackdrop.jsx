@@ -2,7 +2,7 @@ import { memo, useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 // Small original SVG doodles keep the artwork crisp and light on a phone.
-function Doodle({ kind }) {
+export function Doodle({ kind }) {
   return (
     <svg
       viewBox="0 0 100 100"

@@ -1,196 +1,218 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Heart,
-  Bookmark,
+  ThumbsUp,
+  MessageCircle,
   ArrowUpRight,
   Plus,
   Search,
-  MapPin,
-  Clock,
   X,
+  UserRound,
+  ArrowRight,
 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { MoodImage, Field, Button } from "../components/UI";
 import { communityExamples } from "../data/community";
-import { readLocal, writeLocal } from "../services/storage";
+import useCommunity from "../hooks/useCommunity";
+import { profileHandle } from "../utils/profile";
 import { createId } from "../utils/id";
-const RouteMap = lazy(() => import("../components/RouteMap"));
 
-function Avatar({ name, colour = "pink" }) {
-  return (
-    <span className={`community-avatar avatar-${colour}`} aria-hidden="true">
-      {name.slice(0, 1).toUpperCase()}
-    </span>
-  );
-}
-function RouteAttachment({ post, onOpen }) {
-  const { saved, save, remove } = useApp();
-  const [selected, setSelected] = useState(post.plan.stops[0].id);
-  const [visible, setVisible] = useState(false);
+import { Avatar, timeAgo } from "../components/CommunityIdentity";
+
+export function CommunityPost({
+  post,
+  liked,
+  onLike,
+  replies,
+  onReply,
+  saved,
+  onSave,
+  author,
+  handle,
+}) {
+  const hasRoute = post.plan?.stops?.length >= 1;
+  const [threadOpen, setThreadOpen] = useState(false);
+  const [replyText, setReplyText] = useState("");
   const [saving, setSaving] = useState(false);
-  const preview = useRef(null);
-  const kept = saved.some((plan) => plan.id === post.plan.id);
-  useEffect(() => {
-    if (!window.IntersectionObserver) {
-      setVisible(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "200px" },
-    );
-    observer.observe(preview.current);
-    return () => observer.disconnect();
-  }, []);
   async function bookmark() {
     setSaving(true);
     try {
-      await (kept ? remove(post.plan.id) : save(post.plan));
+      await onSave(post.plan);
     } finally {
       setSaving(false);
     }
   }
-  return (
-    <div className="community-route">
-      <div className="community-route-heading">
-        <span>
-          <MapPin size={14} aria-hidden="true" />
-          {post.area} · {post.plan.stops.length} stops
-        </span>
-        <span>~${post.plan.cost} each</span>
-      </div>
-      <div ref={preview} className="community-map-preview">
-        {visible && (
-          <Suspense
-            fallback={
-              <div className="community-map-loading" role="status">
-                bringing up the route…
-              </div>
-            }
-          >
-            <RouteMap
-              id={`post-map-${post.id}`}
-              title={post.name}
-              compact
-              stops={post.plan.stops}
-              transport={post.plan.prefs.transport}
-              selectedStopId={selected}
-              onSelectStop={setSelected}
-            />
-          </Suspense>
-        )}
-      </div>
-      <ol className="community-stops" aria-label={`Stops for ${post.name}`}>
-        {post.plan.stops.map((stop, i) => (
-          <li key={stop.id}>
-            <button
-              type="button"
-              aria-pressed={selected === stop.id}
-              onClick={() => setSelected(stop.id)}
-            >
-              <span>{i + 1}</span>
-              <strong>{stop.name}</strong>
-            </button>
-          </li>
-        ))}
-      </ol>
-      <div className="community-route-footer">
-        <span>
-          <Clock size={13} aria-hidden="true" />
-          {Math.round((post.plan.elapsed / 60) * 10) / 10}h ·{" "}
-          {post.plan.prefs.transport.toLowerCase()}
-        </span>
-        <button
-          type="button"
-          aria-label={`${kept ? "Unsave" : "Save"} route ${post.name}`}
-          aria-pressed={kept}
-          disabled={saving}
-          onClick={bookmark}
-        >
-          <Bookmark size={16} fill={kept ? "currentColor" : "none"} />
-          {saving ? "saving…" : kept ? "saved" : "save"}
-        </button>
-      </div>
-      <button type="button" className="community-open-route" onClick={onOpen}>
-        see this route <ArrowUpRight size={16} />
-      </button>
-    </div>
-  );
-}
-function CommunityPost({ post, liked, onLike, onOpen }) {
-  const hasRoute = post.plan?.stops?.length >= 1;
-  const photo =
-    post.photo || (post.image?.startsWith("data:") ? post.image : null);
+  function submitReply(event) {
+    event.preventDefault();
+    if (replyText.trim() && onReply(replyText.trim())) setReplyText("");
+  }
   return (
     <article
       className="community-post"
       aria-labelledby={`post-title-${post.id}`}
     >
       <header className="community-person">
-        <Avatar name={post.author || "you"} colour={post.colour} />
+        <Avatar
+          name={post.author || "you"}
+          colour={post.colour}
+          src={post.avatar}
+        />
         <div>
-          <strong>{post.author || "you"}</strong>
-          <span>@{post.handle || "you"}</span>
+          <p className="community-byline">
+            <strong>{post.author || "you"}</strong>
+            <span>@{post.handle || "you"}</span>
+            <small>{post.sample ? "sample" : timeAgo(post.createdAt)}</small>
+          </p>
+          <h2 id={`post-title-${post.id}`}>{post.name}</h2>
         </div>
-        <span className="community-post-kind">
-          {post.sample ? "sample" : "on ur device"}
-        </span>
       </header>
       <div className="community-post-copy">
-        <h2 id={`post-title-${post.id}`}>{post.name}</h2>
         <p>{post.description}</p>
       </div>
-      {hasRoute && photo && (
-        <div className="community-memory-photo">
-          <MoodImage src={photo} alt="Shared memory" />
+      {hasRoute && (
+        <div
+          className="community-photo-strip"
+          aria-label={`Stops for ${post.name}`}
+        >
+          {post.plan.stops.map((stop) => (
+            <Link
+              key={stop.id}
+              to={`/community/${post.id}?stop=${encodeURIComponent(stop.id)}`}
+              className="community-stop-photo"
+              aria-label={`view ${stop.name} in full route`}
+            >
+              {stop.image && (
+                <MoodImage
+                  src={stop.image}
+                  alt={
+                    stop.source === "demo" ? "Illustrative mood photograph" : ""
+                  }
+                />
+              )}
+              <span className="community-photo-fallback" aria-hidden="true">
+                ✳
+              </span>
+              <strong>{stop.name}</strong>
+            </Link>
+          ))}
         </div>
       )}
-      {hasRoute ? (
-        <RouteAttachment post={post} onOpen={onOpen} />
-      ) : post.image ? (
+      {(post.photo || (!hasRoute && post.image)) && (
         <div className="community-memory-photo">
-          <MoodImage src={post.image} alt="Shared memory" />
+          <MoodImage src={post.photo || post.image} alt="Shared memory" />
         </div>
-      ) : null}
+      )}
+      {hasRoute && (
+        <div className="community-route-line">
+          <Link className="community-open-route" to={`/community/${post.id}`}>
+            check full route here <ArrowRight size={15} />
+          </Link>
+        </div>
+      )}
       <div className="community-post-actions">
+        <button
+          type="button"
+          aria-label={`Replies to ${post.name}`}
+          aria-expanded={threadOpen}
+          aria-controls={`thread-${post.id}`}
+          onClick={() => setThreadOpen(!threadOpen)}
+        >
+          <MessageCircle size={19} />
+          <span>{replies.length}</span>
+        </button>
         <button
           type="button"
           aria-label={`Like ${post.name}`}
           aria-pressed={liked}
           onClick={onLike}
         >
-          <Heart size={19} fill={liked ? "currentColor" : "none"} />
-          {liked ? "liked" : "like"}
+          <ThumbsUp size={19} fill={liked ? "currentColor" : "none"} />
+          <span>{liked ? 1 : 0}</span>
         </button>
-        <span>
-          {post.rating} / 5 day{post.sample ? " · sample rating" : ""}
-        </span>
+        {hasRoute && (
+          <button
+            type="button"
+            className="community-route-save"
+            aria-label={`${saved ? "Unsave" : "Save"} route ${post.name}`}
+            aria-pressed={saved}
+            disabled={saving}
+            onClick={bookmark}
+          >
+            <Heart
+              size={29}
+              strokeWidth={2.2}
+              fill={saved ? "currentColor" : "none"}
+            />
+          </button>
+        )}
       </div>
+      {threadOpen && (
+        <section
+          className="community-thread"
+          id={`thread-${post.id}`}
+          aria-label={`Replies to ${post.name}`}
+        >
+          <h3>replies</h3>
+          <ol>
+            {replies.map((reply) => (
+              <li key={reply.id}>
+                <Avatar name={reply.author} />
+                <div>
+                  <p className="reply-byline">
+                    <strong>{reply.author}</strong>
+                    <span>
+                      @{reply.handle} · {timeAgo(reply.createdAt)}
+                    </span>
+                  </p>
+                  <p>{reply.text}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+          <form onSubmit={submitReply}>
+            <label htmlFor={`reply-${post.id}`}>
+              reply as {author} <span>@{handle}</span>
+            </label>
+            <textarea
+              id={`reply-${post.id}`}
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              maxLength={280}
+              rows={2}
+              placeholder="add a reply"
+              required
+            />
+            <div>
+              <small>replies stay on this device</small>
+              <button type="submit" disabled={!replyText.trim()}>
+                reply <ArrowUpRight size={14} />
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
     </article>
   );
 }
 export default function Community() {
-  const { saved, current, draft, setStatus, setCurrent } = useApp();
-  const navigate = useNavigate();
-  const [posts, setPosts] = useState(() => {
-    const data = readLocal("melloway.posts", []);
-    return Array.isArray(data) ? data : [];
-  });
+  const { saved, save, remove, current, draft, profile, setStatus } = useApp();
+  const {
+    posts,
+    likes,
+    replies,
+    addPost,
+    like,
+    reply: addReply,
+  } = useCommunity();
   const [examples] = useState(communityExamples);
-  const [likes, setLikes] = useState(() => {
-    const data = readLocal("melloway.likes", []);
-    return Array.isArray(data) ? data : [];
-  });
-  const [show, setShow] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const [show, setShow] = useState(params.get("compose") === "1");
   const [photo, setPhoto] = useState("");
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState("for you");
+  useEffect(() => {
+    if (show) document.getElementById("title")?.focus();
+  }, [show]);
   const available = [
     ...new Map(
       [...(current?.plan ? [current.plan] : []), ...saved].map((plan) => [
@@ -199,22 +221,10 @@ export default function Community() {
       ]),
     ).values(),
   ];
-  const author = draft.name || "you";
-  const handle =
-    author
-      .toLowerCase()
-      .replace(/[^a-z0-9_]/g, "")
-      .slice(0, 24) || "you";
-  function like(id) {
-    const next = likes.includes(id)
-      ? likes.filter((item) => item !== id)
-      : [...likes, id];
-    try {
-      writeLocal("melloway.likes", next);
-      setLikes(next);
-    } catch {
-      setStatus("Unable to store this like.");
-    }
+  const author = profile?.name || draft.name || "you";
+  const handle = profile?.handle || profileHandle(author);
+  function reply(postId, text) {
+    return addReply(postId, text, author, handle);
   }
   function file(event) {
     const image = event.target.files[0];
@@ -241,8 +251,10 @@ export default function Community() {
       id: createId(),
       name: data.get("title").trim(),
       description: data.get("description").trim(),
-      author: data.get("author").trim() || "you",
-      handle: data.get("handle").replace(/^@/, "").toLowerCase(),
+      author: profile?.name || data.get("author").trim() || "you",
+      handle:
+        profile?.handle || data.get("handle").replace(/^@/, "").toLowerCase(),
+      avatar: profile?.avatar,
       area: plan?.prefs.area || "Sydney",
       rating: Number(data.get("rating")),
       image: photo || plan?.stops[0].image,
@@ -254,96 +266,111 @@ export default function Community() {
       setStatus("Add a title and a little detail first.");
       return;
     }
-    try {
-      const next = [post, ...posts];
-      writeLocal("melloway.posts", next);
-      setPosts(next);
+    if (addPost(post)) {
       setShow(false);
+      setParams({});
       setPhoto("");
       setQuery("");
-      setFilter("for you");
       setStatus("Added to ur device feed. This is not publicly published.");
-    } catch {
-      setStatus(
-        "Photo or post is too large for browser storage. Try a smaller photo.",
-      );
     }
   }
   const text = query.trim().toLowerCase();
   const feed = [...posts, ...examples].filter(
     (post) =>
-      (filter !== "liked" || likes.includes(post.id)) &&
-      (filter !== "your posts" || !post.sample) &&
-      (!text ||
-        [
-          post.name,
-          post.author,
-          post.handle,
-          post.description,
-          post.area,
-          ...(post.plan?.stops || []).map((stop) => stop.name),
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(text.replace(/^@/, ""))),
+      !text ||
+      [
+        post.name,
+        post.author,
+        post.handle,
+        post.description,
+        post.area,
+        ...(post.plan?.stops || []).map((stop) => stop.name),
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(text.replace(/^@/, "")),
   );
   return (
     <div className="page community-page">
-      <header className="community-heading">
-        <div>
-          <h1>the ideas club.</h1>
-          <p>little routes from people like u.</p>
-        </div>
-        <button
-          type="button"
-          className="community-compose-button"
-          aria-label={show ? "close new post" : "share a route"}
-          aria-expanded={show}
-          aria-controls="community-composer"
-          onClick={() => {
-            setShow(!show);
-            setPhoto("");
-          }}
+      <h1 className="sr-only">community feed</h1>
+      <header className="community-feed-header">
+        <Link
+          to="/profile"
+          className="community-profile-link"
+          aria-label="Your profile"
         >
-          {show ? <X size={22} /> : <Plus size={22} />}
-        </button>
+          <UserRound size={23} strokeWidth={2.4} aria-hidden="true" />
+        </Link>
+        <label className="community-search" htmlFor="ideas-search">
+          <span className="sr-only">search ideas</span>
+          <input
+            id="ideas-search"
+            type="search"
+            placeholder="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query ? (
+            <button
+              type="button"
+              aria-label="clear search"
+              onClick={() => {
+                setQuery("");
+                document.getElementById("ideas-search")?.focus();
+              }}
+            >
+              <X size={18} />
+            </button>
+          ) : (
+            <Search size={19} aria-hidden="true" />
+          )}
+        </label>
+        <Link to="/" className="community-home-mark" aria-label="melloway home">
+          m
+        </Link>
       </header>
-      <details className="community-notice">
-        <summary>community preview</summary>
-        <p>
-          Example people, routes and ratings are fictional. Your posts and likes
-          stay on this device.
-        </p>
-      </details>
       {show && (
         <form
           id="community-composer"
           className="share-form community-composer"
           onSubmit={share}
         >
-          <h2>ur route, ur take.</h2>
-          <div className="community-identity-fields">
-            <Field
-              label="display name"
-              id="post-author"
-              name="author"
-              defaultValue={author}
-              required
-              maxLength={40}
-            />
-            <Field
-              label="your @"
-              id="post-handle"
-              name="handle"
-              defaultValue={handle}
-              required
-              maxLength={25}
-              pattern="@?[A-Za-z0-9_.]{1,24}"
-              title="Use up to 24 letters, numbers, dots or underscores."
-            />
-          </div>
+          <h2>new post</h2>
+          {profile ? (
+            <div className="community-composer-identity">
+              <Avatar name={author} src={profile.avatar} />
+              <span>
+                <strong>{author}</strong>
+                <small>@{handle}</small>
+              </span>
+              <Link to="/profile" aria-label="Edit your profile">
+                edit
+              </Link>
+            </div>
+          ) : (
+            <div className="community-identity-fields">
+              <Field
+                label="display name"
+                id="post-author"
+                name="author"
+                defaultValue={author}
+                required
+                maxLength={40}
+              />
+              <Field
+                label="your @"
+                id="post-handle"
+                name="handle"
+                defaultValue={handle}
+                required
+                maxLength={25}
+                pattern="@?[A-Za-z0-9_.]{1,24}"
+                title="Use up to 24 letters, numbers, dots or underscores."
+              />
+            </div>
+          )}
           <Field
-            label="give it a little title"
+            label="title"
             id="title"
             name="title"
             required
@@ -352,7 +379,7 @@ export default function Community() {
           <label className="field">
             <span>attach a route</span>
             <select name="plan" defaultValue={available[0]?.id || ""}>
-              <option value="">just a little idea</option>
+              <option value="">no route</option>
               {available.map((plan) => (
                 <option value={plan.id} key={plan.id}>
                   {plan.prefs.area} · {plan.stops.length} stops ·{" "}
@@ -363,12 +390,11 @@ export default function Community() {
           </label>
           {!available.length && (
             <p className="community-composer-tip">
-              <Link to="/plan/profile">make a route</Link> to attach a map, or
-              share a little idea for now.
+              <Link to="/plan/profile">make a route</Link> to attach one.
             </p>
           )}
           <label className="field" htmlFor="description">
-            <span>the little details</span>
+            <span>post</span>
             <textarea
               id="description"
               name="description"
@@ -408,29 +434,6 @@ export default function Community() {
           </Button>
         </form>
       )}
-      <label className="community-search" htmlFor="ideas-search">
-        <Search size={18} aria-hidden="true" />
-        <span className="sr-only">search ideas</span>
-        <input
-          id="ideas-search"
-          type="search"
-          placeholder="find a person, place or route"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </label>
-      <div className="community-filters" role="group" aria-label="ideas feed">
-        {["for you", "liked", "your posts"].map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            aria-pressed={filter === tab}
-            onClick={() => setFilter(tab)}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
       <section className="community-feed" aria-label="community route posts">
         {feed.map((post) => (
           <CommunityPost
@@ -438,41 +441,42 @@ export default function Community() {
             post={post}
             liked={likes.includes(post.id)}
             onLike={() => like(post.id)}
-            onOpen={() => {
-              setCurrent({ plan: post.plan, candidates: [], matrix: [] });
-              navigate("/itinerary");
-            }}
+            replies={replies[post.id] || []}
+            onReply={(text) => reply(post.id, text)}
+            saved={saved.some((plan) => plan.id === post.plan?.id)}
+            onSave={(plan) =>
+              saved.some((p) => p.id === plan.id) ? remove(plan.id) : save(plan)
+            }
+            author={author}
+            handle={handle}
           />
         ))}
         {!feed.length && (
           <div className="community-empty">
-            <h2>
-              {query
-                ? "no little plans found."
-                : filter === "liked"
-                  ? "keep a few favourites."
-                  : "ur first post starts here."}
-            </h2>
-            <p>
-              {query
-                ? "try a name, suburb or another spot."
-                : filter === "liked"
-                  ? "tap a heart on a post to find it here."
-                  : "share a route or a little idea with the club."}
-            </p>
+            <p>no posts found</p>
             <button
               type="button"
               className="text-button"
-              onClick={() => {
-                setQuery("");
-                setFilter("for you");
-              }}
+              onClick={() => setQuery("")}
             >
               see all ideas
             </button>
           </div>
         )}
       </section>
+      <button
+        type="button"
+        className="community-compose-button"
+        aria-label={show ? "close new post" : "share a route"}
+        aria-expanded={show}
+        aria-controls="community-composer"
+        onClick={() => {
+          setShow(!show);
+          setPhoto("");
+        }}
+      >
+        {show ? <X size={24} /> : <Plus size={24} />}
+      </button>
     </div>
   );
 }

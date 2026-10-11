@@ -21,6 +21,7 @@ export default function IdeasQuestion({
   function move(direction) {
     update({
       idea: ideas[(index + direction + ideas.length) % ideas.length].id,
+      ideaExplicit: true,
     });
   }
   if (question > 0) {
@@ -31,10 +32,7 @@ export default function IdeasQuestion({
       "a little adventure?",
     ];
     return (
-      <QuestionPrompt
-        title={titles[question - 1]}
-        copy="pick a few, or keep going."
-      >
+      <QuestionPrompt title={titles[question - 1]}>
         <fieldset>
           <legend>
             {title} <span className="optional">pick a few</span>

@@ -7,6 +7,7 @@ import { useApp } from "../hooks/useApp";
 import { generate } from "../services/discovery";
 import { preferencesForPlan } from "../utils/interests";
 import { withScheduleDefaults } from "../utils/date";
+import { ideas } from "../data/ideas";
 
 export default function Generating() {
   const { draft, setCurrent } = useApp(),
@@ -26,7 +27,14 @@ export default function Generating() {
     generate(
       {
         ...withScheduleDefaults(draft),
-        selectedPreferences: draft.preferences,
+        selectedPreferences: [
+          ...new Set([
+            ...draft.preferences,
+            ...(draft.ideaExplicit
+              ? ideas.find((i) => i.id === draft.idea)?.tags || []
+              : []),
+          ]),
+        ],
         preferences: preferencesForPlan(draft),
       },
       0,
@@ -38,7 +46,8 @@ export default function Generating() {
         if (controller.signal.aborted) return;
         if (!bundle.plan) {
           setError(
-            "No three-stop plan fits those hours, area and budget. Try an earlier start, longer duration, or wider area.",
+            bundle.failure?.message ||
+              "No suitable route fits your interests, hours, area and budget. Try changing the details.",
           );
           return;
         }

@@ -12,8 +12,10 @@ import {
   SlidersHorizontal,
   X,
   Camera,
+  ArrowLeft,
 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
+import { replaceExperienceStop } from "../engine/replacement";
 import { Button, MoodImage } from "../components/UI";
 import { gentleEase } from "../components/Introduction";
 import {
@@ -35,9 +37,17 @@ import RouteExtras from "../components/RouteExtras";
 import StopPicker from "../components/StopPicker";
 import StopDetails from "../components/StopDetails";
 const RouteMap = lazy(() => import("../components/RouteMap"));
-export default function Itinerary() {
-  const { current, setCurrent, setDraft, startNew, saved, save, setStatus } =
-    useApp();
+export default function Itinerary({
+  route,
+  onRouteChange,
+  communityPost,
+  onUseRoute,
+  initialStopId = "",
+}) {
+  const app = useApp();
+  const { setDraft, startNew, saved, save, setStatus } = app;
+  const current = route || app.current;
+  const setCurrent = onRouteChange || app.setCurrent;
   const [detailId, setDetailId] = useState(null),
     [picker, setPicker] = useState(null),
     [extraPool, setExtraPool] = useState(null),
@@ -48,7 +58,7 @@ export default function Itinerary() {
     [query, setQuery] = useState(""),
     [category, setCategory] = useState("all"),
     [showFilters, setShowFilters] = useState(false),
-    [selectedId, setSelectedId] = useState("");
+    [selectedId, setSelectedId] = useState(initialStopId);
   const sheet = useRef(null),
     mapArea = useRef(null),
     gripStart = useRef(null),
@@ -153,7 +163,16 @@ export default function Itinerary() {
         ? { candidates, matrix, notice: plan.notice }
         : await prepareReplacement(plan, { signal });
       if (signal.aborted) return;
-      const next = replaceStop(plan, i, options.candidates, d, options.matrix);
+      const next =
+        plan.stops.some((v) => v.source === "curated") || plan.intent
+          ? replaceExperienceStop(
+              plan,
+              i,
+              options.candidates,
+              d,
+              options.matrix,
+            )
+          : replaceStop(plan, i, options.candidates, d, options.matrix);
       if (!next) {
         setStatus(
           "No replacement fits while keeping the other stops. Try regenerating or changing the details.",
@@ -172,7 +191,7 @@ export default function Itinerary() {
       });
       setExtraPool(null);
       loadExtras({ ...plan, ...next }, options.candidates);
-      setStatus("One new stop. The rest of ur day stays yours.");
+      setStatus("Stop changed.");
     } catch {
       if (!signal.aborted)
         setStatus(
@@ -272,7 +291,7 @@ export default function Itinerary() {
       stops[index + direction],
       stops[index],
     ];
-    editStops(stops, "Order updated. Times, travel and budget checked again.");
+    editStops(stops, "Order updated.");
   }
   async function openPicker(index = null) {
     const signal = beginRequest("picker");
@@ -328,13 +347,7 @@ export default function Itinerary() {
       setStatus("That spot no longer fits. Try another or tweak the details.");
       return;
     }
-    commitEdit(
-      next,
-      options,
-      index === null
-        ? "Little extra added. Ur other stops stay in order."
-        : "Spot changed. Ur other stops stay in order.",
-    );
+    commitEdit(next, options, index === null ? "Stop added." : "Stop changed.");
     setPicker(null);
   }
   const detailIndex = plan.stops.findIndex((s) => s.id === detailId);
@@ -343,11 +356,21 @@ export default function Itinerary() {
     <div className="page itinerary wireframe-result map-result">
       <div className="result-chrome">
         <header className="result-header">
-          <Link className="result-brand" to="/" aria-label="melloway home">
-            m
+          <Link
+            className="result-brand"
+            to={communityPost ? "/community" : "/"}
+            aria-label={
+              communityPost ? "back to community feed" : "melloway home"
+            }
+          >
+            {communityPost ? <ArrowLeft size={20} /> : "m"}
           </Link>
           <div className="result-intro">
-            <h1>here’s ur {d.mode === "date" ? "date" : "hangout"}!</h1>
+            <h1>
+              {communityPost
+                ? "the route"
+                : `here’s ur ${d.mode === "date" ? "date" : "hangout"}!`}
+            </h1>
           </div>
           <button
             className="result-bookmark"
@@ -410,6 +433,24 @@ export default function Itinerary() {
           </div>
         )}
       </div>
+      {communityPost && (
+        <section className="community-expanded-context">
+          <p>
+            {communityPost.author}{" "}
+            <span>
+              @{communityPost.handle} ·{" "}
+              {communityPost.sample ? "sample route" : "shared on ur device"}
+            </span>
+          </p>
+          <h2>{communityPost.name}</h2>
+          <p className="community-expanded-description">
+            {communityPost.description}
+          </p>
+          <button className="button" onClick={() => onUseRoute(current)}>
+            make this my day <ArrowRight size={16} />
+          </button>
+        </section>
+      )}
       <RouteSummary
         plan={plan}
         location={location}
@@ -418,7 +459,7 @@ export default function Itinerary() {
         onRemove={(i) =>
           editStops(
             plan.stops.filter((_, index) => index !== i),
-            "Stop removed. Ur route, times and budget are updated.",
+            "Stop removed.",
           )
         }
         onChange={openPicker}
@@ -475,13 +516,10 @@ export default function Itinerary() {
         <div className="plan-summary">
           <p className="sheet-count" role="status">
             {shownStops.length === plan.stops.length
-              ? `${plan.stops.length} little stops for ur day`
+              ? `${plan.stops.length} stops`
               : `${shownStops.length} of ${plan.stops.length} stops`}
           </p>
           <h2>the spots.</h2>
-          <p className="spots-sheet-hint">
-            tap the details to pop open a spot.
-          </p>
         </div>
         <section
           id="plan-stops"
@@ -532,14 +570,18 @@ export default function Itinerary() {
                         <small>
                           {s.source === "google"
                             ? "Venue photo unavailable"
-                            : "a little adventure"}
+                            : s.source === "curated"
+                              ? "Photo unavailable"
+                              : "sample spot"}
                         </small>
                       </span>
                     )}
                     <span className="image-caption">
                       {s.source === "demo"
                         ? "mood imagery"
-                        : `Google Places${s.attribution ? " · " + s.attribution : ""}`}
+                        : s.source === "curated"
+                          ? "sourced venue"
+                          : `Google Places${s.attribution ? " · " + s.attribution : ""}`}
                     </span>
                   </div>
                   <div className="stop-body">
@@ -557,9 +599,7 @@ export default function Itinerary() {
                         <MapPin size={20} />
                       </button>
                     </div>
-                    <p className="stop-meta">
-                      {s.category.toLowerCase()} · {s.address}
-                    </p>
+                    <p className="stop-meta">{s.address}</p>
                     <div className="stop-actions">
                       <button
                         aria-expanded={detailId === s.id}
@@ -583,7 +623,6 @@ export default function Itinerary() {
           <div className="stops-empty">
             <Search size={24} />
             <h3>no stops match that one.</h3>
-            <p>try another name or cuisine. ur full day is still here.</p>
             <button className="button" onClick={clearFilters}>
               show all stops
             </button>
@@ -599,10 +638,6 @@ export default function Itinerary() {
           onRetry={() => loadExtras()}
         />
         <div className="result-next">
-          <p>
-            you can lock this in or explore our community for more ideas. swap a
-            stop, tweak the details — make it ur kinda day.
-          </p>
           <div className="result-actions">
             <Button
               className={isSaved ? "green" : "pink"}
@@ -629,8 +664,10 @@ export default function Itinerary() {
         <details className="data-notice plan-disclosure">
           <summary>
             {plan.stops[0].source === "demo"
-              ? "demo plan · sample places, costs & travel"
-              : "Google Places · estimated costs & travel"}
+              ? "sample plan · estimates"
+              : plan.stops[0].source === "curated"
+                ? "venue sources · estimates"
+                : "Google Places · estimates"}
           </summary>
           <p>
             {plan.notice}{" "}
@@ -644,7 +681,7 @@ export default function Itinerary() {
         </details>
         {d.notes && (
           <details className="plan-notes">
-            <summary>ur little notes</summary>
+            <summary>notes</summary>
             <p>{d.notes}</p>
             <span>
               Specific requests are notes for your outing; venue availability
@@ -694,6 +731,12 @@ export default function Itinerary() {
           stop={plan.stops[detailIndex]}
           index={detailIndex}
           prefs={d}
+          venueLink={
+            communityPost
+              ? `/community/${communityPost.id}/venue/${plan.stops[detailIndex].id}`
+              : undefined
+          }
+          venueState={communityPost ? { route: current } : undefined}
           onClose={() => setDetailId(null)}
         />
       )}

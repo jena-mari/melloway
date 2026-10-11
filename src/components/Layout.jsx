@@ -6,26 +6,28 @@ import DoodleBackdrop from "./DoodleBackdrop";
 import { Heart, Compass, Sparkles, Bookmark, MapPin, Map } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import useKeyboard from "../hooks/useKeyboard";
+import { Avatar } from "./CommunityIdentity";
 const tabs = [
   { to: "/", name: "make a plan", label: "plan", icon: Heart },
-  { to: "/community", name: "the community", label: "ideas", icon: Compass },
+  { to: "/community", name: "the community", label: "explore", icon: Compass },
   { to: "/events", name: "what’s on", label: "what’s on", icon: Sparkles },
   { to: "/favourites", name: "saved", label: "saved", icon: Bookmark },
 ];
 export default function Layout() {
-  const { status, setStatus, current } = useApp(),
+  const { status, setStatus, current, profile, draft } = useApp(),
     { pathname, search } = useLocation();
   const keyboardOpen = useKeyboard();
   const outlet = useOutlet(),
     reduced = useReducedMotion(),
     menu = useRef(null);
   const planning = pathname.startsWith("/plan/") || pathname === "/generating";
+  const communityRoute = /^\/community\/[^/]+$/.test(pathname);
   const introduction =
-    planning || pathname === "/" || pathname === "/itinerary";
+    planning || pathname === "/" || pathname === "/itinerary" || communityRoute;
   const calendar =
     pathname === "/plan/details" &&
     new URLSearchParams(search).get("q") === "5";
-  const result = pathname === "/itinerary";
+  const result = pathname === "/itinerary" || communityRoute;
   const navigationTabs = current?.plan
     ? [
         tabs[0],
@@ -41,16 +43,30 @@ export default function Layout() {
       className={`app-shell ${planning ? "planning" : ""} ${introduction ? "journey-shell" : ""} ${keyboardOpen ? "keyboard-open" : ""} ${calendar ? "calendar-shell" : ""}`}
     >
       <DoodleBackdrop screen={pathname} paused={keyboardOpen} />
-      {!introduction && (
-        <header className="app-topbar">
-          <Link to="/" className="wordmark" aria-label="melloway home">
-            melloway<span>✳</span>
-          </Link>
-          <span className="city-label">
-            <MapPin size={13} /> Sydney
-          </span>
-        </header>
-      )}
+      {!introduction &&
+        pathname !== "/community" &&
+        pathname !== "/profile" && (
+          <header className="app-topbar">
+            <Link to="/" className="wordmark" aria-label="melloway home">
+              melloway<span>✳</span>
+            </Link>
+            <div className="topbar-account">
+              <span className="city-label">
+                <MapPin size={13} /> Sydney
+              </span>
+              <Link
+                to="/profile"
+                className="header-profile-link"
+                aria-label="Your profile"
+              >
+                <Avatar
+                  name={profile?.name || draft.name || "you"}
+                  src={profile?.avatar}
+                />
+              </Link>
+            </div>
+          </header>
+        )}
       <main id="main" tabIndex={-1}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
@@ -84,6 +100,9 @@ export default function Layout() {
         <div>
           <h2 id="mellow-menu-title">a little more melloway.</h2>
           <nav aria-label="Explore melloway">
+            <Link to="/profile" onClick={() => menu.current.close()}>
+              your profile
+            </Link>
             {navigationTabs.map(({ to, name, label }) => (
               <Link
                 key={to}

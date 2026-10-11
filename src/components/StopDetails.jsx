@@ -4,7 +4,14 @@ import { MapPin, X, ArrowUpRight } from "lucide-react";
 import { MoodImage } from "./UI";
 import { formatTime } from "../utils/planner";
 
-export default function StopDetails({ stop: s, index, prefs: d, onClose }) {
+export default function StopDetails({
+  stop: s,
+  index,
+  prefs: d,
+  onClose,
+  venueLink,
+  venueState,
+}) {
   const dialog = useRef(null);
   useEffect(() => {
     dialog.current.showModal();
@@ -65,29 +72,28 @@ export default function StopDetails({ stop: s, index, prefs: d, onClose }) {
             <MapPin size={14} />
             {s.address}
           </p>
-          <p className="match-reason">
-            {s.tags.some((t) => d.preferences.includes(t))
-              ? `a little bit of ur ${s.tags.filter((t) => d.preferences.includes(t)).join(" + ")} vibe.`
-              : "a little variety to balance ur day."}
-          </p>
           {index > 0 && (
             <p className="stop-travel">
-              from the last stop: {s.travelFromPrevious.minutes} min{" "}
+              {s.travelFromPrevious.minutes} min from previous stop ·{" "}
               {d.transport.toLowerCase()} ·{" "}
               {s.travelFromPrevious.source === "google"
                 ? "Google route estimate"
                 : `rough estimate, ${s.travelFromPrevious.distance.toFixed(1)} km straight-line`}
             </p>
           )}
+          {s.reason && <p>{s.reason}</p>}
+          {s.booking && <p>{s.booking}</p>}
           <p>{s.note}</p>
-          <p>
-            {s.rating
-              ? `${s.rating}/5 · Google rating`
-              : "No verified rating or availability in demo mode."}
-          </p>
+          {s.website && (
+            <a href={s.website} target="_blank" rel="noreferrer">
+              venue source ↗
+            </a>
+          )}
+          {s.rating && <p>{s.rating}/5 · Google rating</p>}
           <Link
             className="button"
-            to={`/venue/${s.id}`}
+            to={venueLink || `/venue/${s.id}`}
+            state={venueState}
             onClick={() => dialog.current.close()}
           >
             location spotlight <ArrowUpRight size={15} />

@@ -2,9 +2,20 @@ import http from "node:http";
 import { validPreferences } from "../src/utils/planner.js";
 import { localLocations } from "../src/utils/location.js";
 import { createGoogleProvider } from "./google.js";
+import {
+  createOpenAIProvider,
+  defaultRecommendationModel,
+  validRecommendationVenues,
+} from "./openai.js";
 const key = process.env.GOOGLE_MAPS_API_KEY,
   provider = createGoogleProvider(key);
+const openaiKey = process.env.OPENAI_API_KEY;
+const recommendations = createOpenAIProvider(
+  openaiKey,
+  process.env.OPENAI_MODEL || defaultRecommendationModel,
+);
 const rates = new Map();
+const recommendationRates = new Map();
 const allowedOrigins = (process.env.APP_ORIGINS || "")
   .split(",")
   .map((origin) => origin.trim())
@@ -32,7 +43,14 @@ const server = http.createServer(async (req, res) => {
   }
   try {
     if (req.method === "GET" && req.url === "/api/status")
-      return reply(200, { venues: key ? "google" : "demo" });
+      return reply(200, {
+        venues: key ? "google" : "curated",
+        recommendations: openaiKey ? "openai" : "planner",
+      });
+    const recommendationRequest = [
+      "/api/recommendations",
+      "/api/intent",
+    ].includes(req.url);
     const locationSearch = req.url === "/api/locations/search";
     const locationResolve = req.url === "/api/locations/resolve";
     const photoRequest =
@@ -43,12 +61,16 @@ const server = http.createServer(async (req, res) => {
         ![
           "/api/venues",
           "/api/matrix",
+          "/api/recommendations",
+          "/api/intent",
           "/api/locations/search",
           "/api/locations/resolve",
         ].includes(req.url))
     )
       return reply(404, { error: "Endpoint not found" });
-    if (!key && !locationSearch)
+    if (recommendationRequest && !openaiKey)
+      return reply(503, { error: "OpenAI is not configured" });
+    if (!key && !locationSearch && !recommendationRequest)
       return reply(503, { error: "Google credentials are not configured" });
     const ip = req.socket.remoteAddress,
       now = Date.now();
@@ -60,6 +82,16 @@ const server = http.createServer(async (req, res) => {
     if (++rate.count > 40)
       return reply(429, { error: "Please retry in a minute" });
     if (rates.size > 10000) rates.clear();
+    if (recommendationRequest) {
+      let aiRate = recommendationRates.get(ip);
+      if (!aiRate || now - aiRate.start > 60000) {
+        aiRate = { start: now, count: 0 };
+        recommendationRates.set(ip, aiRate);
+      }
+      if (++aiRate.count > 6)
+        return reply(429, { error: "Please retry in a minute" });
+      if (recommendationRates.size > 10000) recommendationRates.clear();
+    }
     if (photoRequest) {
       const name = new URL(req.url, "http://localhost").searchParams.get(
         "name",
@@ -115,6 +147,28 @@ const server = http.createServer(async (req, res) => {
     const { prefs } = body;
     if (!validPreferences(prefs))
       return reply(400, { error: "Invalid planning details" });
+    if (recommendationRequest) {
+      if (req.url !== "/api/intent" && !validRecommendationVenues(body.venues))
+        return reply(400, { error: "Invalid recommendation places" });
+      const controller = new AbortController();
+      const cancel = () => controller.abort();
+      res.on("close", cancel);
+      try {
+        if (req.url === "/api/intent")
+          return reply(200, {
+            intent: await recommendations.interpret(prefs, controller.signal),
+          });
+        return reply(200, {
+          rankings: await recommendations.rank(
+            prefs,
+            body.venues,
+            controller.signal,
+          ),
+        });
+      } finally {
+        res.off("close", cancel);
+      }
+    }
     if (req.url === "/api/venues")
       return reply(200, { venues: await provider.discover(prefs) });
     const { venues } = body;

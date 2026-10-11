@@ -1634,7 +1634,7 @@ dd {
 }
 .notes-meta {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
   font-size: 9px;
   margin-top: 10px;
@@ -1840,8 +1840,6 @@ dd {
   flex: 1;
   min-width: 0;
 }
-.route-summary-heading p,
-.extras-eyebrow,
 .stop-picker-content header p {
   font-size: 11px;
   color: #666;
@@ -1980,11 +1978,6 @@ dd {
   color: #666;
   margin-top: 5px;
 }
-.spots-sheet-hint {
-  font-size: 12px;
-  color: #666;
-  margin-top: -4px;
-}
 .route-extras {
   border-top: 1px solid #ddd;
   margin-top: 30px;
@@ -1994,7 +1987,6 @@ dd {
   font-size: 32px;
   margin: 0 0 6px;
 }
-.extras-description,
 .extras-state {
   font-size: 12px;
   color: #666;
@@ -2055,12 +2047,6 @@ dd {
     600 14px/1.25 Outfit,
     sans-serif;
   margin: 0 0 5px;
-}
-.route-extras li strong {
-  display: block;
-  font-size: 12px;
-  font-weight: 500;
-  overflow-wrap: anywhere;
 }
 .route-extras li p {
   font-size: 10px;
@@ -2157,12 +2143,6 @@ dd {
   padding: 12px 8px;
   min-height: 44px;
   font-size: 16px;
-}
-.stop-picker-hint {
-  font-size: 11px;
-  line-height: 1.5;
-  color: #666;
-  margin: 12px 0;
 }
 .stop-picker-content ul {
   list-style: none;
@@ -2834,9 +2814,6 @@ dd {
   position: absolute;
   inset: 0;
 }
-.typed-prompts .introduction-copy {
-  margin-bottom: 16px;
-}
 .typing-caret {
   display: inline-block;
   width: 2px;
@@ -3394,40 +3371,128 @@ dd {
   }
 }
 
-/* Community routes read like people sharing a day, with maps in the feed. */
-.community-heading {
-  display: flex;
+/* A compact search header and simple route cards. */
+.community-page {
+  padding: 0 0 16px;
+  background: white;
+}
+.community-feed-header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin: 8px 0 12px;
+  gap: 8px;
+  padding: calc(10px + env(safe-area-inset-top)) 12px 10px;
 }
-.community-heading h1 {
-  font-size: 34px;
-  line-height: 1.12;
-  margin: 8px 0;
-}
-.community-heading p {
-  font-size: 12px;
-  line-height: 1.6;
-  color: #666;
-  max-width: 230px;
-}
-.community-compose-button {
+.community-home-mark {
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
+  width: 44px;
+  height: 44px;
+  font:
+    34px "Maple Shore",
+    cursive;
+}
+.community-feed-header .community-search {
+  min-width: 0;
+  height: 36px;
+  border-radius: 24px;
+  background: white;
+  padding: 0 10px 0 12px;
+  gap: 6px;
+}
+.community-feed-header .community-search input {
+  min-height: 34px;
+  padding: 6px 0;
+  font-size: 14px;
+}
+.community-feed-header .community-search input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+.community-feed-header .community-search > svg {
+  flex-shrink: 0;
+}
+.community-feed-header .community-search button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 44px;
+  flex-shrink: 0;
+  margin-right: -8px;
+}
+.community-preview-copy {
+  margin: 0 16px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #666;
+}
+.community-page > .community-feed {
+  margin: 0 16px;
+  gap: 12px;
+}
+.community-page > .community-feed > .community-post {
+  border: 2px solid #111;
+  border-radius: 14px;
+  padding: 14px 14px 8px;
+}
+.community-page .community-person > .community-avatar {
+  width: 42px;
+  height: 42px;
+}
+.community-page .community-byline {
+  gap: 3px 5px;
+}
+.community-page .community-byline small {
+  margin-left: 0;
+}
+.community-page .community-stop-photo {
+  height: auto;
+  aspect-ratio: 1 / 1;
+}
+.community-page .community-stop-photo strong {
+  border-radius: 20px;
+  font-size: 8px;
+  font-weight: 400;
+  padding: 3px 5px;
+}
+.community-page .community-post-copy {
+  margin: 12px 0 10px;
+}
+.community-page .community-route-save svg {
+  width: 32px;
+  height: 32px;
+}
+.community-page .community-post-actions {
+  margin-top: 2px;
+}
+.community-feed > .community-post {
+  border: 0;
+  border-bottom: 1px solid #e5e5e5;
+  border-radius: 0;
+  padding: 16px 16px 8px;
+}
+.community-page .community-composer {
+  margin: 0 16px 12px;
+}
+.community-compose-button {
+  position: fixed;
+  bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 16px);
+  right: max(16px, calc((100vw - 480px) / 2 + 16px));
+  z-index: 35;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
   background: #111;
   color: white;
   flex-shrink: 0;
+  box-shadow: 0 3px 12px #1112;
 }
 .community-notice {
   font-size: 11px;
   color: #666;
   line-height: 1.6;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .community-notice summary {
   cursor: pointer;
@@ -3447,9 +3512,9 @@ dd {
   display: flex;
   align-items: center;
   gap: 9px;
-  background: #f6f6f4;
-  border: 1px solid #e8e8e4;
-  border-radius: 16px;
+  background: #f7f7f5;
+  border: 1px solid #e1e1dd;
+  border-radius: 14px;
   padding-left: 12px;
 }
 .community-search input {
@@ -3458,9 +3523,9 @@ dd {
   flex: 1;
   border: 0;
   background: transparent;
-  font-size: 13px;
-  min-height: 48px;
-  padding: 12px 8px 12px 0;
+  font-size: 16px;
+  min-height: 44px;
+  padding: 10px 8px 10px 0;
 }
 .community-search input:focus {
   box-shadow: none;
@@ -3476,7 +3541,7 @@ dd {
 }
 .community-filters button {
   flex: 1;
-  min-height: 48px;
+  min-height: 44px;
   font-size: 12px;
   color: #777;
   border-bottom: 2px solid transparent;
@@ -3486,26 +3551,34 @@ dd {
   font-weight: 600;
   border-bottom-color: #111;
 }
+.community-feed {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
 .community-post {
-  padding: 22px 0;
-  border-bottom: 1px solid #e5e5e5;
+  padding: 16px 14px 8px;
+  border: 1.5px solid #111;
+  border-radius: 18px;
   min-width: 0;
+  background: white;
 }
 .community-person {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 9px;
 }
 .community-avatar {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   flex-shrink: 0;
   border-radius: 50%;
-  font-family: "Maple Shore", cursive;
-  font-size: 26px;
-  border: 1px solid #11111120;
+  font:
+    25px "Maple Shore",
+    cursive;
+  border: 1px solid #1112;
 }
 .avatar-pink {
   background: #fbe1e8;
@@ -3520,185 +3593,494 @@ dd {
   flex: 1;
   min-width: 0;
 }
-.community-person strong {
-  font-size: 14px;
-  font-weight: 600;
-  display: block;
-  overflow-wrap: anywhere;
-}
-.community-person > div > span {
-  display: block;
-  color: #777;
+.community-byline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
   font-size: 11px;
-  margin-top: 2px;
+  line-height: 1.3;
+}
+.community-byline strong {
+  font-size: 15px;
+  font-weight: 750;
+}
+.community-byline span {
+  color: #555;
   overflow-wrap: anywhere;
 }
-.community-post-kind {
+.community-byline small {
   font-size: 9px;
   color: #777;
-  white-space: nowrap;
+  margin-left: auto;
+}
+.community-person h2 {
+  font:
+    650 11px/1.35 Outfit,
+    sans-serif;
+  margin: 3px 0 0;
+  overflow-wrap: anywhere;
 }
 .community-post-copy {
-  margin: 14px 0;
-  padding-left: 14px;
-  border-left: 1px solid #e7e7e7;
-}
-.community-post-copy h2 {
-  font-size: 25px;
-  line-height: 1.25;
-  margin: 0 0 8px;
-  overflow-wrap: anywhere;
+  margin: 14px 0 12px;
 }
 .community-post-copy p {
   font-size: 13px;
-  line-height: 1.65;
+  line-height: 1.45;
   overflow-wrap: anywhere;
 }
-.community-route {
-  border: 1px solid #e0e0dc;
-  border-radius: 18px;
+.community-photo-strip {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  padding: 2px 0 8px;
+  scrollbar-width: thin;
+  scroll-snap-type: x proximity;
+}
+.community-stop-photo {
+  position: relative;
+  flex: 1 0 calc((100% - 14px) / 3);
+  min-width: 0;
+  max-width: calc((100% - 14px) / 3);
+  height: 108px;
+  border-radius: 13px;
+  background: #f4f2e9;
   overflow: hidden;
-  background: white;
+  scroll-snap-align: start;
+  isolation: isolate;
 }
-.community-route-heading {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 12px;
-  font-size: 11px;
-  border-bottom: 1px solid #eee;
-}
-.community-route-heading > span:first-child,
-.community-route-footer > span {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-.community-map-preview {
-  min-height: 254px;
-  background: #fafafa;
-}
-.community-map-preview .route-map-hero {
-  height: 210px;
-}
-.community-map-preview .map-toolbar {
-  top: 10px;
-  right: 10px;
-  left: 10px;
-}
-.community-map-preview .map-toolbar .map-expand {
-  font-size: 10px;
-  padding: 8px;
-}
-.community-map-preview .map-caption {
-  font-size: 9px;
-  line-height: 1.6;
-  padding: 8px 12px;
-}
-.community-map-loading {
-  min-height: 254px;
-  display: grid;
-  place-items: center;
-  color: #777;
-  font-size: 11px;
-}
-.community-stops {
-  list-style: none;
-  padding: 0 12px;
-  margin: 0;
-}
-.community-stops button {
-  display: flex;
-  align-items: center;
-  gap: 9px;
+.community-stop-photo img {
   width: 100%;
-  min-height: 44px;
-  text-align: left;
-  font-size: 12px;
-  padding: 6px 0;
+  height: 100%;
+  object-fit: cover;
 }
-.community-stops button > span {
-  flex-shrink: 0;
+.community-photo-fallback {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: #f5f5f2;
-  font-size: 10px;
+  z-index: -1;
+  font-size: 28px;
+  color: #777;
 }
-.community-stops button[aria-pressed="true"] > span {
-  background: #111;
-  color: white;
-}
-.community-stops strong {
+.community-stop-photo strong {
+  position: absolute;
+  top: 6px;
+  left: 5px;
+  right: 5px;
+  padding: 4px 5px;
+  border: 1px solid #111;
+  border-radius: 8px;
+  font-size: 8px;
+  line-height: 1.25;
   font-weight: 500;
+  background: #fffefb;
   overflow-wrap: anywhere;
 }
-.community-route-footer {
+.community-route-line {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 5px;
-  padding: 0 12px;
-  font-size: 10px;
-  color: #777;
-}
-.community-route-footer button {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 44px;
-  color: #111;
-  font-size: 11px;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 3px 0 0;
 }
 .community-open-route {
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
-  width: 100%;
-  min-height: 46px;
-  font-size: 12px;
-  font-weight: 500;
-  gap: 6px;
-  border-top: 1px solid #eee;
+  min-height: 44px;
+  border: 1.5px solid #111;
+  border-radius: 24px;
+  font-size: 11px;
+  font-weight: 600;
+  gap: 5px;
+  padding: 8px 11px;
 }
-.community-open-route:hover {
-  background: #f8f8f6;
+.community-route-line > span {
+  font-size: 9px;
+  color: #777;
 }
 .community-post-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 15px;
+  margin-top: 5px;
 }
 .community-post-actions button {
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
+  gap: 6px;
   min-height: 44px;
+  min-width: 44px;
   font-size: 11px;
 }
-.community-post-actions > span {
-  font-size: 9px;
-  color: #777;
+.community-post-actions button[aria-pressed="true"] {
+  color: #111;
+}
+.community-post-actions .community-route-save {
+  margin-left: auto;
 }
 .community-memory-photo {
   background: #f5f5f2;
-  border-radius: 16px;
+  border-radius: 13px;
   overflow: hidden;
-  margin-bottom: 14px;
+  margin: 8px 0;
 }
 .community-memory-photo img {
   width: 100%;
-  max-height: 260px;
+  max-height: 220px;
   object-fit: cover;
 }
+.community-thread {
+  border-top: 1px solid #ddd;
+  padding: 14px 0 6px;
+  margin-top: 6px;
+}
+.community-thread h3 {
+  font:
+    650 14px Outfit,
+    sans-serif;
+  margin: 0 0 10px;
+}
+.thread-empty {
+  color: #777;
+  font-size: 11px;
+  margin-bottom: 12px;
+}
+.community-thread ol {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.community-thread li {
+  display: flex;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+.community-thread li > div {
+  min-width: 0;
+  flex: 1;
+}
+.community-thread li > div > p:last-child {
+  font-size: 12px;
+  line-height: 1.5;
+  margin-top: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.reply-byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 7px;
+  font-size: 11px;
+}
+.reply-byline span {
+  color: #777;
+  overflow-wrap: anywhere;
+}
+.community-thread form {
+  margin-top: 12px;
+}
+.community-thread label {
+  display: block;
+  font-size: 11px;
+  margin-bottom: 7px;
+}
+.community-thread label span {
+  color: #777;
+}
+.community-thread textarea {
+  width: 100%;
+  border: 1px solid #bbb;
+  border-radius: 12px;
+  padding: 10px;
+  min-height: 70px;
+  resize: vertical;
+  font-size: 16px;
+}
+.community-thread form > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+}
+.community-thread small {
+  font-size: 9px;
+  color: #777;
+}
+.community-thread form button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.community-thread form button:disabled {
+  opacity: 0.4;
+}
+.community-expanded-context {
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid #eee;
+}
+.community-expanded-context > p:first-child {
+  font-size: 13px;
+  font-weight: 650;
+}
+.community-expanded-context > p:first-child span {
+  font-size: 11px;
+  font-weight: 400;
+  color: #777;
+  overflow-wrap: anywhere;
+}
+.community-expanded-context h2 {
+  font:
+    700 20px/1.25 Outfit,
+    sans-serif;
+  margin: 9px 0;
+  overflow-wrap: anywhere;
+}
+.community-expanded-description {
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+.community-expanded-context .button {
+  min-height: 44px;
+  font-size: 12px;
+}
+
 .community-composer {
   background: white;
+}
+.community-expanded-page {
+  padding: 12px 16px 24px;
+}
+.community-route-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.community-expanded-post {
+  padding: 18px 16px 12px;
+  border-width: 2px;
+}
+.community-expanded-save {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  margin-top: -5px;
+}
+.community-expanded-post .community-byline {
+  gap: 3px 5px;
+}
+.community-expanded-post .community-byline small {
+  margin-left: 0;
+}
+.community-expanded-post .community-stop-photo {
+  height: 115px;
+  text-align: left;
+}
+.community-route-title {
+  font:
+    750 19px/1.25 Outfit,
+    sans-serif;
+  margin: 10px 0 14px;
+  overflow-wrap: anywhere;
+}
+.community-route-title span {
+  font-weight: 500;
+}
+.community-place-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+  margin: 0 0 14px;
+}
+.community-place-list button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+  border: 1px solid #777;
+  border-radius: 18px;
+  min-height: 64px;
+  padding: 11px 12px;
+}
+.community-place-list .route-letter {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+}
+.community-place-list svg {
+  flex-shrink: 0;
+}
+.community-place-info {
+  flex: 1;
+  min-width: 0;
+}
+.community-place-info strong,
+.community-place-info small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.community-place-info strong {
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+.community-place-info small {
+  font-size: 10px;
+  color: #666;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+.community-expanded-map .route-map-hero {
+  height: 240px;
+  border: 2px solid #111;
+  border-radius: 15px;
+  overflow: hidden;
+}
+.community-expanded-map .map-toolbar {
+  gap: 5px;
+  left: 8px;
+  right: 8px;
+  top: 8px;
+}
+.community-expanded-map .map-toolbar button {
+  font-size: 10px;
+  padding: 6px 8px;
+}
+.community-expanded-map .map-caption {
+  font-size: 9px;
+  margin: 7px 0 0;
+}
+.community-suggestions {
+  margin: 20px 0 18px;
+}
+.community-suggestions header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.community-suggestions h2 {
+  font:
+    750 18px/1.2 Outfit,
+    sans-serif;
+  margin: 0;
+}
+.community-suggestions header a {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 44px;
+  font-size: 11px;
+}
+.community-explore-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  border-radius: 13px;
+  overflow: hidden;
+}
+.community-explore-tile {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: #e7e4dd;
+  isolation: isolate;
+}
+.explore-tile-images {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  gap: 2px;
+}
+.explore-tile-images.collage {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 2fr 1fr;
+}
+.explore-tile-images.collage > div:first-child {
+  grid-column: 1 / -1;
+}
+.explore-tile-images > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.explore-tile-images img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.explore-tile-count {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 8px;
+  padding: 4px 5px;
+  background: #1119;
+  color: white;
+  font-size: 10px;
+}
+.explore-tile-caption {
+  position: absolute;
+  inset: auto 0 0;
+  padding: 26px 8px 9px;
+  background: linear-gradient(transparent, #000d);
+  color: white;
+}
+.explore-tile-caption strong,
+.explore-tile-caption span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.explore-tile-caption strong {
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 700;
+}
+.explore-tile-caption span {
+  font-size: 9px;
+  margin-top: 4px;
+}
+.community-copy-route {
+  width: 100%;
+  font-size: 12px;
+}
+.community-expanded-notice {
+  margin: 6px 0 0;
+  font-size: 10px;
+}
+@media (max-width: 360px) {
+  .community-expanded-page {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+  .community-expanded-post {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .community-expanded-post .community-stop-photo {
+    height: 95px;
+  }
+  .community-place-list button {
+    gap: 8px;
+    padding: 10px;
+  }
 }
 .community-identity-fields {
   display: grid;
@@ -4038,4 +4420,433 @@ dd {
   .location-spinner {
     animation: none;
   }
+}
+
+/* Profile: familiar banner, overlapping avatar and quiet icon tabs. */
+.community-avatar {
+  overflow: hidden;
+}
+.community-avatar img {
+  border-radius: inherit;
+}
+.topbar-account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.header-profile-link,
+.community-profile-link {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+}
+.community-profile-link .community-avatar {
+  width: 30px;
+  height: 30px;
+  font-size: 22px;
+}
+.profile-page {
+  background: white;
+  min-height: calc(100dvh - var(--tabs-height));
+}
+.profile-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: calc(6px + env(safe-area-inset-top)) 12px 6px;
+  background: #fffffff5;
+}
+.profile-toolbar > div {
+  flex: 1;
+  min-width: 0;
+}
+.profile-toolbar strong {
+  font-size: 17px;
+  display: block;
+  overflow-wrap: anywhere;
+}
+.profile-toolbar small {
+  display: block;
+  color: #777;
+  font-size: 12px;
+}
+.profile-cover {
+  height: 146px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 16px;
+  overflow: hidden;
+  border-bottom: 1px solid #eee;
+}
+.cover-white {
+  background: #f7f7f2;
+}
+.cover-matcha {
+  background: #e1ecd7;
+}
+.cover-peach {
+  background: #fbe1e8;
+}
+.profile-cover-wordmark {
+  font:
+    38px "Maple Shore",
+    cursive;
+  transform: rotate(-5deg);
+}
+.profile-cover-doodle {
+  display: block;
+  width: 76px;
+  flex-shrink: 0;
+  transform: rotate(-12deg);
+}
+.profile-cover-doodle:nth-of-type(3) {
+  transform: rotate(12deg);
+}
+.profile-cover-star {
+  position: absolute;
+  width: 28px;
+  top: 10px;
+  right: 25%;
+}
+.profile-details {
+  padding: 0 18px 20px;
+  position: relative;
+}
+.profile-avatar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-top: -36px;
+  margin-bottom: 8px;
+}
+.profile-avatar-row > .community-avatar {
+  width: 88px;
+  height: 88px;
+  font-size: 54px;
+  border: 4px solid white;
+  box-shadow: 0 0 0 1px #1111;
+}
+.profile-edit-button {
+  border: 1px solid #111;
+  border-radius: 24px;
+  padding: 0 18px;
+  min-height: 40px;
+  margin-top: 48px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.profile-details h1 {
+  font-size: 34px;
+  overflow-wrap: anywhere;
+}
+.profile-handle {
+  font-size: 14px;
+  color: #777;
+  overflow-wrap: anywhere;
+}
+.profile-bio {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.profile-location {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: #686868;
+  margin-top: 10px;
+  overflow-wrap: anywhere;
+}
+.profile-location svg {
+  flex-shrink: 0;
+}
+.profile-tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e5e5;
+}
+.profile-tabs button {
+  flex: 1;
+  min-height: 54px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  color: #888;
+}
+.profile-tabs button[aria-selected="true"] {
+  color: #111;
+}
+.profile-tabs button[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  width: 46px;
+  height: 3px;
+  background: #111;
+  bottom: 0;
+  border-radius: 3px;
+}
+.profile-content > .community-feed {
+  margin-top: 0;
+  gap: 0;
+}
+.profile-content:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: -2px;
+}
+.profile-empty {
+  padding: 44px 18px;
+  text-align: center;
+}
+.profile-empty p {
+  color: #777;
+  font-size: 14px;
+}
+.profile-empty a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.profile-saved-route {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 16px 14px 16px 18px;
+}
+.profile-route-open {
+  display: grid;
+  grid-template-columns: 1fr 24px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 0;
+}
+.profile-route-open strong {
+  display: block;
+  font-size: 16px;
+}
+.profile-route-open small {
+  display: block;
+  font-size: 12px;
+  color: #777;
+  margin-top: 3px;
+}
+.profile-route-open ol {
+  grid-column: 1 / -1;
+  margin: 10px 0 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.profile-event-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px 14px 18px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.profile-event-card > a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.profile-event-card .event-poster {
+  width: 76px;
+  height: 94px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 10px;
+}
+.profile-event-card strong {
+  font-size: 14px;
+  display: block;
+}
+.profile-event-card small {
+  display: block;
+  font-size: 12px;
+  color: #777;
+  margin-top: 5px;
+}
+.profile-dialog {
+  width: min(440px, calc(100% - 24px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid #111;
+  border-radius: 22px;
+  background: white;
+  overscroll-behavior: contain;
+}
+.profile-dialog::backdrop {
+  background: #1115;
+}
+.profile-editor {
+  display: grid;
+  gap: 16px;
+  padding: 16px 18px 20px;
+}
+.profile-editor > header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.profile-editor h2 {
+  font-size: 28px;
+  flex: 1;
+}
+.profile-save {
+  background: #111;
+  color: white;
+  border-radius: 24px;
+  padding: 0 18px;
+  min-height: 40px;
+  font-size: 13px;
+}
+.profile-photo-edit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.profile-photo-edit > .community-avatar {
+  width: 56px;
+  height: 56px;
+  font-size: 34px;
+}
+.profile-upload {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 14px;
+  position: relative;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.profile-upload input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.profile-upload:focus-within {
+  outline: 2px solid #111;
+  outline-offset: 3px;
+}
+.profile-editor .field {
+  margin: 0;
+}
+.profile-editor textarea {
+  width: 100%;
+  border: 1px solid #111;
+  border-radius: 14px;
+  padding: 12px 14px;
+  resize: vertical;
+  font-size: 16px;
+}
+.profile-cover-picker {
+  margin: 0;
+  display: flex;
+  gap: 10px;
+}
+.profile-cover-picker legend {
+  margin-bottom: 10px;
+}
+.profile-swatch {
+  width: 44px;
+  height: 44px;
+  border: 1px solid #ddd;
+  border-radius: 50%;
+}
+.profile-swatch[aria-pressed="true"] {
+  border: 2px solid #111;
+}
+.profile-local-note {
+  font-size: 12px;
+  color: #777;
+}
+@media (max-width: 350px) {
+  .profile-cover-doodle {
+    width: 56px;
+  }
+  .profile-cover-wordmark {
+    font-size: 32px;
+  }
+  .profile-editor {
+    padding-inline: 12px;
+  }
+}
+.community-composer-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-block: 12px;
+}
+.community-composer-identity > span {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.community-composer-identity strong {
+  display: block;
+  font-size: 14px;
+}
+.community-composer-identity small {
+  display: block;
+  font-size: 12px;
+  color: #777;
+}
+.community-composer-identity a {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  font-size: 12px;
+  padding: 8px;
+}
+.profile-event-card .event-poster {
+  padding: 8px;
+}
+.profile-event-card .poster-title {
+  font-size: 22px;
+  margin: 0;
+}
+.profile-event-card .poster-topline,
+.profile-event-card .poster-subtitle,
+.profile-event-card .poster-bottomline {
+  display: none;
+}
+.profile-event-card .poster-art {
+  max-height: 50%;
+}
+html:has(.profile-page) {
+  scroll-padding-bottom: calc(
+    var(--tabs-height) + env(safe-area-inset-bottom) + 100px
+  );
+}
+.profile-content {
+  padding-bottom: 100px;
+}
+.profile-content .community-thread form button {
+  scroll-margin-bottom: calc(
+    var(--tabs-height) + env(safe-area-inset-bottom) + 100px
+  );
+}
+.profile-editor-error {
+  padding: 10px 12px;
+  border: 1px solid #111;
+  border-radius: 12px;
+  font-size: 13px;
 }

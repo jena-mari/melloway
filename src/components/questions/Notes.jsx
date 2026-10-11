@@ -16,12 +16,11 @@ export default function NotesQuestion({ draft: d, update }) {
             rows={5}
             maxLength={1200}
             value={d.notes || ""}
-            placeholder="my girl loves matcha, flea markets and vintage finds. we’d love a cute photo spot too…"
+            placeholder="preferences, requests, anything else…"
             onChange={(e) => update({ notes: e.target.value })}
           />
         </label>
         <div className="notes-meta">
-          <span>your notes stay with the plan.</span>
           <span>{(d.notes || "").length} / 1200</span>
         </div>
         <p
@@ -29,12 +28,11 @@ export default function NotesQuestion({ draft: d, update }) {
           style={{ visibility: included.length ? "visible" : "hidden" }}
           aria-live="polite"
         >
-          a little{" "}
           {included
             .slice(0, 3)
             .map((tag) => tag.toLowerCase())
             .join(" + ")}
-          {included.length > 3 ? " + more" : ""} energy.
+          {included.length > 3 ? " + more" : ""}
         </p>
       </Reveal>
     </>
