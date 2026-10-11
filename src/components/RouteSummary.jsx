@@ -47,11 +47,11 @@ export default function RouteSummary({
     >
       <div className="route-summary-heading">
         <div>
-          <h2>{plan.title || location}</h2>
-          {onRename && <button type="button" className="route-rename" disabled={busy}
+          <h2>{onRename && !readOnly ? <button type="button" className="route-rename" disabled={busy}
+            title={`Rename ${plan.prefs.mode === 'date' ? 'date' : 'hangout'}`}
             aria-haspopup="dialog" onClick={onRename}>
-            rename {plan.prefs.mode === 'date' ? 'date' : 'hangout'}
-          </button>}
+            {plan.title || location}
+          </button> : plan.title || location}</h2>
           <div className="route-day-schedule" aria-label="Your day timing">
             <p><time dateTime={plan.prefs.date}>{formatRouteDate(plan.prefs.date)}</time> · {formatTime(minutes(plan.prefs.time))} start</p>
             <p><strong>~{formatRouteDuration(plan.elapsed)} / {formatRouteDuration(Number(plan.prefs.duration) * 60)} available</strong></p>

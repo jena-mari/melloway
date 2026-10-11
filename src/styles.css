@@ -1889,10 +1889,14 @@ dd {
 }
 .route-rename {
   min-height: 44px;
-  padding: 4px 0;
-  font-size: 12px;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 .plan-name-dialog { max-width: 460px; }
 .plan-name-actions { display: flex; gap: 10px; margin-top: 20px; }

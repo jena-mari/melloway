@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { defaultDraft } from '../../src/data/preferences.js';
 import { demoMatrix, editRoute } from '../../src/utils/planner.js';
+import { finishJourney } from '../../src/utils/routeHistory.js';
 import { mockMapTiles } from './fixtures.js';
 
 test.use({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
@@ -12,7 +13,7 @@ const fixture = { candidates, matrix, plan: { ...editRoute(candidates, prefs, ca
 const current = page => page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')));
 const saved = page => page.evaluate(() => JSON.parse(localStorage.getItem('melloway.saved')));
 async function editor(page) {
-  await page.getByRole('button', { name: 'rename date', exact: true }).click();
+  await page.locator('.route-summary-heading h2').getByRole('button').click();
   return page.getByRole('dialog', { name: 'rename ur date', exact: true });
 }
 test.beforeEach(async ({ page }) => {
@@ -25,7 +26,7 @@ test.beforeEach(async ({ page }) => {
   }, fixture);
 });
 
-test('rename preserves the itinerary, stays after reload, and does not auto-bookmark or refetch routes', async ({ page }) => {
+test('rename preserves the itinerary, stays after reload, and does not auto-bookmark or refetch routes', async ({ page }, info) => {
   let routeRequests = 0;
   page.on('request', request => { if (request.url().includes('/api/itinerary-routes')) routeRequests++; });
   await page.goto('/itinerary');
@@ -44,12 +45,25 @@ test('rename preserves the itinerary, stays after reload, and does not auto-book
   expect(routeRequests).toBe(requestsBefore);
   await page.reload();
   await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  const nameButton = page.getByRole('button', { name: title, exact: true });
+  await expect(nameButton).toHaveCSS('text-decoration-line', 'underline');
+  await expect(page.getByRole('button', { name: 'rename date', exact: true })).toHaveCount(0);
+  await page.locator('.route-summary-heading').screenshot({ path: info.outputPath('clickable-date-name.png') });
+  await nameButton.press('Enter');
+  await expect(page.getByRole('dialog', { name: 'rename ur date', exact: true })).toBeVisible();
+  await expect(page.getByLabel('date name')).toHaveValue(title);
+  await page.keyboard.press('Escape');
 });
 
 test('renaming a saved in-progress date persists after clearing current and reopening favourites', async ({ page }) => {
+  await page.addInitScript(() => {
+    const route = JSON.parse(localStorage.getItem('melloway.current'));
+    route.plan.status = 'in-progress';
+    route.plan.startedAt = '2026-10-12T01:00:00Z';
+    localStorage.setItem('melloway.current', JSON.stringify(route));
+  });
   await page.goto('/itinerary');
   await page.getByRole('button', { name: 'lock this in', exact: true }).click();
-  await page.getByRole('button', { name: 'start ur day', exact: true }).click();
   const before = await current(page);
   const dialog = await editor(page);
   await dialog.getByLabel('date name').fill('Our first Sydney date');
@@ -117,11 +131,15 @@ test('a long name fits small screens and follows the date into history', async (
   await dialog.getByRole('button', { name: 'save name', exact: true }).click();
   await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await page.getByRole('button', { name: 'start ur day', exact: true }).click();
-  await page.getByRole('button', { name: 'finish date', exact: true }).click();
-  await page.getByRole('button', { name: 'dismiss date completion', exact: true }).click();
+  // Use the existing completion utility to prepare history now that the
+  // itinerary no longer exposes start/finish controls.
+  const completed = {};
+  finishJourney(await current(page), [], (key, value) => { completed[key] = value; });
+  await page.evaluate(values => {
+    for (const [key, value] of Object.entries(values)) localStorage.setItem(key, JSON.stringify(value));
+  }, completed);
   await page.goto('/history/name-fixture');
   await expect(page.getByRole('heading', { name, exact: true }).first()).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.history'))[0].plan.title)).toBe(name);
-  await expect(page.getByRole('button', { name: 'rename date', exact: true })).toHaveCount(0);
+  await expect(page.locator('.route-summary-heading h2').getByRole('button')).toHaveCount(0);
 });
