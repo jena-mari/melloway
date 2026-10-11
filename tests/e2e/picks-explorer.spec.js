@@ -80,6 +80,14 @@ test("Explore shows ten normal pick cards and opens details without changing the
     const map = await page.locator(".picks-map").boundingBox();
     const cards = await page.locator(".editorial-card-panel").boundingBox();
     expect(map.y + map.height).toBeLessThan(cards.y);
+    expect(map.height).toBeGreaterThanOrEqual(360);
+    const selected = page.locator(".editorial-place-card.is-selected");
+    const card = await selected.boundingBox();
+    const address = await selected.locator(".editorial-place-address").boundingBox();
+    const details = await selected.getByRole("button", { name: "the details", exact: true }).boundingBox();
+    expect(card.height).toBeLessThan(230);
+    expect(details.y - (address.y + address.height)).toBeLessThanOrEqual(12);
+    expect(details.y + details.height).toBeLessThanOrEqual(card.y + card.height);
     expect(await list.evaluate(node => ({ snap: getComputedStyle(node).scrollSnapType,
       scrollHeight: node.scrollHeight, height: node.clientHeight, scrollWidth: node.scrollWidth, width: node.clientWidth })))
       .toEqual(expect.objectContaining({ snap: "none" }));

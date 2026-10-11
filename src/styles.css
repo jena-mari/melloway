@@ -6664,7 +6664,7 @@ html:has(.profile-page) {
   margin: 0;
 }
 .embedded-picks .editorial-picks-browser {
-  grid-template-rows: clamp(200px, 30dvh, 300px) auto;
+  grid-template-rows: clamp(360px, 46dvh, 460px) auto;
 }
 .embedded-picks .editorial-place-cards {
   flex-direction: column;
@@ -6684,8 +6684,15 @@ html:has(.profile-page) {
   cursor: pointer;
 }
 .embedded-picks .editorial-place-photo {
-  height: clamp(90px, 15dvh, 145px);
+  height: 96px;
   flex-shrink: 0;
+}
+.embedded-picks .editorial-photo-placeholder {
+  padding: 8px;
+}
+.embedded-picks .editorial-photo-placeholder .doodle-art {
+  width: 28px;
+  height: 28px;
 }
 .embedded-picks .editorial-place-copy {
   flex: 1;
@@ -6709,7 +6716,7 @@ html:has(.profile-page) {
   align-items: center;
   gap: 5px;
   min-height: 32px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 .pick-detail-dialog .editorial-place-photo {
   height: 100%;
