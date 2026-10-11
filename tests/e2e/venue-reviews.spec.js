@@ -8,6 +8,12 @@ import { reviewStorageKey } from '../../src/services/venueReviews.js';
 const first = editorialPicks[0], glebe = editorialPicks.find(venue => venue.id === 'sydney-glebe-markets');
 const section = page => page.locator('.venue-reviews');
 const form = page => page.locator('.venue-review-dialog');
+const ratingSlider = page => form(page).getByRole('slider', { name: 'rating (optional)', exact: true });
+async function selectRating(page, rating) {
+  await ratingSlider(page).focus();
+  await ratingSlider(page).press('Home');
+  for (let step = 0; step < rating * 2; step++) await ratingSlider(page).press('ArrowRight');
+}
 async function mockReviews(page) {
   await page.route('https://**', route => route.abort());
   await page.route('**/api/**', route => new URL(route.request().url()).pathname === '/api/maps/config'
@@ -25,7 +31,7 @@ async function openPick(page, venue = first) {
 async function newReview(page, { rating, comment, name = 'Test reviewer' }) {
   await section(page).getByRole('button', { name: 'leave a review', exact: true }).click();
   await form(page).getByLabel('display name', { exact: true }).fill(name);
-  if (rating) await form(page).getByRole('radio', { name: `${rating} ${rating === 1 ? 'star' : 'stars'}`, exact: true }).check();
+  if (rating) await selectRating(page, rating);
   if (comment) await form(page).getByLabel('comment (optional)', { exact: true }).fill(comment);
   await form(page).getByRole('button', { name: 'save review', exact: true }).click();
   await expect(form(page)).toHaveCount(0);
@@ -62,12 +68,23 @@ test('half-star selection, numeric averages, comment-only reviews, edits and del
   await openPick(page);
   await section(page).getByRole('button', { name: 'leave a review', exact: true }).click();
   await form(page).getByLabel('display name', { exact: true }).fill('Half-star tester');
-  const half = form(page).getByRole('radio', { name: '0.5 stars', exact: true });
-  await half.check(); await expect(half).toBeChecked();
-  await expect(form(page).getByRole('img', { name: '0.5 out of 5 stars' })).toBeVisible();
+  await expect(ratingSlider(page)).toHaveValue('0');
+  await expect(ratingSlider(page)).toHaveAttribute('aria-valuetext', 'Not rated');
+  await expect(form(page).locator('.venue-review-star')).toHaveCount(5);
+  await expect(form(page).getByRole('radio')).toHaveCount(0);
+  await selectRating(page, 0.5);
+  await expect(ratingSlider(page)).toHaveValue('0.5');
+  await expect(ratingSlider(page)).toHaveAttribute('aria-valuetext', '0.5 out of 5 stars');
   const halfFill = await form(page).locator('.venue-review-star').first().locator('span').evaluate(element => element.getBoundingClientRect().width);
-  expect(halfFill).toBe(11);
-  await form(page).getByRole('radio', { name: '3.5 stars', exact: true }).check();
+  expect(halfFill).toBe(18);
+  for (let rating = 1; rating <= 5; rating += 0.5) {
+    await ratingSlider(page).press('ArrowRight');
+    await expect(ratingSlider(page)).toHaveValue(String(rating));
+  }
+  await form(page).getByRole('button', { name: 'clear rating', exact: true }).click();
+  await expect(ratingSlider(page)).toHaveValue('0');
+  await expect(ratingSlider(page)).toHaveAttribute('aria-valuetext', 'Not rated');
+  await selectRating(page, 3.5);
   await form(page).getByRole('button', { name: 'save review', exact: true }).click();
   await expect(section(page).getByText('1 rating', { exact: true })).toBeVisible();
   await newReview(page, { rating: 4.5, name: 'Second tester' });
@@ -82,8 +99,8 @@ test('half-star selection, numeric averages, comment-only reviews, edits and del
   await page.getByRole('button', { name: `view ${first.name} details`, exact: true }).click();
   await expect(section(page).getByRole('article')).toHaveCount(3);
   await section(page).getByRole('button', { name: 'edit review by Half-star tester' }).click();
-  await expect(form(page).getByRole('radio', { name: '3.5 stars', exact: true })).toBeChecked();
-  await form(page).getByRole('radio', { name: '0.5 stars', exact: true }).check();
+  await expect(ratingSlider(page)).toHaveValue('3.5');
+  await selectRating(page, 0.5);
   await form(page).getByLabel('comment (optional)', { exact: true }).fill('Updated locally.');
   await form(page).getByRole('button', { name: 'save review', exact: true }).click();
   await expect(section(page).getByLabel('Local community rating')).toContainText('2.5/5');
@@ -95,6 +112,33 @@ test('half-star selection, numeric averages, comment-only reviews, edits and del
   await expect(section(page).getByText('Updated locally.', { exact: true })).toBeVisible();
   await expect(section(page).getByRole('article')).toHaveCount(2);
   await expect(section(page).getByText('Second tester', { exact: true })).toHaveCount(0);
+});
+
+test.describe('five-star slider interaction', () => {
+  test.use({ hasTouch: true });
+  test('dragging and tapping fill the five stars in half-star steps', async ({ page }, info) => {
+    await openPick(page);
+    await section(page).getByRole('button', { name: 'leave a review', exact: true }).click();
+    await ratingSlider(page).scrollIntoViewIfNeeded();
+    const bounds = await ratingSlider(page).boundingBox(), y = bounds.y + bounds.height / 2;
+    await page.mouse.move(bounds.x + bounds.width * 0.1, y);
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + bounds.width * 0.7, y, { steps: 8 });
+    await page.mouse.up();
+    await expect(ratingSlider(page)).toHaveValue('3.5');
+    const fills = await form(page).locator('.venue-review-star > span').evaluateAll(stars => stars.map(star => star.getBoundingClientRect().width));
+    expect(fills).toEqual([36, 36, 36, 18, 0]);
+    await form(page).locator('.venue-review-rating').screenshot({ path: info.outputPath('five-star-slider.png') });
+    await page.touchscreen.tap(bounds.x + bounds.width * 0.5, y);
+    await expect(ratingSlider(page)).toHaveValue('2.5');
+    await page.touchscreen.tap(bounds.x + bounds.width - 2, y);
+    await expect(ratingSlider(page)).toHaveValue('5');
+    await ratingSlider(page).press('Home');
+    await expect(ratingSlider(page)).toHaveAttribute('aria-valuetext', 'Not rated');
+    await form(page).getByLabel('comment (optional)', { exact: true }).fill('Clearing the slider keeps comment-only reviews available.');
+    await form(page).getByRole('button', { name: 'save review', exact: true }).click();
+    await expect(section(page).getByLabel('Local community rating')).toContainText('0 ratings');
+  });
 });
 
 test('PNG and WebP photos are compressed into IndexedDB, previewed, removed, persisted, edited and deleted', async ({ page }, info) => {

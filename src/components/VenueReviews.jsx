@@ -33,7 +33,7 @@ function SavedPhotos({ review }) {
 }
 
 function ReviewForm({ venue, review, displayName, onClose, onSaved }) {
-  const dialog = useRef(null), alive = useRef(true), urls = useRef(new Set()), titleId = useId(), ratingName = useId();
+  const dialog = useRef(null), alive = useRef(true), urls = useRef(new Set()), titleId = useId();
   const [name, setName] = useState(review?.displayName || displayName || 'You');
   const [rating, setRating] = useState(review?.rating ?? null), [comment, setComment] = useState(review?.comment || '');
   const [photos, setPhotos] = useState(() => (review?.photoIds || []).map(id => ({ id, url: null })));
@@ -100,11 +100,14 @@ function ReviewForm({ venue, review, displayName, onClose, onSaved }) {
         <button type="button" disabled={saving} aria-label="close review form" onClick={() => dialog.current.close()}><X size={22} /></button></header>
       <label>display name<input autoFocus value={name} required maxLength={60} disabled={saving} onChange={event => setName(event.target.value)} /></label>
       <fieldset className="venue-review-rating"><legend>rating (optional)</legend>
-        <div>{Array.from({ length: 10 }, (_, index) => (index + 1) / 2).map(value => <label key={value} className={rating === value ? 'is-selected' : ''}>
-          <input type="radio" name={ratingName} value={value} checked={rating === value} disabled={saving}
-            aria-label={`${value} ${value === 1 ? 'star' : 'stars'}`} onChange={() => setRating(value)} />{value}<Star size={14} aria-hidden="true" />
-        </label>)}</div>
-        {rating !== null && <div className="venue-review-rating-preview"><ReviewStars value={rating} /><button className="text-button" type="button" disabled={saving} onClick={() => setRating(null)}>clear rating</button></div>}
+        <div className="venue-review-rating-control">
+          <span aria-hidden="true"><ReviewStars value={rating ?? 0} /></span>
+          <input type="range" min="0" max="5" step="0.5" value={rating ?? 0} disabled={saving}
+            aria-label="rating (optional)" aria-valuetext={rating === null ? 'Not rated' : `${rating} out of 5 stars`}
+            onChange={event => setRating(Number(event.target.value) || null)} />
+        </div>
+        <div className="venue-review-rating-preview"><span>{rating === null ? 'slide to rate' : `${rating}/5`}</span>
+          {rating !== null && <button className="text-button" type="button" disabled={saving} onClick={() => setRating(null)}>clear rating</button>}</div>
       </fieldset>
       <label>comment (optional)<textarea aria-label="comment (optional)" rows={4} maxLength={500} value={comment} disabled={saving} onChange={event => setComment(event.target.value)} /></label>
       <small className="venue-review-counter">{comment.length} / 500</small>
