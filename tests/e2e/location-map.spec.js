@@ -29,9 +29,8 @@ for (const width of [320, 390]) {
     await expect(
       map.getByRole("button", { name: "Choose Sydney CBD", exact: true }),
     ).toHaveAttribute("aria-pressed", "true");
-    await expect(
-      page.locator(".location-map .map-attribution"),
-    ).toHaveAttribute("href", "https://www.openstreetmap.org/copyright");
+    await expect(page.locator(".location-map .google-map-canvas")).toHaveAttribute("data-map-state", "ready");
+    await expect(page.locator('script[src*="maps.googleapis.com/maps/api/js"]')).toHaveCount(1);
     await page.evaluate(() => document.fonts.ready);
     await page.screenshot({
       path: info.outputPath(`location-map-${width}.png`),
@@ -101,16 +100,16 @@ for (const width of [320, 390]) {
   });
 }
 
-test("unavailable tiles still allow selecting an area and continuing", async ({
+test("unavailable Google Maps still allows selecting an area and continuing", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.route("https://tile.openstreetmap.org/**", (route) =>
+  await page.route("https://maps.googleapis.com/maps/api/js**", (route) =>
     route.abort(),
   );
   await page.goto("/plan/details?q=2");
   await expect(page.locator(".location-map-status")).toHaveText(
-    /map unavailable/,
+    /Google Maps unavailable/,
   );
   await page.getByRole("button", { name: "Choose Newtown", exact: true }).tap();
   await expect(page.getByLabel("any specific location in mind?")).toHaveValue(

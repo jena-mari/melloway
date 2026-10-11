@@ -8,9 +8,12 @@ import {
   Ticket,
   ArrowUpRight,
   Search,
+  Instagram,
 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { events } from "../data/events";
+import { sydneyEvents, upcomingSydneyEvents } from "../data/sydneyEvents.js";
+import SydneyEventHighlights from "../components/SydneyEventHighlights.jsx";
 import EventPoster from "../components/EventPoster";
 import BrandLogo from "../components/BrandLogo";
 import WeeklySuggestions from "../components/WeeklySuggestions";
@@ -18,13 +21,18 @@ import { weeklyEdition, weeklyMatches } from "../data/weeklySuggestions.js";
 import { readLocal, writeLocal } from "../services/storage";
 import { planningArea } from "../utils/location";
 import { eventQuery, loadEvents, eventPostFromTicketmaster } from "../services/events";
+import { loadInstagramEvents, savedInstagramEvents } from "../services/instagramEvents.js";
+import { sydneyToday } from "../utils/date.js";
 
 function EventPost({ event, liked, onLike, focused }) {
   const { savedEvents, toggleEventSave, draft, update } = useApp();
   const navigate = useNavigate();
   const article = useRef(null);
   const kept = savedEvents.includes(event.id);
-  const real = event.source === "ticketmaster";
+  const instagram = event.source === "instagram";
+  const ticketmaster = event.source === "ticketmaster";
+  const organiser = event.source === "organiser";
+  const real = ticketmaster || instagram || organiser;
   useEffect(() => {
     if (!focused) return;
     const frame = requestAnimationFrame(() =>
@@ -44,16 +52,16 @@ function EventPost({ event, liked, onLike, focused }) {
           className={`event-host-avatar poster-${event.theme}`}
           aria-hidden="true"
         >
-          {event.handle?.startsWith("melloway.") ? <BrandLogo decorative /> : event.initials}
+          {instagram ? <Instagram size={20} /> : event.handle?.startsWith("melloway.") ? <BrandLogo decorative /> : event.initials}
         </span>
         <div>
           <strong>{event.host}</strong>
-          <span>@{event.handle}</span>
+          {event.handle && <span>@{event.handle}</span>}
         </div>
-        <span className="event-sample-label">{real ? "Ticketmaster" : "sample event"}</span>
+        <span className="event-sample-label">{instagram ? "Instagram" : ticketmaster ? "Ticketmaster" : organiser ? "organiser" : "sample event"}</span>
       </header>
       <EventPoster event={event} />
-      {!real && <div className="event-social-actions">
+      {!ticketmaster && <div className="event-social-actions">
         <button
           type="button"
           aria-label={`Like event ${event.title}`}
@@ -92,23 +100,28 @@ function EventPost({ event, liked, onLike, focused }) {
             </dt>
             <dd>{real ? event.area : `${event.area}, Sydney · venue TBA`}</dd>
           </div>
-          <div>
+          {!instagram && <div>
             <dt>
               <Ticket size={15} aria-hidden="true" />
               entry
             </dt>
             <dd>{real ? event.entry : "price not confirmed"}</dd>
-          </div>
+          </div>}
         </dl>
-        <details className="event-more-details" open={focused || undefined}>
+        {!instagram && <details className="event-more-details" open={focused || undefined}>
           <summary>more about this one</summary>
           <p>{event.details}</p>
           {!real && <p className="event-sample-copy">
             This is a sample idea. Dates, venue, tickets and availability need a
             confirmed event listing.
           </p>}
-        </details>
-        {real ? (event.bookingUrl && <a className="text-button event-plan-vibe" href={event.bookingUrl} target="_blank" rel="noopener noreferrer">
+        </details>}
+        {organiser ? <div className="organiser-event-links">
+          <a className="text-button" href={event.url} target="_blank" rel="noopener noreferrer">event details <ArrowUpRight size={16} /></a>
+          <a className="text-button" href={event.instagramUrl} target="_blank" rel="noopener noreferrer"><Instagram size={16} /> Instagram <ArrowUpRight size={16} /></a>
+        </div> : instagram ? <a className="text-button event-plan-vibe" href={event.url} target="_blank" rel="noopener noreferrer">
+          view original post <ArrowUpRight size={16} />
+        </a> : ticketmaster ? (event.bookingUrl && <a className="text-button event-plan-vibe" href={event.bookingUrl} target="_blank" rel="noopener noreferrer">
           view tickets on Ticketmaster <ArrowUpRight size={16} />
         </a>) : <button
           type="button"
@@ -144,6 +157,16 @@ export function Events() {
     return () => controller.abort();
   }, [requestQuery]);
   const liveData = live.query === requestQuery ? live.data : null;
+  const [instagram, setInstagram] = useState({ loading: true, posts: [], error: "", available: true });
+  useEffect(() => {
+    const controller = new AbortController();
+    loadInstagramEvents(controller.signal).then(result => {
+      if (!controller.signal.aborted) setInstagram({ ...result, loading: false, error: "" });
+    }).catch(error => {
+      if (!controller.signal.aborted) setInstagram({ loading: false, posts: [], available: true, error: error.message || "Instagram posts are unavailable right now." });
+    });
+    return () => controller.abort();
+  }, []);
   const [search, setSearch] = useSearchParams();
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -190,6 +213,11 @@ export function Events() {
           .toLowerCase()
           .includes(text.replace(/^@/, "")));
   const feed = events.filter(visible);
+  const highlights = (focused || filter === "saved" || filter === "liked" ? sydneyEvents : upcomingSydneyEvents()).filter(visible);
+  const archived = savedInstagramEvents();
+  const instagramFeed = (focused || filter === "saved" || filter === "liked"
+    ? [...new Map([...instagram.posts, ...archived].map(post => [post.id, post])).values()]
+    : instagram.posts.filter(post => post.endDate >= sydneyToday())).filter(visible);
   const matching = (liveData?.events || []).map(eventPostFromTicketmaster).filter(visible);
   const unknown = (liveData?.unknownPriceEvents || []).map(eventPostFromTicketmaster).filter(visible);
   const weeklyVisible = !focused && filter === "all" && weeklyMatches(weeklyEdition(), draft, query).length > 0;
@@ -239,6 +267,18 @@ export function Events() {
           </button>
         ))}
       </div>
+      {focused ? highlights.map(renderPost) : <SydneyEventHighlights events={highlights} />}
+      {(!focused || focused.startsWith("instagram:")) && <section className="instagram-events" aria-label="Sydney events from Instagram">
+        <div className="instagram-events-heading">
+          <h2>from Instagram</h2>
+          <a href="https://www.instagram.com/explore/search/keyword/?q=sydney&hl=en" target="_blank" rel="noopener noreferrer">browse <ArrowUpRight size={14} /></a>
+        </div>
+        {!!instagramFeed.length && <div className="event-feed">{instagramFeed.map(renderPost)}</div>}
+        {!instagramFeed.length && <p className="events-preview-note" aria-live="polite">
+          {instagram.loading ? "Finding Sydney posts…" : instagram.error || (instagram.available ? "No matching upcoming posts found." : "Browse Sydney posts on Instagram.")}
+        </p>}
+        {!!instagramFeed.length && <p className="events-preview-note">Check the original post for times and tickets.</p>}
+      </section>}
       {weeklyVisible && <WeeklySuggestions query={query} />}
       {focused && (
         <button
@@ -268,7 +308,7 @@ export function Events() {
       <section className="event-feed" aria-label="event poster feed">
         {feed.map(renderPost)}
       </section>
-      {!feed.length && !matching.length && !unknown.length && !weeklyVisible && (
+      {!feed.length && !highlights.length && !instagramFeed.length && !matching.length && !unknown.length && !weeklyVisible && (
         <div className="community-empty">
           <h2>
             {text

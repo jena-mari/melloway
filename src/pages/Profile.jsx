@@ -21,6 +21,8 @@ import BrandLogo from "../components/BrandLogo";
 import EventPoster from "../components/EventPoster";
 import { communityExamples } from "../data/community";
 import { events } from "../data/events";
+import { sydneyEvents } from "../data/sydneyEvents.js";
+import { savedInstagramEvents } from "../services/instagramEvents.js";
 import { writeLocal } from "../services/storage";
 import { profileHandle, profileSocialUrl } from "../utils/profile";
 import { sydneyToday, validDate } from "../utils/date";
@@ -366,7 +368,7 @@ export default function Profile() {
     tab === "posts"
       ? posts
       : [...posts, ...examples].filter((p) => likes.includes(p.id));
-  const shownEvents = events.filter((e) =>
+  const shownEvents = [...savedInstagramEvents(), ...sydneyEvents, ...events].filter((e) =>
     (tab === "saved" ? savedEvents : eventLikes).includes(e.id),
   );
   const empty =
@@ -556,7 +558,7 @@ export default function Profile() {
                 <EventPoster event={event} compact />
                 <span>
                   <strong>{event.title}</strong>
-                  <small>{event.area} · sample event</small>
+                  <small>{event.area} · {event.source === "instagram" ? "Instagram" : event.source === "organiser" ? event.when : "sample event"}</small>
                 </span>
               </Link>
               <button

@@ -69,6 +69,14 @@ window.initVenueMap = async () => {
         selectMarker(index);
         notifyParent({ type: 'melloway-map-stop', index });
       });
+      if (itinerary) {
+        icon.addEventListener('pointerenter', event => {
+          if (event.pointerType !== 'touch') notifyParent({ type: 'melloway-map-preview', index });
+        });
+        icon.addEventListener('focus', () => notifyParent({ type: 'melloway-map-preview', index }));
+        icon.addEventListener('pointerleave', () => notifyParent({ type: 'melloway-map-preview-leave' }));
+        icon.addEventListener('blur', () => notifyParent({ type: 'melloway-map-preview-leave' }));
+      }
       bounds.extend(position);
     }
     selectMarker = index => {

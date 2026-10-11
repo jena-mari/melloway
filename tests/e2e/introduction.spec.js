@@ -168,25 +168,38 @@ test("illustrated ideas can be browsed and preferences still support multi-selec
   page,
 }, info) => {
   await page.goto("/plan/vibes");
+  await expect(page.locator(".idea-dots button")).toHaveCount(5);
   await expect(page.locator(".idea-caption")).toHaveText(
-    "flea market + matcha",
+    "high energy outdoor activities",
   );
   await page.getByRole("button", { name: "Next idea", exact: true }).click();
   await expect(page.locator(".idea-caption")).toHaveText(
-    "vintage finds + cute photos",
+    "indie bookshops and art museums",
   );
   await page
     .getByRole("button", { name: "Previous idea", exact: true })
     .click();
   await expect(page.locator(".idea-caption")).toHaveText(
-    "flea market + matcha",
+    "high energy outdoor activities",
   );
   await page
-    .getByRole("button", { name: "bookshop browsing + coffee", exact: true })
+    .getByRole("button", { name: "sleek wine bar and smart-casual dinner", exact: true })
     .click();
   await expect(page.locator(".idea-caption")).toHaveText(
-    "bookshop browsing + coffee",
+    "sleek wine bar and smart-casual dinner",
   );
+  for (const title of [
+    "homebody and cozy",
+    "live music and dynamic environments",
+    "high energy outdoor activities",
+  ]) {
+    await page.getByRole("button", { name: "Next idea", exact: true }).click();
+    await expect(page.locator(".idea-caption")).toHaveText(title);
+    await expect.poll(() => page.locator(".date-illustration").evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+  }
+  await page.getByRole("button", { name: "sleek wine bar and smart-casual dinner", exact: true }).click();
+  await expect(page.locator(".idea-caption")).toHaveText("sleek wine bar and smart-casual dinner");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("melloway.draft")).ideaExplicit)).toBe(true);
   await page.waitForTimeout(500);
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({ path: info.outputPath("date-idea.png") });
@@ -283,13 +296,13 @@ test("touch swipe changes the suggestion without changing the screen", async ({
     touchPoints: [],
   });
   await expect(page.locator(".idea-caption")).toHaveText(
-    "vintage finds + cute photos",
+    "indie bookshops and art museums",
   );
   await expect(page).toHaveURL(/\/plan\/vibes$/);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.getByRole("button", { name: "Next idea", exact: true }).tap();
   await expect(page.locator(".idea-caption")).toHaveText(
-    "bookshop browsing + coffee",
+    "sleek wine bar and smart-casual dinner",
   );
 });
 test("results show the route summary, expandable map and spot sheets while swaps preserve other cards", async ({
@@ -335,10 +348,10 @@ test("results show the route summary, expandable map and spot sheets while swaps
     .boundingBox();
   expect(zoomBox.width).toBeGreaterThanOrEqual(44);
   expect(zoomBox.height).toBeGreaterThanOrEqual(44);
-  const pin = dialog.locator(".route-pin").first();
-  const position = await pin.getAttribute("style");
+  const canvas = dialog.locator(".google-map-surface");
+  const zoom = Number(await canvas.getAttribute("data-map-zoom"));
   await dialog.getByRole("button", { name: "Zoom in" }).tap();
-  await expect(pin).not.toHaveAttribute("style", position);
+  await expect.poll(async () => Number(await canvas.getAttribute("data-map-zoom"))).toBeGreaterThan(zoom);
   await expect(
     dialog.getByRole("link", { name: "get directions" }),
   ).toHaveAttribute("href", /travelmode=walking/);
@@ -400,17 +413,17 @@ test("results show the route summary, expandable map and spot sheets while swaps
   ).toBeEnabled();
 });
 
-test("unavailable map tiles leave the plan, details and save action usable", async ({
+test("unavailable Google Maps leaves the plan, details and save action usable", async ({
   page,
 }) => {
-  await page.route("https://tile.openstreetmap.org/**", (route) =>
+  await page.route("https://maps.googleapis.com/maps/api/js**", (route) =>
     route.abort(),
   );
   await page.goto("/plan/notes");
   await page.getByRole("button", { name: "submit", exact: true }).tap();
   await expect(page).toHaveURL(/\/itinerary$/);
-  await expect(page.locator(".map-status")).toHaveText(
-    "street map couldn’t load. ur stops are still below.",
+  await expect(page.locator(".route-map .google-map-error [role='status']")).toHaveText(
+    "Google Maps unavailable.",
   );
   await page
     .getByRole("button", { name: "view stop cards", exact: true })
@@ -475,6 +488,7 @@ test("Google Places plans keep ordered directions without using demo map tiles",
       page.getByRole("link", { name: "see the route", exact: true }),
     ).toHaveAttribute("href", /waypoints=/);
   }
+
   await page.getByRole("button", { name: "expand map", exact: true }).tap();
   await expect(page.getByRole("dialog").locator("ol li")).toHaveCount(
     await page.locator(".route-summary-list li").count(),

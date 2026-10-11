@@ -7,7 +7,15 @@ async function request(path, body, signal) {
     body: JSON.stringify(body),
     signal: AbortSignal.any([signal, AbortSignal.timeout(40000)]),
   });
-  if (!response.ok) throw new Error("Posts unavailable");
+  if (!response.ok) {
+    const failure = await response.json().catch(() => ({}));
+    const messages = {
+      authentication: "Instagram discovery needs a valid server OpenAI key.",
+      rate_limit: "Instagram discovery is temporarily limited. Try again later.",
+      configuration: "Instagram discovery couldn’t complete its web-search request.",
+    };
+    throw new Error(path === "events" ? messages[failure?.code] || "Instagram posts are unavailable right now." : "Posts unavailable");
+  }
   return response.json();
 }
 function safePost(post) {
@@ -48,4 +56,15 @@ export async function previewSocial(url, signal) {
     if (signal.aborted) throw error;
     return post; // The official embed and original link still work without the API.
   }
+}
+
+export async function discoverInstagramEvents(signal) {
+  const response = await fetch(`${base}/api/status`, {
+    signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]),
+  });
+  if (!response.ok) throw new Error("Instagram posts are unavailable right now.");
+  if ((await response.json()).socialDiscovery !== "openai")
+    return { posts: [], available: false };
+  const data = await request("events", {}, signal);
+  return { posts: Array.isArray(data.posts) ? data.posts : [], available: true };
 }

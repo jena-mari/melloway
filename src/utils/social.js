@@ -17,7 +17,7 @@ export function socialPost(value) {
       };
     }
     if (host === "instagram.com") {
-      const match = url.pathname.match(/^\/(p|reel)\/([\w-]{5,40})\/?$/);
+      const match = url.pathname.match(/^\/(?:[\w.]{1,30}\/)?(p|reel)\/([\w-]{5,40})\/?$/);
       if (!match) return null;
       return {
         platform: "Instagram",

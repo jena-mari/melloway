@@ -1,6 +1,25 @@
 import { localLocations } from "../../src/utils/location.js";
-// Map interactions use a local tile fixture, never the public tile service.
+import { googleMapsFixture } from "./google-maps-fixture.js";
+import { renderVenueMap } from "../../server/eventMap.ts";
+import { itineraryMapPoints } from "../../server/itineraryMap.ts";
+// Keep the shared fixture entry point while moving maps to the offline Google SDK.
 export async function mockMapTiles(page) {
+  for (const host of ["surplus.sydney", "atparramatta.com", "sculpturebythesea.com"]) {
+    await page.route(`https://${host}/**`, route => route.fulfill({ contentType: "image/svg+xml",
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><rect width="400" height="500" fill="#d9dfcb"/><text x="24" y="240" font-size="28">Mock organiser artwork</text></svg>' }));
+  }
+  await page.route("**/api/social/events", route => route.fulfill({ json: { posts: [] } }));
+  await page.route("**/api/maps/config", route => route.fulfill({
+    json: { apiKey: "offline-browser-map-key", mapId: "DEMO_MAP_ID" },
+  }));
+  await page.route("https://maps.googleapis.com/maps/api/js**", route => route.fulfill({
+    contentType: "application/javascript", body: googleMapsFixture,
+  }));
+  await page.route("**/api/itinerary-map?*", route => {
+    const query = new URL(route.request().url()).searchParams.get("stops");
+    const points = itineraryMapPoints(JSON.parse(query));
+    return route.fulfill({ contentType: "text/html", body: renderVenueMap(points, "offline-browser-map-key", "itinerary") });
+  });
   await page.route("https://tile.openstreetmap.org/**", (route) =>
     route.fulfill({
       contentType: "image/svg+xml",

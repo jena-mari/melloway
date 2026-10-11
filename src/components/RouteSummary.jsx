@@ -126,15 +126,17 @@ export default function RouteSummary({
           </button>
         </div>
       )}
-      {editing && (
-        <button
-          className="route-add-stop"
-          disabled={busy || plan.stops.length >= 14}
-          onClick={onAdd}
-        >
-          <Plus size={17} /> add a stop
-        </button>
-      )}
+      <button
+        type="button"
+        className="route-add-stop"
+        aria-haspopup="dialog"
+        disabled={busy || plan.stops.length >= 14}
+        title={plan.stops.length >= 14 ? "Your route has the maximum 14 stops" : undefined}
+        onClick={onAdd}
+      >
+        <span className="route-add-icon" aria-hidden="true"><Plus size={20} /></span>
+        add a stop
+      </button>
     </section>
   );
 }

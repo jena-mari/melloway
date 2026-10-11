@@ -12,6 +12,7 @@ async function withApi(options, run) {
       searchLocations: unexpected, resolveLocation: unexpected },
     recommendationProvider: { rank: unexpected, interpret: unexpected },
     socialProvider: { discover: unexpected, preview: unexpected },
+    instagramEventsProvider: { discover: unexpected },
     eventsHandler: unexpected,
     eventsMapHandler: unexpected, socialLinkHandler: unexpected,
     tiktokPlacesHandler: unexpected, itineraryMapHandler: unexpected,
@@ -45,6 +46,18 @@ test('existing local location search works without credentials', async () => {
     assert.equal(data.source, 'local');
     assert.ok(data.suggestions.some(item => item.name === 'Newtown'));
     assert.equal((await request('/api/locations/search', { query: 'Newtown', sessionToken: '' })).status, 400);
+  });
+});
+
+test('map configuration exposes only the dedicated public browser key', async () => {
+  await withApi({ env: { GOOGLE_MAPS_JS_KEY: 'public-js', GOOGLE_MAPS_DEMO_KEY: 'public-demo', GOOGLE_MAPS_MAP_ID: 'my-map', GOOGLE_MAPS_API_KEY: 'private-places', OPENAI_API_KEY: 'private-openai' } }, async request => {
+    assert.deepEqual(await (await request('/api/maps/config')).json(), { apiKey: 'public-js', mapId: 'my-map' });
+  });
+  await withApi({ env: { GOOGLE_MAPS_DEMO_KEY: 'public-demo' } }, async request => {
+    assert.deepEqual(await (await request('/api/maps/config')).json(), { apiKey: 'public-demo', mapId: 'DEMO_MAP_ID' });
+  });
+  await withApi({ env: { GOOGLE_MAPS_API_KEY: 'private-places', OPENAI_API_KEY: 'private-openai' } }, async request => {
+    assert.deepEqual(await (await request('/api/maps/config')).json(), { apiKey: null, mapId: 'DEMO_MAP_ID' });
   });
 });
 
@@ -85,6 +98,24 @@ test('existing credentials and unknown-endpoint errors retain their status and s
     assert.equal((await request('/api/unknown', {})).status, 404);
     assert.equal((await request('/api/events', {})).status, 404);
   });
+});
+
+test('Instagram event discovery is independent of Google and shares social-search availability and rate limits', async () => {
+  const posts = [{ url: 'https://www.instagram.com/p/MockMarket123/' }];
+  await withApi({ env: { OPENAI_API_KEY: 'mock-only' }, instagramEventsProvider: {
+    discover: async () => posts,
+  } }, async request => {
+    for (let i = 0; i < 6; i++) {
+      const response = await request('/api/social/events', {});
+      assert.equal(response.status, 200);
+      assert.deepEqual(await response.json(), { posts });
+    }
+    assert.equal((await request('/api/social/events', {})).status, 429);
+  });
+  for (const env of [{}, { OPENAI_API_KEY: 'mock-only', OPENAI_SOCIAL_SEARCH: 'false' }])
+    await withApi({ env }, async request => {
+      assert.equal((await request('/api/social/events', {})).status, 503);
+    });
 });
 
 test('existing venues, matrix, photos and location resolution use their original provider contracts', async () => {

@@ -1,5 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { sydneyVenues } from "../../src/data/sydneyVenues.js";
+import { defaultDraft } from "../../src/data/preferences.js";
+import { schedule, demoMatrix } from "../../src/utils/planner.js";
+import { mockMapTiles } from "./fixtures.js";
 
 const garden = sydneyVenues.find(
   (venue) => venue.name === "Royal Botanic Garden Sydney",
@@ -182,4 +185,56 @@ test("disabled search does not request AI discovery", async ({ page }) => {
   await page.goto(`/venue/${garden.id}`);
   await expect(page.getByText("No public posts found yet.")).toBeVisible();
   expect(searches).toBe(0);
+});
+
+test("stop details show three visitor posts inline and return from a post to the same stop", async ({ page }) => {
+  await mockMapTiles(page);
+  const venue = sydneyVenues.find(v => v.name === "Uturn Newtown Contemporary");
+  const prefs = { ...defaultDraft(), area: "Newtown", date: "2026-10-18" };
+  const plan = { ...schedule([venue], prefs, demoMatrix([venue], prefs.transport), [0]), prefs, id: "social-stop-fixture" };
+  await page.addInitScript(plan => {
+    localStorage.setItem("melloway.current", JSON.stringify({ plan, candidates: [], matrix: [] }));
+  }, plan);
+  const visitorPosts = [
+    { ...posts[0], creator: "visitor-one", caption: "Inside the Newtown shop" },
+    { ...posts[1], creator: "visitor-two", caption: "Browsing the racks" },
+    { url: "https://www.tiktok.com/@visitor-three/video/7123456789012345679", creator: "visitor-three", caption: "A look around the shop" },
+  ];
+  let requested;
+  await page.route("**/api/social/search", route => {
+    requested = route.request().postDataJSON().venue;
+    return route.fulfill({ json: { posts: visitorPosts } });
+  });
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/itinerary");
+  const trigger = page.getByRole("button", { name: `open ${venue.name} details`, exact: true });
+  await trigger.click();
+  const details = page.getByRole("dialog", { name: venue.name, exact: true });
+  const rail = details.getByRole("region", { name: "Posts at this spot" });
+  await expect(rail.locator(".venue-social-card")).toHaveCount(3);
+  expect(requested.name).toBe(venue.name);
+  expect(requested.address).toBe(venue.address);
+  await expect(details.getByRole("group", { name: "filter posts" })).toHaveCount(0);
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await rail.scrollIntoViewIfNeeded();
+    expect(await details.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+    await rail.locator(".venue-social-card").last().scrollIntoViewIfNeeded();
+    await expect(rail.locator(".venue-social-card").last()).toBeInViewport();
+    await details.screenshot({ path: `/private/tmp/melloway-stop-posts-${width}.png` });
+  }
+  await rail.getByRole("button", { name: "watch TikTok post by visitor-three" }).click();
+  const player = page.getByRole("dialog", { name: "TikTok", exact: true });
+  await expect(player.locator("iframe")).toHaveAttribute("src", /7123456789012345679/);
+  await expect(player.getByRole("link", { name: "open on TikTok" })).toHaveAttribute("href", visitorPosts[2].url);
+  await page.keyboard.press("Escape");
+  await expect(player).toHaveCount(0);
+  await expect(details).toBeVisible();
+  await expect(rail.getByRole("button", { name: "watch TikTok post by visitor-three" })).toBeFocused();
+  expect(await page.evaluate(() => document.body.style.overflow)).toBe("hidden");
+  await details.getByRole("button", { name: "close spot details" }).click();
+  await expect(trigger).toBeFocused();
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("melloway.current")).plan.stops.map(s => s.id))).toEqual([venue.id]);
+  expect(errors).toEqual([]);
 });

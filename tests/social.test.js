@@ -34,6 +34,7 @@ const response = (posts, urls = [tiktok, instagram]) => ({
 test("individual social URLs canonicalise safely and produce only official embeds", () => {
   assert.equal(socialPost(`${tiktok}?tracking=1`).url, tiktok);
   assert.equal(socialPost(instagram).platform, "Instagram");
+  assert.equal(socialPost("https://www.instagram.com/garden.sydney/reel/RealPost123/?igsh=tracking").url, instagram);
   assert.equal(socialEmbed({ url: instagram }), `${instagram}embed/`);
   assert.match(
     socialEmbed({ url: tiktok }),
