@@ -11,8 +11,11 @@ export const googleMapsFixture = String.raw`
   }
   class FakeMap {
     constructor(element, options) {
+      if (options.styles && (options.mapId || options.renderingType !== 'RASTER'))
+        throw new Error('Local map styles require raster rendering without a map ID');
       this.element = element; this.zoom = options.zoom; this.center = options.center;
-      this.listeners = new Map(); this.markers = new Set();
+      this.listeners = new Map(); this.markers = new Set(); this.overlays = new Set();
+      element.dataset.mapOptions = JSON.stringify(options);
       this.surface = document.createElement('div');
       this.surface.style.cssText = 'position:relative;width:100%;height:100%;background:#f3f1e9;overflow:hidden';
       this.surface.innerHTML = '<div style="position:absolute;inset:0;background:repeating-linear-gradient(30deg,transparent 0 42px,#fff 44px 50px,transparent 52px 92px)"></div><span style="position:absolute;bottom:3px;left:5px;font:10px sans-serif;color:#777">Google Maps · offline fixture</span>';
@@ -46,18 +49,31 @@ export const googleMapsFixture = String.raw`
     setZoom(zoom) { if (zoom !== this.zoom) { this.zoom = zoom; this.emit('zoom_changed'); } this.render(); this.scheduleIdle(); }
     getZoom() { return this.zoom; }
     getProjection() { return { fromLatLngToPoint: p => ({ x:(p.lng()+180)/360*256, y:(90-p.lat())/180*256 }) }; }
-    render() {
+    pixel(position) {
       const width = this.surface.clientWidth, height = this.surface.clientHeight;
       const lats = (this.bounds || []).map(p=>p.lat), lngs = (this.bounds || []).map(p=>p.lng);
       const latRange = this.bounds ? Math.max(.005, Math.max(...lats)-Math.min(...lats))*1.8 : .009;
       const lngRange = this.bounds ? Math.max(.005, Math.max(...lngs)-Math.min(...lngs))*1.8 : .011;
-      this.markers.forEach(marker => {
-        const x = width/2+(marker.position.lng-this.center.lng)/lngRange*width;
-        const y = height/2-(marker.position.lat-this.center.lat)/latRange*height;
-        marker.wrapper.style.left = Math.max(45,Math.min(width-45,x))+'px';
-        marker.wrapper.style.top = Math.max(65,Math.min(height-55,y))+'px';
-      });
+      return { x: Math.max(45,Math.min(width-45,width/2+(position.lng-this.center.lng)/lngRange*width)),
+        y: Math.max(65,Math.min(height-55,height/2-(position.lat-this.center.lat)/latRange*height)) };
     }
+    render() {
+      this.markers.forEach(marker => {
+        const {x,y} = this.pixel(marker.position);
+        marker.wrapper.style.left = x+'px'; marker.wrapper.style.top = y+'px';
+      });
+      this.overlays.forEach(overlay => overlay.draw());
+    }
+  }
+  class OverlayView {
+    setMap(map) {
+      if (this.map) { this.map.overlays.delete(this); this.onRemove(); }
+      this.map = map;
+      if (map) { map.overlays.add(this); this.onAdd(); this.draw(); }
+    }
+    getPanes() { return { overlayMouseTarget: this.map.surface }; }
+    getProjection() { return { fromLatLngToDivPixel: point => this.map.pixel({lat:point.lat(),lng:point.lng()}) }; }
+    static preventMapHitsAndGesturesFrom() {}
   }
   class AdvancedMarkerElement {
     constructor(options) {
@@ -76,7 +92,7 @@ export const googleMapsFixture = String.raw`
   class PinElement { constructor(options) { const pin = document.createElement('span'); pin.textContent = options.glyphText; return pin; } }
   class Polyline { constructor(options) { this.map = options.map; } setMap(map) { this.map = map; } }
   // Match the real SDK: coordinates belong to core, not the maps library.
-  const maps = { Map:FakeMap, Polyline };
+  const maps = { Map:FakeMap, Polyline, OverlayView, RenderingType: { RASTER:'RASTER', VECTOR:'VECTOR' } };
   const core = { LatLng, LatLngBounds };
   window.google = { maps: { ...maps, ...core, marker:{AdvancedMarkerElement,PinElement}, event: { clearInstanceListeners(map) { clearTimeout(map.timer); map.listeners.clear(); } },
     async importLibrary(name) {

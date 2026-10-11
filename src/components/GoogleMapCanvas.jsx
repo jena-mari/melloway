@@ -5,9 +5,31 @@ import { animateMapCamera } from "../utils/mapCamera.js";
 
 const located = (point) => Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
+function styledMapPin({ maps, core, map, position, element, title }) {
+  const overlay = new maps.OverlayView();
+  const wrapper = document.createElement("div");
+  wrapper.style.cssText = "position:absolute;transform:translate(-50%,-100%)";
+  wrapper.title = title;
+  wrapper.append(element);
+  overlay.onAdd = () => {
+    overlay.getPanes().overlayMouseTarget.append(wrapper);
+    maps.OverlayView.preventMapHitsAndGesturesFrom(wrapper);
+  };
+  overlay.draw = () => {
+    const pixel = overlay.getProjection()?.fromLatLngToDivPixel(new core.LatLng(position.lat, position.lng));
+    if (pixel) { wrapper.style.left = `${pixel.x}px`; wrapper.style.top = `${pixel.y}px`; }
+  };
+  overlay.onRemove = () => wrapper.remove();
+  overlay.setMap(map);
+  return {
+    set map(value) { overlay.setMap(value); },
+    set zIndex(value) { wrapper.style.zIndex = String(value); },
+  };
+}
+
 export default function GoogleMapCanvas({
   points, selectedId, onSelect, focusPoint, resetView, interactive = true, smoothFocus = false,
-  groupNearby = false, fitPadding, markerContent, ariaLabel = "Google Maps",
+  groupNearby = false, fitPadding, mapStyles, markerContent, ariaLabel = "Google Maps",
   className = "map-canvas", statusClassName = "map-status", fallback,
   renderPreview, previewOnTap = false, routePaths, routeTransport = "Walking",
 }) {
@@ -50,7 +72,10 @@ export default function GoogleMapCanvas({
       const valid = points.filter(located);
       if (!valid.length) { setStatus("error"); return; }
       const map = new maps.Map(canvas.current, {
-        center: { lat: valid[0].lat, lng: valid[0].lng }, zoom: 17, maxZoom: 18, mapId,
+        center: { lat: valid[0].lat, lng: valid[0].lng }, zoom: 17, maxZoom: 18,
+        // Local styles are ignored with a map ID. Styled maps use raster tiles
+        // and OverlayView pins; other maps retain their advanced markers.
+        ...(mapStyles ? { styles: mapStyles, renderingType: maps.RenderingType.RASTER } : { mapId }),
         disableDefaultUI: true, zoomControl: interactive,
         gestureHandling: interactive ? "cooperative" : "none",
         keyboardShortcuts: interactive, clickableIcons: false,
@@ -132,10 +157,11 @@ export default function GoogleMapCanvas({
             closePreview();
             select.current?.(point.id);
           });
-          const pin = new marker.AdvancedMarkerElement({
-            map, position: { lat: point.lat, lng: point.lng },
-            content: element, title: group.map((p) => p.name).join(" · "),
-          });
+          const position = { lat: point.lat, lng: point.lng };
+          const title = group.map((p) => p.name).join(" · ");
+          const pin = mapStyles
+            ? styledMapPin({ maps, core, map, position, element, title })
+            : new marker.AdvancedMarkerElement({ map, position, content: element, title });
           return { pin, element, ids: group.map((p) => p.id) };
         });
         selectPins();
@@ -191,7 +217,7 @@ export default function GoogleMapCanvas({
       window.removeEventListener("melloway-map-auth-error", authFailure);
       clean();
     };
-  }, [points, interactive, groupNearby, fitPadding, markerContent, smoothFocus]);
+  }, [points, interactive, groupNearby, fitPadding, mapStyles, markerContent, smoothFocus]);
   useEffect(() => { view.current?.setRoutes(routePaths, routeTransport); }, [routePaths, routeTransport]);
   useEffect(() => { view.current?.selectPins(); }, [selectedId]);
   useEffect(() => {

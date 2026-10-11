@@ -18,6 +18,40 @@ async function mockPicks(page, { maps = true, images = true } = {}) {
     : route.abort());
 }
 
+test("Explore applies local map styling without losing pins or changing the onboarding map", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockPicks(page);
+  await page.goto("/explore");
+  await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
+  const options = JSON.parse(await page.locator(".picks-map .google-map-surface").getAttribute("data-map-options"));
+  expect(options.mapId).toBeUndefined(); // Google ignores local styles on maps with an ID.
+  expect(options.renderingType).toBe("RASTER");
+  expect(options.styles).toEqual(expect.arrayContaining([
+    expect.objectContaining({ featureType: "all", elementType: "labels.icon", stylers: [{ visibility: "off" }] }),
+    expect.objectContaining({ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }),
+    expect.objectContaining({ featureType: "transit", stylers: [{ visibility: "off" }] }),
+    expect.objectContaining({ featureType: "road.highway", elementType: "labels", stylers: [{ visibility: "off" }] }),
+  ]));
+  await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
+  const pin = page.getByRole("button", { name: `select ${editorialPicks[0].name} on map`, exact: true });
+  await pin.focus();
+  await page.keyboard.press("Enter");
+  await expect(pin).toHaveAttribute("aria-pressed", "true");
+  await expect(pin).toBeFocused();
+  const details = page.getByRole("button", { name: `view ${editorialPicks[0].name} details`, exact: true });
+  await details.click();
+  await expect(page.getByRole("dialog", { name: editorialPicks[0].name, exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(details).toBeFocused();
+  await page.goto("/plan/details?q=2");
+  await expect(page.locator(".location-map-canvas")).toHaveAttribute("data-map-state", "ready");
+  const areaOptions = JSON.parse(await page.locator(".location-map .google-map-surface").getAttribute("data-map-options"));
+  expect(areaOptions.styles).toBeUndefined();
+  expect(areaOptions.mapId).toBe("offline-fixture");
+  await expect(page.locator(".location-area-pin")).toHaveCount(4);
+  await expect(page.locator(".editorial-pick-pin")).toHaveCount(0);
+});
+
 test("Explore keeps ten vertical picks, pin selection and details without changing the plan", async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
