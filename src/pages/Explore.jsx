@@ -18,6 +18,7 @@ import { editorialPicks } from "../data/editorialPicks.js";
 import { searchPlaces } from "../utils/placeSearch.ts";
 import ExplorePlaces from "../components/ExplorePlaces.jsx";
 import { Button } from "../components/UI";
+import PicksExplorer from "../components/PicksExplorer.jsx";
 
 const placeEntries = [
   ...sydneyVenues.map(venue => ({ venue, href: `/venue/${venue.id}` })),
@@ -125,6 +126,7 @@ export default function Explore() {
           onChange={event => setQuery(event.target.value)} />
         {query && <button type="button" aria-label="clear search" onClick={() => setQuery("")}><X size={18} /></button>}
       </label>
+      {!query.trim() && <PicksExplorer embedded />}
       <ExplorePlaces places={placeMatches} />
       {requested ? (
         <RouteExtras choices={filtered} elapsed={plan?.elapsed || 0} loading={loading} failed={failed}

@@ -45,7 +45,7 @@ function PickEvidence({ venue }) {
   </section>;
 }
 
-export default function PicksExplorer() {
+export default function PicksExplorer({ embedded = false }) {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
   const venues = useMemo(() => editorialPicks
@@ -67,7 +67,9 @@ export default function PicksExplorer() {
   useEffect(() => () => clearTimeout(scrollTimer.current), []);
   function select(id, scroll = true) {
     setSelectedId(id); setFocused(true);
-    setParams({ place: id }, { replace: true });
+    const next = new URLSearchParams(params);
+    next.set("place", id);
+    setParams(next, { replace: true });
     const card = cards.current.get(id), list = carousel.current;
     if (!scroll || !card || !list) return;
     const cardBox = card.getBoundingClientRect(), listBox = list.getBoundingClientRect();
@@ -131,10 +133,12 @@ export default function PicksExplorer() {
         extraDetails={<PickEvidence venue={venue} />} />
     </div>;
   }
-  return <><div className="picks-explorer">
+  return <><div className={`picks-explorer ${embedded ? "embedded-picks" : ""}`}>
     <header className="editorial-picks-header">
-      <Link className="back" to="/explore"><ArrowLeft size={16} /> explore</Link>
-      <h1>Melloway’s Picks</h1>
+      {embedded ? <h2>Melloway’s Picks</h2> : <>
+        <Link className="back" to="/explore"><ArrowLeft size={16} /> explore</Link>
+        <h1>Melloway’s Picks</h1>
+      </>}
     </header>
     <div className="editorial-picks-browser">
       <PicksMap venues={venues} selectedId={active.id} focusPoint={focused ? active : null} onSelect={select}
@@ -167,8 +171,8 @@ export default function PicksExplorer() {
       </section>
     </div>
   </div>
-    <section className="editorial-existing-picks" aria-label="Existing pick routes">
+    {!embedded && <section className="editorial-existing-picks" aria-label="Existing pick routes">
       <h2>make a day of it.</h2><MellowayPicks showHeading={false} /><WeeklySuggestions />
-    </section>
+    </section>}
   </>;
 }
