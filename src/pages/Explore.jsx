@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Search, Sparkles, ArrowUpRight, X } from "lucide-react";
 import { useApp } from "../hooks/useApp";
@@ -17,6 +17,7 @@ import { sydneyVenues } from "../data/sydneyVenues.js";
 import { editorialPicks } from "../data/editorialPicks.js";
 import { searchPlaces } from "../utils/placeSearch.ts";
 import ExplorePlaces from "../components/ExplorePlaces.jsx";
+import { Button } from "../components/UI";
 
 const placeEntries = [
   ...sydneyVenues.map(venue => ({ venue, href: `/venue/${venue.id}` })),
@@ -39,25 +40,44 @@ export default function Explore() {
     setParams(next, { replace: true });
   }
   const [pool, setPool] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [retry, setRetry] = useState(0);
+  const [requested, setRequested] = useState(false);
+  const pending = useRef(null);
   const [detail, setDetail] = useState(null);
   const [posts] = useState(() => [...readPosts(), ...communityExamples()]);
 
   useEffect(() => {
-    const controller = new AbortController();
+    pending.current?.abort();
+    pending.current = null;
     setPool(null);
     setFailed(false);
     setDetail(null);
+    setLoading(false);
+    setRequested(false);
+    return () => pending.current?.abort();
+  }, [current, draft]);
+
+  async function loadSuggestions() {
+    setRequested(true);
+    if (pool || pending.current) return;
+    const controller = new AbortController();
+    pending.current = controller;
+    setFailed(false);
     setLoading(true);
     const request = plan ? prepareAdditions(plan, current.candidates || [], { signal: controller.signal }) : prepareBrowse(draft, { signal: controller.signal });
-    request
-        .then(options => { if (!controller.signal.aborted) setPool(options); })
-        .catch(() => { if (!controller.signal.aborted) setFailed(true); })
-        .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [current, retry, draft]);
+    try {
+      const options = await request;
+      if (!controller.signal.aborted) setPool(options);
+    } catch {
+      if (!controller.signal.aborted) setFailed(true);
+    } finally {
+      if (pending.current === controller) {
+        pending.current = null;
+        setLoading(false);
+      }
+    }
+  }
 
   const choices = useMemo(() => {
     const venues = pool?.candidates || [];
@@ -106,9 +126,16 @@ export default function Explore() {
         {query && <button type="button" aria-label="clear search" onClick={() => setQuery("")}><X size={18} /></button>}
       </label>
       <ExplorePlaces places={placeMatches} />
-      <RouteExtras choices={filtered} elapsed={plan?.elapsed || 0} loading={loading} failed={failed}
-        browse={!plan} title={plan ? "nearby spots" : "places to go"} onAdd={choose}
-        onView={setDetail} onRetry={() => setRetry(value => value + 1)} />
+      {requested ? (
+        <RouteExtras choices={filtered} elapsed={plan?.elapsed || 0} loading={loading} failed={failed}
+          browse={!plan} title={plan ? "nearby spots" : "places to go"} onAdd={choose}
+          onView={setDetail} onRetry={loadSuggestions} />
+      ) : (
+        <section className="route-extras" aria-labelledby="route-extras-title" aria-busy="false">
+          <h2 id="route-extras-title">{plan ? "nearby spots" : "places to go"}</h2>
+          <Button className="cream" onClick={loadSuggestions}>show suggestions</Button>
+        </section>
+      )}
       <WeeklySuggestions query={query} />
       <MellowayPicks query={query} />
       {!!sharedRoutes.some(post => post.plan?.stops.length) && <CommunitySuggestions posts={sharedRoutes} title="shared routes" />}

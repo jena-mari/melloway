@@ -40,6 +40,7 @@ test('new web-sourced venues reach generation and reveal their real source links
   expect(current.plan.discoverySource).toBe('web');
   expect(current.plan.cost).toBeLessThanOrEqual(prefs.budget);
   await page.getByRole('link', { name: 'explore', exact: true }).click();
+  await page.getByRole('button', { name: 'show suggestions', exact: true }).click();
   await expect(page.locator('.suggestion-feed')).toBeVisible();
   await page.getByRole('button', { name: 'preview Reuben Hills', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -52,6 +53,7 @@ test('new web-sourced venues reach generation and reveal their real source links
 test('Explore without an itinerary discovers source-backed spots and maintains the existing planning flow', async ({ page }) => {
   await page.route('**/api/discovery', route => route.fulfill({ json: { leads, venues: [venue], researchStatus: 'web' } }));
   await page.goto('/explore');
+  await page.getByRole('button', { name: 'show suggestions', exact: true }).click();
   await page.getByRole('button', { name: `preview ${venue.name}`, exact: true }).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog.getByText('Visitor café video.', { exact: true })).toBeVisible();

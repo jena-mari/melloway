@@ -95,6 +95,7 @@ test("unmatched search and clearing restore suggestions while Feed stays posts o
   await page.getByRole("button", { name: "clear search", exact: true }).click();
   await expect(page.getByLabel("search suggestions")).toHaveValue("");
   await expect(page).toHaveURL(/\/explore\?keep=1$/);
+  await page.getByRole("button", { name: "show suggestions", exact: true }).click();
   await expect(page.locator(".suggestion-feed")).toBeVisible();
   await expect(page.getByRole("region", { name: "places", exact: true })).toHaveCount(0);
   await page.getByLabel("search suggestions").fill("unlisted-place-zzzz");

@@ -128,6 +128,7 @@ test("lower activity budgets find fitting alternatives and constrain future sugg
   expect(changed.prefs.date).toBe("2026-10-18");
   expect(changed.prefs.time).toBe("11:00");
   await page.goto("/explore");
+  await page.getByRole("button", { name: "show suggestions", exact: true }).click();
   await expect(page.locator(".route-extras")).toHaveAttribute(
     "aria-busy",
     "false",

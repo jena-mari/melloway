@@ -70,6 +70,7 @@ test("planning a weekly suggestion keeps the existing route and budget; browsing
 test("Explore works before planning; only an explicit action updates the draft", async ({ page }) => {
   await page.goto("/explore");
   const before = await page.evaluate(() => ({ current: localStorage.getItem("melloway.current"), draft: localStorage.getItem("melloway.draft") }));
+  await page.getByRole("button", { name: "show suggestions", exact: true }).click();
   await page.getByLabel("search suggestions").fill("Mapo");
   const feed = page.getByRole("list", { name: "Nearby spot suggestions" });
   await expect(feed.locator(":scope > li")).toHaveCount(1);

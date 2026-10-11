@@ -43,6 +43,7 @@ const storedPlan = (page) =>
 
 test("map marker previews show the matching place on hover, keyboard focus and phone taps", async ({ page }, info) => {
   await page.goto("/explore");
+  await page.getByRole("button", { name: "show suggestions", exact: true }).click();
   const before = await storedPlan(page);
   const map = page.locator(".suggestion-map");
   await expect(map.locator('[data-map-state="ready"]')).toBeVisible();
@@ -72,6 +73,7 @@ test("map marker previews show the matching place on hover, keyboard focus and p
 
 test("swiping suggested spots follows their locations without changing the day", async ({ page }, info) => {
   await page.goto("/explore");
+  await page.getByRole("button", { name: "show suggestions", exact: true }).click();
   const initial = await storedPlan(page);
   const feed = page.getByRole("list", { name: "Nearby spot suggestions" });
   await expect(feed).toBeVisible();
@@ -119,6 +121,7 @@ test("swiping suggested spots follows their locations without changing the day",
 test("suggested spots remain browsable when Google Maps cannot load", async ({ page }) => {
   await page.route("https://maps.googleapis.com/maps/api/js**", route => route.abort());
   await page.goto("/explore");
+  await page.getByRole("button", { name: "show suggestions", exact: true }).click();
   const initial = await storedPlan(page);
   const feed = page.getByRole("list", { name: "Nearby spot suggestions" });
   await expect(feed).toBeVisible();
@@ -203,6 +206,7 @@ test("compact route rows lead into the map and suggestion previews remain opt-in
   await more.tap();
   await expect(page.locator("#result-plan-options")).not.toBeVisible();
   await page.getByRole("link", { name: "explore more spots", exact: true }).click();
+  await page.getByRole("button", { name: "show suggestions", exact: true }).click();
   const preview = page.getByRole("button", {
     name: "preview Mapo Newtown",
     exact: true,
@@ -281,6 +285,7 @@ test("place names replace legacy nicknames across current, saved and shared rout
     oldPlan.stops.map((s) => [s.id, s.lat, s.lng, s.arrival]),
   );
   await page.goto("/explore");
+  await page.getByRole("button", { name: "show suggestions", exact: true }).click();
   await expect(page.locator(".route-extras")).toHaveAttribute(
     "aria-busy",
     "false",
@@ -491,6 +496,7 @@ test("extras beyond the remaining budget cannot change the route", async ({
     localStorage.setItem("melloway.current", JSON.stringify(current));
   });
   await page.goto("/explore");
+  await page.getByRole("button", { name: "show suggestions", exact: true }).click();
   const before = await storedPlan(page);
   await expect(page.locator(".route-extras")).not.toHaveAttribute(
     "aria-busy",
