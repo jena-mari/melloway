@@ -41,7 +41,7 @@ test('timeframe edits cascade, invalid arrivals preserve the plan, and saving su
   await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'lock this in',exact:true}).click();
   await page.reload();
-  await expect(page.locator('.route-summary-list li')).toHaveCount(3);
+  await expect(page.locator('.route-summary-list > li')).toHaveCount(3);
   await expect(page.locator('.route-summary-spot').first()).toContainText('12:00 pm–2:00 pm');
   expect((await storedPlan(page)).stops).toEqual(edited.stops);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.saved')));
@@ -62,10 +62,11 @@ test('optimise and shuffle preserve places and sync letters, selection and direc
   const labels = (await page.locator('.pin-numbers').allTextContents()).flatMap(s=>s.split(' · ')).sort();
   expect(labels).toEqual(['A','B','C']);
   await page.getByRole('button',{name:`view ${shuffled.stops[1].name} details`,exact:true}).click();
-  await expect(page.locator('#stop-1 .stop-card')).toHaveClass(/selected-stop/);
-  await expect(page.locator('.route-summary-list li').nth(1)).toHaveClass(/selected-route-stop/);
-  await expect(page.getByRole('dialog')).toContainText('stop B');
-  await page.keyboard.press('Escape');
+  await expect(page.getByRole('region', {name:`${shuffled.stops[1].name} stop details`,exact:true})).toBeVisible();
+  await expect(page.locator('.route-summary-list > li').nth(1)).toHaveClass(/selected-route-stop/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.getByRole('button',{name:`view ${shuffled.stops[1].name} details`,exact:true}).click();
+  await expect(page.locator('.inline-stop-expansion')).toHaveCount(0);
   const href = new URL(await page.getByRole('link',{name:'open Google Maps',exact:true}).getAttribute('href'));
   expect(href.searchParams.get('origin')).toBe(`${shuffled.stops[0].lat},${shuffled.stops[0].lng}`);
   expect(href.searchParams.get('travelmode')).toBe('walking');
@@ -112,4 +113,67 @@ test('mode changes refresh route geometry; unset stays neutral and actions remai
     expect(await page.evaluate(() => document.documentElement.scrollWidth<=innerWidth)).toBe(true);
     await page.screenshot({path:info.outputPath(`sticky-actions-${width}.png`)});
   }
+});
+
+test('inline stop panels keep one open, preserve the map, and expose all venue actions', async ({page}, info) => {
+  const detailed = { ...plan.stops[0], image:'/test-venue.png', note:'A quiet bookshop with independent titles.', reason:'An indie bookshop close to your other stops.', website:'https://example.com/bookshop' };
+  await page.route('**/test-venue.png', route=>route.fulfill({contentType:'image/svg+xml',body:'<svg xmlns="http://www.w3.org/2000/svg" width="300" height="180"><rect width="300" height="180" fill="#e5edda"/></svg>'}));
+  await page.addInitScript(stop => {
+    const bundle = JSON.parse(localStorage.getItem('melloway.current'));
+    bundle.plan.stops[0] = stop;
+    localStorage.setItem('melloway.current', JSON.stringify(bundle));
+  }, detailed);
+  let routeRequests = 0;
+  page.on('request',request=>{ if (request.url().includes('/api/itinerary-routes')) routeRequests++; });
+  await page.goto('/itinerary');
+  await expect(page.locator('.map-preview .google-map-canvas')).toHaveAttribute('data-map-state','ready');
+  await expect(page.locator('.inline-stop-expansion')).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'view stop cards',exact:true})).toHaveCount(0);
+  await page.locator('.map-preview .google-map-canvas').evaluate(el=>{ window.originalRouteMap=el; });
+  const requestsBefore = routeRequests;
+  const row = page.getByRole('button',{name:`view ${detailed.name} details`,exact:true});
+  await row.click();
+  const panel = page.getByRole('region',{name:`${detailed.name} stop details`,exact:true});
+  await expect(panel).toBeVisible();
+  await expect(panel.locator('img')).toBeVisible();
+  await expect(panel).toContainText(detailed.note);
+  await expect(panel).toContainText(detailed.reason);
+  await expect(panel).toContainText('9:00 am–10:00 pm');
+  await expect(panel).toContainText(`~$${detailed.cost} each`);
+  await expect(panel).toContainText('30 min');
+  await expect(panel.getByRole('link',{name:'View Details',exact:true})).toHaveAttribute('href',`/venue/${detailed.id}`);
+  const direction = new URL(await panel.getByRole('link',{name:'Directions',exact:true}).getAttribute('href'));
+  expect(direction.searchParams.get('destination')).toBe(`${detailed.lat},${detailed.lng}`);
+  expect(direction.searchParams.get('origin')).toBeNull();
+  expect(direction.searchParams.get('travelmode')).toBe('walking');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await page.screenshot({path:info.outputPath('inline-itinerary.png'),fullPage:true});
+  await page.getByRole('button',{name:'view Fixture bookshop b details',exact:true}).click();
+  await expect(panel).toHaveCount(0);
+  await expect(page.locator('.inline-stop-expansion')).toHaveCount(1);
+  await expect(row).toHaveAttribute('aria-expanded','false');
+  await page.locator('.map-preview .route-pin').first().click();
+  await expect(panel).toBeVisible();
+  expect(await page.locator('.map-preview .google-map-canvas').evaluate(el=>el===window.originalRouteMap)).toBe(true);
+  expect(routeRequests).toBe(requestsBefore);
+  for(const width of [390,320]) {
+    await page.setViewportSize({width,height:844});
+    expect(await panel.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await panel.screenshot({path:info.outputPath(`inline-stop-${width}.png`)});
+  }
+  await panel.getByRole('button',{name:'Replace Stop',exact:true}).click();
+  const picker=page.getByRole('dialog');
+  await expect(picker).toBeVisible();
+  await picker.getByLabel('search available spots').fill('Fixture bookshop d');
+  await picker.getByRole('button',{name:'choose Fixture bookshop d',exact:true}).click();
+  await expect.poll(async()=>(await storedPlan(page)).stops[0].id).toBe('edit-d');
+  await page.getByRole('button',{name:'view Fixture bookshop d details',exact:true}).click();
+  await page.getByRole('region',{name:'Fixture bookshop d stop details',exact:true}).getByRole('button',{name:'Remove Stop',exact:true}).click();
+  await expect(page.locator('.route-summary-list > li')).toHaveCount(2);
+  await page.getByRole('button',{name:'view Fixture bookshop b details',exact:true}).click();
+  await page.getByRole('region',{name:'Fixture bookshop b stop details',exact:true}).getByRole('button',{name:'Remove Stop',exact:true}).click();
+  await expect(page.locator('.route-summary-list > li')).toHaveCount(1);
+  await page.getByRole('button',{name:'view Fixture bookshop c details',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Remove Stop',exact:true})).toBeDisabled();
 });

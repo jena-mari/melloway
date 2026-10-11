@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowUp,
   ArrowDown,
@@ -30,8 +31,11 @@ export default function RouteSummary({
   onOrder,
   onTransport,
   selectedStopId,
+  expandedStopId,
+  renderDetails,
 }) {
   const [editing, setEditing] = useState(initialEditing && !readOnly);
+  const reduced = useReducedMotion();
   return (
     <section
       className="route-summary"
@@ -72,7 +76,7 @@ export default function RouteSummary({
           ? plan.stops.map((stop, index) => ({ stop, index }))
           : visibleStops
         ).map(({ stop, index: i }) => (
-          <li key={stop.id} className={selectedStopId === stop.id ? 'selected-route-stop' : undefined}>
+          <li key={stop.id} className={selectedStopId === stop.id ? 'selected-route-stop' : undefined} data-stop-id={stop.id}>
             <span className="route-letter" aria-hidden="true">
               {String.fromCharCode(65 + i)}
             </span>
@@ -80,7 +84,9 @@ export default function RouteSummary({
               className="route-summary-spot"
               onClick={() => onSelect(stop.id)}
               aria-label={`view ${stop.name} details`}
-              aria-haspopup="dialog"
+              aria-haspopup={renderDetails ? undefined : 'dialog'}
+              aria-expanded={renderDetails ? expandedStopId === stop.id : undefined}
+              aria-controls={renderDetails ? `inline-stop-${stop.id}` : undefined}
               aria-current={selectedStopId === stop.id ? 'location' : undefined}
             >
               <strong>{stop.name}</strong>
@@ -93,7 +99,9 @@ export default function RouteSummary({
               <button
                 className="route-row-arrow"
                 aria-label={`open ${stop.name} details`}
-                aria-haspopup="dialog"
+                aria-haspopup={renderDetails ? undefined : 'dialog'}
+                aria-expanded={renderDetails ? expandedStopId === stop.id : undefined}
+                aria-controls={renderDetails ? `inline-stop-${stop.id}` : undefined}
                 onClick={() => onSelect(stop.id)}
               >
                 <CircleArrowRight size={18} aria-hidden="true" />
@@ -136,6 +144,17 @@ export default function RouteSummary({
                 </button>
               </div>
             )}
+            {renderDetails && <AnimatePresence initial={false}>
+              {expandedStopId === stop.id && <motion.div
+                id={`inline-stop-${stop.id}`}
+                role="region" aria-label={`${stop.name} stop details`}
+                className="inline-stop-expansion"
+                initial={reduced ? false : { height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: reduced ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+              >{renderDetails(stop, i)}</motion.div>}
+            </AnimatePresence>}
           </li>
         ))}
       </ol>

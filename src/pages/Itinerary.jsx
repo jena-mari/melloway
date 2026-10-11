@@ -2,18 +2,15 @@ import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Bookmark,
   ArrowUpRight,
   RefreshCw,
   ChevronDown,
-  MapPin,
   ArrowRight,
   Search,
   SlidersHorizontal,
   X,
-  Camera,
   ArrowLeft,
   Navigation,
   MoreHorizontal,
@@ -23,9 +20,7 @@ import {
 import { useApp } from "../hooks/useApp";
 import { replaceExperienceStop } from "../engine/replacement";
 import { Button, MoodImage } from "../components/UI";
-import { gentleEase } from "../components/Introduction";
 import {
-  formatTime,
   replaceStop,
   directions,
   editRoute,
@@ -40,7 +35,7 @@ import {
 import { createId } from "../utils/id";
 import RouteSummary from "../components/RouteSummary";
 import StopPicker from "../components/StopPicker";
-import StopDetails from "../components/StopDetails";
+import InlineStopDetails from "../components/InlineStopDetails";
 import BudgetSplit from "../components/BudgetSplit";
 import { replacementBudget } from "../utils/activityBudget";
 import { reorderRoute } from '../engine/routeEditing.js';
@@ -61,7 +56,6 @@ export default function Itinerary({
   const setCurrent = onRouteChange || app.setCurrent;
   const [detailId, setDetailId] = useState(null),
     [timeframeIndex, setTimeframeIndex] = useState(null),
-    [showStopCards, setShowStopCards] = useState(false),
     [showPlanOptions, setShowPlanOptions] = useState(false),
     [picker, setPicker] = useState(null),
     [extraPool, setExtraPool] = useState(null),
@@ -72,7 +66,7 @@ export default function Itinerary({
     [showFilters, setShowFilters] = useState(false),
     [selectedId, setSelectedId] = useState(initialStopId);
   const mapArea = useRef(null);
-  const reduced = useReducedMotion(), pending = useRef(null);
+  const pending = useRef(null);
   useEffect(() => () => pending.current?.abort(), []);
   function beginRequest(index = null) {
     pending.current?.abort();
@@ -193,9 +187,6 @@ export default function Itinerary({
           [stop.name, stop.category, stop.address, ...stop.tags].join(" "),
         ).includes(searchable(query.trim())),
     );
-  function scrollTo(el, block = "start") {
-    el?.scrollIntoView({ behavior: reduced ? "instant" : "smooth", block });
-  }
   function chooseStop(id) {
     setSelectedId(id);
     setQuery("");
@@ -388,7 +379,6 @@ export default function Itinerary({
     commitEdit(next, options, index === null ? "Stop added." : "Stop changed.");
     setPicker(null);
   }
-  const detailIndex = plan.stops.findIndex((s) => s.id === detailId);
   return (
     <div className="page itinerary wireframe-result map-result">
       <div className="result-chrome">
@@ -509,7 +499,7 @@ export default function Itinerary({
                   key={stop.id}
                   className="community-stop-photo"
                   aria-label={`open ${stop.name} photo details`}
-                  onClick={() => setDetailId(stop.id)}
+                  onClick={() => chooseStop(stop.id)}
                 >
                   <MoodImage
                     src={stop.image}
@@ -528,6 +518,15 @@ export default function Itinerary({
           initialEditing={Boolean(!route && navigationState?.editStops)}
           plan={plan}
           selectedStopId={selectedStop}
+          expandedStopId={detailId}
+          renderDetails={(stop, index) => <InlineStopDetails
+            stop={stop} index={index} prefs={d} busy={busy}
+            canRemove={plan.stops.length > 1}
+            onReplace={() => openPicker(index)}
+            onRemove={() => editStops(plan.stops.filter(s => s.id !== stop.id), 'Stop removed.')}
+            venueLink={communityPost ? `/community/${communityPost.id}/venue/${stop.id}` : undefined}
+            venueState={communityPost ? { route: current } : undefined}
+          />}
           location={location}
           busy={busy}
           visibleStops={shownStops}
@@ -548,7 +547,7 @@ export default function Itinerary({
           onAdd={() => openPicker()}
           onSelect={(id) => {
             setSelectedId(id);
-            setDetailId(id);
+            setDetailId(open => open === id ? null : id);
           }}
         />
         <div className="result-route" ref={mapArea}>
@@ -589,125 +588,7 @@ export default function Itinerary({
           <span>explore more spots<small>nearby · fits ur day</small></span> <ArrowRight size={18} aria-hidden="true" />
         </Link>
       </article>
-      <section className="result-sheet" aria-label="Planned stops">
-        <button
-          className="sheet-grip"
-          aria-label="view stop cards"
-          aria-expanded={showStopCards}
-          aria-controls="plan-stop-cards"
-          onClick={() => setShowStopCards((shown) => !shown)}
-        >
-          stop details <ChevronDown size={15} aria-hidden="true" />
-        </button>
-        <div id="plan-stop-cards" hidden={!showStopCards}>
-          <div className="plan-summary">
-            <p className="sheet-count" role="status">
-              {shownStops.length === plan.stops.length
-                ? `${plan.stops.length} stops`
-                : `${shownStops.length} of ${plan.stops.length} stops`}
-            </p>
-          </div>
-          <section
-            id="plan-stops"
-            aria-label="Your itinerary"
-            className="stop-list result-stops"
-          >
-            {shownStops.map(({ stop: s, index: i }) => (
-              <article
-                className="stop-wrap"
-                key={i}
-                id={`stop-${i}`}
-                data-stop-position={i}
-              >
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.div
-                    className={`stop-card ${selectedStop === s.id ? "selected-stop" : ""}`}
-                    key={s.id}
-                    initial={reduced ? false : { opacity: 0, x: 8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={reduced ? { opacity: 1 } : { opacity: 0, x: -8 }}
-                    transition={{
-                      duration: reduced ? 0 : 0.18,
-                      ease: gentleEase,
-                    }}
-                  >
-                    <div className="stop-photo">
-                      {s.image && (
-                        <MoodImage
-                          src={s.image}
-                          alt={
-                            s.source === "demo"
-                              ? "Illustrative mood photograph"
-                              : ""
-                          }
-                        />
-                      )}
-                      <span className="stop-time">
-                        {String.fromCharCode(65 + i)} · {formatTime(s.arrival)}
-                      </span>
-                      <span className="stop-allowance">~${s.cost} each</span>
-                      {!s.image && (
-                        <span className="photo-placeholder">
-                          {s.category === "Photo booths" ? (
-                            <Camera size={38} strokeWidth={1.3} />
-                          ) : (
-                            "✳"
-                          )}
-                          <small>
-                            {s.source === "google"
-                              ? "Venue photo unavailable"
-                              : s.source === "curated"
-                                ? "Photo unavailable"
-                                : "sample spot"}
-                          </small>
-                        </span>
-                      )}
-                      <span className="image-caption">
-                        {s.source === "demo"
-                          ? "mood imagery"
-                          : s.source === "curated"
-                            ? "sourced venue"
-                            : `Google Places${s.attribution ? " · " + s.attribution : ""}`}
-                      </span>
-                    </div>
-                    <div className="stop-body">
-                      <div className="stop-title-row">
-                        <h2>{s.name}</h2>
-                        <button
-                          className="stop-map-button"
-                          aria-label={`show ${s.name} on map`}
-                          aria-pressed={selectedStop === s.id}
-                          onClick={() => {
-                            setSelectedId(s.id);
-                            scrollTo(mapArea.current);
-                          }}
-                        >
-                          <MapPin size={20} />
-                        </button>
-                      </div>
-                      <p className="stop-meta">{s.address}</p>
-                      <div className="stop-actions">
-                        <button
-                          aria-expanded={detailId === s.id}
-                          aria-haspopup="dialog"
-                          onClick={() => setDetailId(s.id)}
-                        >
-                          the details <ChevronDown size={17} />
-                        </button>
-                        <button disabled={busy} onClick={() => swap(i)}>
-                          <RefreshCw size={13} />
-                          {busy && busyStop === i
-                            ? "finding…"
-                            : "swap this stop"}
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-              </article>
-            ))}
-          </section>
-        </div>
+      <section className="result-sheet" aria-label="Plan actions">
         <div className="result-next">
           {!route && <div className="date-lifecycle">
             <span className="eyebrow">{plan.status === 'in-progress' ? 'in progress' : 'upcoming'}</span>
@@ -830,20 +711,7 @@ export default function Itinerary({
           const okay = await editStops(plan.stops.map((s, i) => i === timeframeIndex ? { ...s, ...values, visitOverride: values.mins } : s), 'Timeframe updated.');
           return okay ? '' : 'This timeframe conflicts with travel, opening hours or the outing’s duration. Try another time or a shorter visit.';
         }} />}
-      {detailIndex >= 0 && (
-        <StopDetails
-          stop={plan.stops[detailIndex]}
-          index={detailIndex}
-          prefs={d}
-          venueLink={
-            communityPost
-              ? `/community/${communityPost.id}/venue/${plan.stops[detailIndex].id}`
-              : undefined
-          }
-          venueState={communityPost ? { route: current } : undefined}
-          onClose={() => setDetailId(null)}
-        />
-      )}
+
     </div>
   );
 }

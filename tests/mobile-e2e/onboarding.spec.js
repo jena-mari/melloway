@@ -31,7 +31,8 @@ test('main’s short onboarding reaches a plan, venue, saving/reloading, swap an
   await page.getByRole('textbox', { name: 'anything else for ur plan?', exact: true }).fill('a quiet afternoon');
   await page.getByRole('button', { name: 'submit', exact: true }).click();
   await expect(page).toHaveURL(/\/itinerary$/, { timeout: 30000 });
-  await page.getByRole('button', { name: /^the details ·/ }).first().click();
+  await page.getByRole('button', { name: /^view .* details$/ }).first().click();
+  await page.getByRole('button', { name: /^View Details ·/ }).first().click();
   await expect(page).toHaveURL(/\/venue\//);
   await page.getByRole('button', { name: 'back to ur day', exact: true }).click();
   await page.getByRole('button', { name: 'lock this in', exact: true }).click();
@@ -42,7 +43,8 @@ test('main’s short onboarding reaches a plan, venue, saving/reloading, swap an
   expect(persisted.onboarding.diningVibes).toEqual(['Cozy']);
   expect(persisted.onboarding.notes).toBe('a quiet afternoon');
   expect(persisted.saved).toHaveLength(1);
-  await page.getByRole('button', { name: 'swap this stop ↻', exact: true }).first().click();
+  await page.getByRole('button', { name: /^view .* details$/ }).first().click();
+  await page.getByRole('button', { name: /^Replace Stop ·/ }).first().click();
   await expect(page.getByText(/One new stop|No replacement fits/)).toBeVisible();
   await page.getByRole('button', { name: 'try another plan ↻', exact: true }).click();
   await expect(page.getByText(/A fresh plan|No other plan fits/)).toBeVisible();

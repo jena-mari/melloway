@@ -60,22 +60,23 @@ test('Google stops get alphabetical pins; selecting a pin selects its existing s
   await expect(page.getByText('bringing ur stops into view…')).toHaveCount(0);
   await expect(page.locator('.leaflet-container')).toHaveCount(0);
   await frame.getByRole('button', { name: 'B. Mock stop 2' }).click();
-  await expect(page.locator('#stop-1 .stop-card')).toHaveClass(/selected-stop/);
-  await expect(page.getByRole('dialog')).toContainText('Mock stop 2');
-  await page.getByRole('button', { name: 'close spot details', exact: true }).click();
-  await expect(page.locator('.stop-body h2')).toHaveText(stops.map(stop => stop.name));
+  await expect(page.locator('.route-summary-list > li').nth(1)).toHaveClass(/selected-route-stop/);
+  await expect(page.getByRole('region',{name:'Mock stop 2 stop details',exact:true})).toBeVisible();
+  await page.getByRole('button', { name: 'open Mock stop 2 details', exact: true }).click();
+  await expect(page.locator('.route-summary-spot strong')).toHaveText(stops.map(stop => stop.name));
   await page.getByRole('button', { name: 'expand map', exact: true }).click();
   await expect(page.frameLocator('dialog .google-route-map').getByRole('button', { name: 'C. Mock stop 3' })).toBeVisible();
   await page.frameLocator('dialog .google-route-map').getByRole('button', { name: 'C. Mock stop 3' }).click();
-  await expect(page.getByRole('dialog')).toContainText('Mock stop 3');
-  await expect(page.locator('#stop-2 .stop-card')).toHaveClass(/selected-stop/);
+  await expect(page.getByRole('region',{name:'Mock stop 3 stop details',exact:true})).toBeVisible();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.locator('.route-summary-list > li').nth(2)).toHaveClass(/selected-route-stop/);
 });
 
 test('a rejected map key preserves all stop cards and the Google directions link', async ({ page }) => {
   await mapFixture(page, 'window.gm_authFailure();');
   await page.goto('/itinerary');
   await expect(page.getByText('The map couldn’t load. Your stops are still below.')).toBeVisible();
-  await expect(page.locator('.stop-body h2')).toHaveText(stops.map(stop => stop.name));
+  await expect(page.locator('.route-summary-spot strong')).toHaveText(stops.map(stop => stop.name));
   await expect(page.locator('.map-unavailable a')).toHaveAttribute('href', /waypoints=/);
 });
 
@@ -88,7 +89,7 @@ test('Google iframe marker hover previews the exact place and opens its existing
   await expect(preview).toContainText('Mock stop 2');
   await expect(preview).toContainText('~$15 each');
   await preview.getByRole('button', { name: 'see the vibe' }).click();
-  await expect(page.getByRole('dialog')).toContainText('Mock stop 2');
+  await expect(page.getByRole('region',{name:'Mock stop 2 stop details',exact:true})).toBeVisible();
   await expect(preview).toHaveCount(0);
 });
 
@@ -101,7 +102,8 @@ test('unrelated window messages cannot select a stop or hide the map', async ({ 
     window.postMessage({ type: 'melloway-map-error' }, '*');
     window.postMessage({ type: 'melloway-map-preview', index: 2 }, '*');
   });
-  await expect(page.locator('#stop-0 .stop-card')).toHaveClass(/selected-stop/);
+  await expect(page.locator('.route-summary-list > li').first()).toHaveClass(/selected-route-stop/);
+  await expect(page.locator('.inline-stop-expansion')).toHaveCount(0);
   await expect(page.locator('.map-unavailable')).toHaveCount(0);
   await expect(page.getByRole('complementary', { name: 'Place preview' })).toHaveCount(0);
 });
@@ -135,7 +137,7 @@ test('a missing route keeps the pins and cards usable without drawing guessed co
   const frame=page.frameLocator('.route-map-hero .google-route-map');
   await expect(frame.getByRole('button',{name:'A. Mock stop 1'})).toBeVisible();
   await expect(frame.locator('[data-route-path]')).toHaveCount(0);
-  await expect(page.locator('.stop-body h2')).toHaveText(stops.map(stop => stop.name));
+  await expect(page.locator('.route-summary-spot strong')).toHaveText(stops.map(stop => stop.name));
 });
 
 

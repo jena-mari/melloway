@@ -12,12 +12,13 @@ import { common, colors } from '../theme';
 import { sharePlanText } from '../services/sharePlan';
 import { prepareEdit, reasonableOrder } from '../services/routeEditing';
 import TimeframeEditor from '../components/TimeframeEditor';
+import StopExpansion from '../components/StopExpansion';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function ItineraryScreen() {
   const [sharing, setSharing] = useState(false);
   const [editing, setEditing] = useState(false), [editBusy, setEditBusy] = useState(false), [timeIndex, setTimeIndex] = useState<number | null>(null);
-  const [picker, setPicker] = useState<Awaited<ReturnType<typeof prepareEdit>> | null>(null), [query, setQuery] = useState(''), [selectedId, setSelectedId] = useState('');
+  const [picker, setPicker] = useState<Awaited<ReturnType<typeof prepareEdit>> | null>(null), [query, setQuery] = useState(''), [selectedId, setSelectedId] = useState(''), [expandedId, setExpandedId] = useState('');
   const [shareError, setShareError] = useState(false);
   const current = useAppStore(state => state.current);
   const setCurrent = useAppStore(state => state.setCurrent);
@@ -30,6 +31,7 @@ export default function ItineraryScreen() {
   const { plan } = current;
   const prefs = plan.prefs;
   const venue = (id: string) => { setSelectedId(id); router.push({ pathname: '/venue/[id]', params: { id } }); };
+  const selectStop = (id: string, toggle = false) => { setSelectedId(id); setExpandedId(open => toggle && open === id ? '' : id); };
   function commit(next: Plan, options: Awaited<ReturnType<typeof prepareEdit>>, nextPrefs = prefs) {
     setCurrent({ ...current!, ...options, plan: { ...plan, ...next, prefs: nextPrefs, notice: options.notice, id: randomUUID() } });
   }
@@ -98,27 +100,43 @@ export default function ItineraryScreen() {
     <Chips label="transport" options={['Not selected', 'Walking', 'Public transport', 'Driving'] as const} value={prefs.transport} onChange={transport => { if (!editBusy && !isPending) void edit(plan.stops, { ...prefs, transport }); }} />
     <View style={common.row}><Button label="optimise route" disabled={editBusy || isPending} tone="cream" onPress={() => { void order('optimise'); }} /><Button label="shuffle route" disabled={editBusy || isPending} tone="cream" onPress={() => { void order('shuffle'); }} /></View>
     <Button label={editing ? 'done editing' : 'edit stops'} tone="cream" onPress={() => setEditing(!editing)} />
-    <PlanMap stops={plan.stops} selectedId={selectedId} prefs={prefs} onSelectVenue={setSelectedId} />
+    <View style={common.card}>
     {plan.stops.map((stop, index) => <View key={stop.id} style={{ gap: 12 }}>
       {stop.travelFromPrevious && <Text style={common.fine}>↓ {stop.travelFromPrevious.source === 'google' ? 'Google route' : 'rough estimate'} · {stop.travelFromPrevious.minutes} min {prefs.transport === 'Not selected' ? 'planning buffer' : prefs.transport.toLowerCase()}{stop.travelFromPrevious.source === 'estimate' ? ` · ${stop.travelFromPrevious.distance.toFixed(1)} km straight-line` : ''}</Text>}
       <View style={[common.card, selectedId === stop.id && { borderWidth: 2 }]}>
-        <MoodImage uri={stop.image} source={stop.source} attribution={stop.attribution} />
-        <Text style={common.label}>{String.fromCharCode(65 + index)} · {formatTime(stop.arrival)}–{formatTime(stop.arrival + stop.mins)}</Text>
-        <Text accessibilityRole="header" style={[common.title, { fontSize: 28, lineHeight: 34 }]}>{stop.name}</Text>
-        <Text style={common.fine}>{stop.address}</Text>
-        <Text style={common.text}>{stop.category} · {stop.cost ? `~$${stop.cost} each` : '$0 allowance'}</Text>
-        <Text style={common.fine}>{stop.tags.filter(t => prefs.preferences.includes(t)).join(' + ') || 'a little variety to balance ur day.'}</Text>
-        <Button label={`the details · ${stop.name}`} tone="green" onPress={() => venue(stop.id)} />
+        <Pressable accessibilityRole="button" accessibilityLabel={`view ${stop.name} details`} accessibilityState={{ expanded: expandedId === stop.id }} aria-expanded={expandedId === stop.id} onPress={() => selectStop(stop.id, true)} style={{ minHeight: 44, gap: 4 }}>
+          <Text style={common.label}>{String.fromCharCode(65 + index)} · {stop.name} {expandedId === stop.id ? '⌃' : '⌄'}</Text>
+          <Text style={common.fine}>{stop.address}</Text>
+          <Text style={common.fine}>{formatTime(stop.arrival)}–{formatTime(stop.arrival + stop.mins)}</Text>
+        </Pressable>
         <Button label={`edit ${stop.name} timeframe`} disabled={editBusy || isPending} tone="cream" onPress={() => setTimeIndex(index)} />
         {editing && <View style={common.row}>
           <Button label={`move ${stop.name} up`} disabled={editBusy || isPending || index === 0} tone="cream" onPress={() => { const stops = [...plan.stops]; [stops[index], stops[index - 1]] = [stops[index - 1], stops[index]]; void edit(stops); }} />
           <Button label={`move ${stop.name} down`} disabled={editBusy || isPending || index === plan.stops.length - 1} tone="cream" onPress={() => { const stops = [...plan.stops]; [stops[index], stops[index + 1]] = [stops[index + 1], stops[index]]; void edit(stops); }} />
           <Button label={`remove ${stop.name}`} disabled={editBusy || isPending || plan.stops.length === 1} tone="cream" onPress={() => { void edit(plan.stops.filter(s => s.id !== stop.id)); }} />
         </View>}
-        <Button label="swap this stop ↻" tone="cream" disabled={isPending || editBusy} onPress={() => { void swap(index); }} />
+        {expandedId === stop.id && <StopExpansion name={stop.name}>
+        <MoodImage uri={stop.image} source={stop.source} attribution={stop.attribution} height={156} />
+        <Text style={common.text}>{stop.note}</Text>
+        <Text style={common.fine}>opening hours · {(() => {
+          const date = new Date(`${prefs.date}T12:00:00Z`); date.setUTCDate(date.getUTCDate() + Math.floor(stop.arrival / 1440));
+          const windows = stop.weeklyHours ? stop.weeklyHours[date.getUTCDay()] : stop.hours ? [stop.hours] : null;
+          return !windows ? 'unconfirmed · check with venue' : !windows.length ? 'closed on this date' : windows.map(w => `${formatTime(w.open)}–${formatTime(w.close % 1440)}${w.close >= 1440 ? ' next day' : ''}`).join(', ') + (stop.source === 'demo' ? ' · sample hours' : ' · confirm before going');
+        })()}</Text>
+        <Text style={common.fine}>recommended visit · {stop.mins} min</Text>
+        <Text style={common.text}>{stop.category} · {stop.cost ? `~$${stop.cost} each` : '$0 allowance'}</Text>
+        <Text style={common.fine}>why this spot · {stop.tags.filter(t => prefs.preferences.includes(t)).join(' + ') || 'fits this route’s time and budget.'}</Text>
+        <Button label={`View Details · ${stop.name}`} tone="green" onPress={() => venue(stop.id)} />
+
+        <Button label={`Replace Stop · ${stop.name}`} tone="cream" disabled={isPending || editBusy} onPress={() => { void swap(index); }} />
+        <Button label={`Remove Stop · ${stop.name}`} tone="cream" disabled={isPending || editBusy || plan.stops.length === 1} onPress={() => { void edit(plan.stops.filter(s => s.id !== stop.id)); }} />
+        <Button label={`Directions · ${stop.name}`} tone="cream" onPress={() => { Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${stop.lat},${stop.lng}`)}${stop.source === 'google' ? `&destination_place_id=${encodeURIComponent(stop.id)}` : ''}`).catch(() => setStatus('Could not open directions.')); }} />
+        </StopExpansion>}
       </View>
     </View>)}
     <Button label="add a stop +" tone="yellow" disabled={editBusy || isPending || plan.stops.length >= 14} onPress={() => { void openAdd(); }} />
+    <PlanMap stops={plan.stops} selectedId={selectedId} prefs={prefs} onSelectVenue={id => selectStop(id)} />
+    </View>
     <Text style={common.fine}>Google Maps recalculates the real route. Demo stop coordinates are approximate.</Text>
     <Button label="Share this plan" tone="cream" busy={sharing} onPress={() => { void sharePlan(); }} />
     {shareError && <Text accessibilityRole="alert" style={common.error}>Could not open sharing. Please try again on a device or browser that supports sharing.</Text>}

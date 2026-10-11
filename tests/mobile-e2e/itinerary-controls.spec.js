@@ -32,7 +32,8 @@ test('native controls edit time, preserve records, reorder letters and switch tr
   await page.getByRole('button',{name:'move Native fixture b down',exact:true}).click();
   await expect.poll(async()=> (await read(page)).current.plan.stops[1].id).toBe('native-c');
   await expect(page.getByRole('button',{name:'B. Native fixture c',exact:true})).toBeVisible();
-  await page.getByRole('button',{name:'the details · Native fixture c',exact:true}).click();
+  await page.getByRole('button',{name:'view Native fixture c details',exact:true}).click();
+  await page.getByRole('button',{name:'View Details · Native fixture c',exact:true}).click();
   await expect(page.getByText('STOP B · LOCATION SPOTLIGHT',{exact:true})).toBeVisible();
   await page.getByRole('button',{name:'back to ur day',exact:true}).click();
   expect((await read(page)).saved[0].stops).toEqual(edited.stops);
@@ -58,4 +59,30 @@ test('native shuffle retains every venue and an invalid timeframe leaves the rou
   await expect(page.getByRole('alert')).toContainText('conflicts');
   expect((await read(page)).current.plan.stops).toEqual(shuffled.stops);
   await page.getByRole('button',{name:'cancel',exact:true}).click();
+});
+
+
+test('native basic details expand one stop at a time and map selection stays inline', async ({page})=>{
+  await page.goto('/itinerary');
+  await expect(page.getByRole('button',{name:/^View Details ·/})).toHaveCount(0);
+  const a=page.getByRole('button',{name:'view Native fixture a details',exact:true});
+  const b=page.getByRole('button',{name:'view Native fixture b details',exact:true});
+  await a.click();
+  await expect(a).toHaveAttribute('aria-expanded','true');
+  await expect(page.getByRole('button',{name:'View Details · Native fixture a',exact:true})).toBeVisible();
+  await expect(page.getByText('recommended visit · 30 min',{exact:true})).toBeVisible();
+  await expect(page.getByText(/opening hours · 9:00 am–10:00 pm/)).toBeVisible();
+  await b.click();
+  await expect(a).toHaveAttribute('aria-expanded','false');
+  await expect(page.getByRole('button',{name:/^View Details ·/})).toHaveCount(1);
+  await page.getByRole('button',{name:'A. Native fixture a',exact:true}).click();
+  await expect(a).toHaveAttribute('aria-expanded','true');
+  await expect(b).toHaveAttribute('aria-expanded','false');
+  await expect(page.getByRole('button',{name:'Replace Stop · Native fixture a',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Remove Stop · Native fixture a',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Directions · Native fixture a',exact:true})).toBeVisible();
+  await a.click();
+  await expect(page.getByRole('button',{name:/^View Details ·/})).toHaveCount(0);
+  await expect(page).toHaveURL(/\/itinerary$/);
+  expect((await read(page)).current.plan.id).toBe(plan.id);
 });

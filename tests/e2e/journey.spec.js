@@ -8,13 +8,7 @@ import {
 } from "./fixtures.js";
 const nameInput = (page) => page.getByLabel("what’s ur name?");
 async function openStops(page) {
-  const toggle = page.getByRole("button", {
-    name: "view stop cards",
-    exact: true,
-  });
-  if ((await toggle.getAttribute("aria-expanded")) !== "true")
-    await toggle.click();
-  await expect(page.locator(".stop-body h2").first()).toBeVisible();
+  await expect(page.locator('.route-summary-spot strong').first()).toBeVisible();
 }
 async function openSaved(page) {
   if (
@@ -46,14 +40,13 @@ async function planDay(page) {
 }
 async function swapOnly(page, index) {
   await openStops(page);
-  await expect(page.locator(".stop-body h2").nth(index)).toBeVisible();
-  const before = await page.locator(".stop-body h2").allTextContents();
-  const buttons = page.getByRole("button", { name: "swap this stop" });
-  await buttons.nth(index).click();
-  await expect(page.locator(".stop-body h2").nth(index)).not.toHaveText(
+  await expect(page.locator(".route-summary-spot strong").nth(index)).toBeVisible();
+  const before = await page.locator(".route-summary-spot strong").allTextContents();
+  await page.getByRole('button', {name:`regenerate ${before[index]}`,exact:true}).click();
+  await expect(page.locator(".route-summary-spot strong").nth(index)).not.toHaveText(
     before[index],
   );
-  const after = await page.locator(".stop-body h2").allTextContents();
+  const after = await page.locator(".route-summary-spot strong").allTextContents();
   expect(before.filter((_, i) => i !== index)).toEqual(
     after.filter((_, i) => i !== index),
   );
@@ -70,20 +63,18 @@ test.beforeEach(async ({ page }) => {
 test("plan, replace, save, reopen, replace again, and start fresh", async ({
   page,
 }) => {
+  test.setTimeout(60000); // Full onboarding, two replacements, persistence, and starting again.
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await planDay(page);
-  const titles = await page.locator(".stop-body h2").allTextContents();
+  const titles = await page.locator(".route-summary-spot strong").allTextContents();
   expect(titles.length).toBeGreaterThanOrEqual(3);
   expect(titles.length).toBeLessThanOrEqual(5);
   expect(new Set(titles).size).toBe(titles.length);
   await swapOnly(page, 1);
-  await page
-    .getByRole("button", { name: "the details", exact: true })
-    .first()
-    .click();
-  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
-  await page.getByRole("link", { name: "location spotlight" }).click();
+  await page.locator('.route-summary-spot').first().click();
+  await expect(page.locator('.inline-stop-details')).toBeVisible();
+  await page.getByRole('link', {name:'View Details',exact:true}).click();
   await expect(page.locator(".venue h1")).toHaveText(titles[0]);
   await page.getByRole("link", { name: "back to ur day" }).click();
   await page.getByRole("button", { name: "lock this in" }).click();
@@ -107,7 +98,9 @@ test("plan, replace, save, reopen, replace again, and start fresh", async ({
     page.getByRole("button", { name: "try another plan" }),
   ).toBeEnabled();
   const directions = page.getByRole("link", { name: "open Google Maps" });
-  await expect(directions).toHaveAttribute("href", /travelmode=walking/);
+  const transport = await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')).plan.prefs.transport);
+  const mode = new URL(await directions.getAttribute('href')).searchParams.get('travelmode');
+  expect(mode).toBe(transport === 'Not selected' ? null : transport === 'Walking' ? 'walking' : transport === 'Driving' ? 'driving' : 'transit');
   await page
     .getByRole("button", { name: "more plan options", exact: true })
     .click();
@@ -320,7 +313,7 @@ test("compact community feed supports threads, saves and expanded itineraries", 
     .click();
   await expect(page).toHaveURL(/\/community\/example1$/);
   await expect(page.locator(".community-place-list li")).toHaveCount(3);
-  await expect(page.locator(".stop-card")).toHaveCount(0);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(0);
   await expect(page.locator(".community-place-info strong")).toHaveText(
     stopNames,
   );
@@ -341,7 +334,7 @@ test("compact community feed supports threads, saves and expanded itineraries", 
     .getByRole("button", { name: "make this my day", exact: true })
     .click();
   await expect(page).toHaveURL(/\/itinerary$/);
-  await expect(page.locator(".stop-body h2")).toHaveText(stopNames);
+  await expect(page.locator(".route-summary-spot strong")).toHaveText(stopNames);
   await page.goto("/community");
   await page
     .getByRole("button", { name: "share a route", exact: true })

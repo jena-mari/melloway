@@ -141,7 +141,7 @@ test("compact route rows lead into the map and suggestion previews remain opt-in
   await expect(page.locator(".route-summary-spot span")).toHaveText(
     initial.stops.map((stop) => stop.address),
   );
-  await expect(page.locator(".stop-card").first()).not.toBeVisible();
+  await expect(page.locator(".inline-stop-expansion").first()).not.toBeVisible();
   await expect(page.locator(".route-summary-meta p")).not.toBeVisible();
   const arrow = page.getByRole("button", {
     name: `open ${initial.stops[0].name} details`,
@@ -149,10 +149,10 @@ test("compact route rows lead into the map and suggestion previews remain opt-in
   });
   await arrow.tap();
   await expect(
-    page.getByRole("dialog", { name: initial.stops[0].name, exact: true }),
+    page.getByRole("region", { name: `${initial.stops[0].name} stop details`, exact: true }),
   ).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(arrow).toBeFocused();
+  await arrow.tap();
+  await expect(page.locator(".inline-stop-expansion")).toHaveCount(0);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(page.locator("#result-plan-options")).not.toBeVisible();
@@ -220,7 +220,7 @@ test("compact route rows lead into the map and suggestion previews remain opt-in
   await preview.tap();
   await dialog.getByRole("button", { name: "add to route", exact: true }).tap();
   await expect(dialog).not.toBeVisible();
-  await expect(page.locator(".route-summary-list li")).toHaveCount(4);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(4);
   const next = await storedPlan(page);
   expect(next.stops.filter((stop) => stop.id === "sydney-mapo")).toHaveLength(
     1,
@@ -273,7 +273,7 @@ test("place names replace legacy nicknames across current, saved and shared rout
   );
   await page.goto("/itinerary");
   const names = stops.map((s) => s.name);
-  await expect(page.locator(".stop-body h2")).toHaveText(names);
+  await expect(page.locator(".route-summary-spot strong")).toHaveText(names);
   await expect(page.locator(".route-summary-spot strong")).toHaveText(names);
   const current = await storedPlan(page);
   expect(current.cost).toBe(oldPlan.cost);
@@ -293,7 +293,7 @@ test("place names replace legacy nicknames across current, saved and shared rout
   ).not.toContain("Sample photobooth");
   await page.goto("/favourites");
   await page.getByRole("button", { name: "open plan", exact: true }).click();
-  await expect(page.locator(".stop-body h2")).toHaveText(names);
+  await expect(page.locator(".route-summary-spot strong")).toHaveText(names);
   await page.goto("/community");
   await expect(
     page
@@ -315,7 +315,7 @@ test("editable summary updates order, totals, map and directions; extras stay op
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/itinerary");
-  await expect(page.locator(".route-summary-list li")).toHaveCount(3);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(3);
   const initial = await storedPlan(page);
   await expect(page.getByRole("button", { name: "add a stop", exact: true })).toBeEnabled();
   expect((await storedPlan(page)).stops.map((s) => s.id)).toEqual(
@@ -344,16 +344,16 @@ test("editable summary updates order, totals, map and directions; extras stay op
       exact: true,
     })
     .tap();
-  await expect(page.locator(".route-summary-list li")).toHaveCount(2);
-  await expect(page.locator(".stop-card")).toHaveCount(2);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(2);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(2);
   const removed = await storedPlan(page);
   expect(removed.cost).toBe(moved.cost - initial.stops[2].cost);
   await page.getByRole("button", { name: "done", exact: true }).tap();
   await page.getByRole("button", { name: "add a stop", exact: true }).tap();
   await page.getByLabel("search available spots").fill("Mapo");
   await page.getByRole("button", { name: "add Mapo Newtown", exact: true }).tap();
-  await expect(page.locator(".route-summary-list li")).toHaveCount(3);
-  await expect(page.locator(".stop-card")).toHaveCount(3);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(3);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(3);
   const added = await storedPlan(page);
   expect(added.cost).toBe(removed.cost + 10);
   expect(
@@ -381,7 +381,7 @@ test("editable summary updates order, totals, map and directions; extras stay op
   await page.getByRole("button", { name: "stop order", exact: true }).tap();
   await page.getByRole("button", { name: "lock this in", exact: true }).tap();
   await page.reload();
-  await expect(page.locator(".route-summary-list li")).toHaveCount(3);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(3);
   expect((await storedPlan(page)).stops.map((s) => s.id)).toEqual(
     added.stops.map((s) => s.id),
   );
@@ -396,7 +396,7 @@ test("editable summary updates order, totals, map and directions; extras stay op
       })
       .tap();
   }
-  await expect(page.locator(".route-summary-list li")).toHaveCount(1);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(1);
   await expect(
     page.getByRole("button", {
       name: `remove ${added.stops[0].name} from route`,
@@ -404,7 +404,7 @@ test("editable summary updates order, totals, map and directions; extras stay op
     }),
   ).toBeDisabled();
   await page.reload();
-  await expect(page.locator(".route-summary-list li")).toHaveCount(1);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(1);
   await expect(
     page.getByRole("link", { name: "open Google Maps", exact: true }),
   ).toHaveAttribute("href", /maps\/search\//);
@@ -415,7 +415,7 @@ test("editable summary updates order, totals, map and directions; extras stay op
     .filter({ hasText: "1 stops" })
     .getByRole("button", { name: "open plan", exact: true })
     .tap();
-  await expect(page.locator(".route-summary-list li")).toHaveCount(1);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(1);
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({
     path: info.outputPath("single-stop-summary.png"),
@@ -424,7 +424,7 @@ test("editable summary updates order, totals, map and directions; extras stay op
   expect(errors).toEqual([]);
 });
 
-test("changing a specific stop uses the searchable picker and spot details open as a bottom sheet", async ({
+test("changing a specific stop uses the searchable picker and details stay inside its route row", async ({
   page,
 }, info) => {
   await page.goto("/itinerary");
@@ -454,18 +454,15 @@ test("changing a specific stop uses the searchable picker and spot details open 
     exact: true,
   });
   await spot.tap();
-  const details = page.getByRole("dialog", {
-    name: "Mapo Newtown",
-    exact: true,
-  });
+  const details = page.getByRole('region', { name: 'Mapo Newtown stop details', exact: true });
   await expect(details).toBeVisible();
-  await expect(details).toContainText("20 min visit");
-  await expect(details).toContainText("approximate map position");
-  const box = await details.boundingBox();
-  expect(box.y + box.height).toBeCloseTo(844, 0);
-  await page.screenshot({ path: info.outputPath("spot-detail-sheet-390.png") });
-  await page.keyboard.press("Escape");
-  await expect(details).not.toBeVisible();
+  await expect(details).toContainText('20 min');
+  await expect(details).toContainText('approximate map position');
+  expect(await details.evaluate(el => el.closest('.generated-route-card') !== null)).toBe(true);
+  await expect(page.locator('.spot-detail-dialog')).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('inline-stop-detail-390.png'), fullPage:true });
+  await spot.tap();
+  await expect(details).toHaveCount(0);
   await expect(spot).toBeFocused();
   await page.setViewportSize({ width: 320, height: 740 });
   await page.getByRole("button", { name: "edit", exact: true }).tap();

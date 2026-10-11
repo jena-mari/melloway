@@ -212,7 +212,8 @@ test("stop details show three visitor posts inline and return from a post to the
   await page.goto("/itinerary");
   const trigger = page.getByRole("button", { name: `open ${venue.name} details`, exact: true });
   await trigger.click();
-  const details = page.getByRole("dialog", { name: venue.name, exact: true });
+  const details = page.getByRole("region", { name: `${venue.name} stop details`, exact: true });
+  await details.locator(".inline-stop-social summary").click();
   const rail = details.getByRole("region", { name: "Posts at this spot" });
   await expect(rail.locator(".venue-social-card")).toHaveCount(3);
   expect(requested.name).toBe(venue.name);
@@ -234,8 +235,9 @@ test("stop details show three visitor posts inline and return from a post to the
   await expect(player).toHaveCount(0);
   await expect(details).toBeVisible();
   await expect(rail.getByRole("button", { name: "watch TikTok post by visitor-three" })).toBeFocused();
-  expect(await page.evaluate(() => document.body.style.overflow)).toBe("hidden");
-  await details.getByRole("button", { name: "close spot details" }).click();
+  await expect.poll(() => page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
+  await trigger.click();
+  await expect(details).toHaveCount(0);
   await expect(trigger).toBeFocused();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem("melloway.current")).plan.stops.map(s => s.id))).toEqual([venue.id]);
   expect(errors).toEqual([]);

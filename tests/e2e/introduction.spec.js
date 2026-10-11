@@ -312,17 +312,15 @@ test("results show the route summary, expandable map and spot sheets while swaps
   await page.getByRole("button", { name: "submit", exact: true }).click();
   await expect(page).toHaveURL(/\/itinerary$/);
   await expect(page.locator(".route-summary-heading h2")).toBeVisible();
-  await expect(page.locator(".stop-card").first()).not.toBeVisible();
+  await expect(page.locator(".inline-stop-expansion").first()).not.toBeVisible();
   const summary = await page.locator(".result-sheet").boundingBox();
   const map = await page.locator(".route-map").boundingBox();
   expect(summary.y).toBeGreaterThanOrEqual(map.y + map.height - 5);
   const routeSummary = await page.locator(".route-summary").boundingBox();
   expect(routeSummary.y + routeSummary.height).toBeLessThanOrEqual(map.y + 1);
-  await expect(page.locator(".stop-photo")).toHaveCount(
-    await page.locator(".route-summary-list li").count(),
-  );
+  await expect(page.locator(".inline-stop-expansion")).toHaveCount(0);
   await expect(page.locator(".map-preview .route-pin").first()).toBeVisible();
-  const count = await page.locator(".route-summary-list li").count();
+  const count = await page.locator(".route-summary-list > li").count();
   const numbers = (
     await page.locator(".map-preview .pin-numbers").allTextContents()
   )
@@ -356,49 +354,25 @@ test("results show the route summary, expandable map and spot sheets while swaps
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await expect(expand).toBeFocused();
-  await page
-    .getByRole("button", { name: "view stop cards", exact: true })
-    .tap();
-  await expect(page.locator(".stop-card").first()).toBeVisible();
-  const details = page.getByRole("button", {
-    name: "the details",
-    exact: true,
-  });
+  const details = page.locator('.route-summary-spot');
   await details.first().tap();
-  await expect(details.first()).toHaveAttribute("aria-expanded", "true");
-  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(details.first()).toBeFocused();
-  const before = await page.locator(".stop-body h2").allTextContents();
-  await page
-    .locator(".stop-card")
-    .first()
-    .evaluate((el) => {
-      window.unchangedStop = el;
-    });
-  await page
-    .getByRole("button", { name: "swap this stop", exact: true })
-    .nth(1)
-    .tap();
-  await expect(page.locator(".stop-body h2").nth(1)).not.toHaveText(before[1]);
-  expect(
-    await page
-      .locator(".stop-card")
-      .first()
-      .evaluate((el) => el === window.unchangedStop),
-  ).toBe(true);
-  await expect(details.first()).toHaveAttribute("aria-expanded", "false");
-  expect(
-    (await page.locator(".stop-body h2").allTextContents()).filter(
-      (_, i) => i !== 1,
-    ),
-  ).toEqual(before.filter((_, i) => i !== 1));
+  await expect(details.first()).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('.inline-stop-details')).toBeVisible();
+  await expect(page.locator('.spot-detail-dialog')).toHaveCount(0);
   await details.first().tap();
-  await page.getByRole("button", { name: "close spot details" }).tap();
-  await expect(details.first()).toHaveAttribute("aria-expanded", "false");
-  await expect(page.locator(".stop-photo")).toHaveCount(
-    await page.locator(".route-summary-list li").count(),
-  );
+  await expect(details.first()).toHaveAttribute('aria-expanded', 'false');
+  const before = await page.locator('.route-summary-spot strong').allTextContents();
+  await page.locator('.route-summary-list > li').first().evaluate(el => { window.unchangedStop = el; });
+  await page.getByRole('button', { name: `regenerate ${before[1]}`, exact: true }).tap();
+  await expect(page.locator('.route-summary-spot strong').nth(1)).not.toHaveText(before[1]);
+  expect(await page.locator('.route-summary-list > li').first().evaluate(el => el === window.unchangedStop)).toBe(true);
+  expect((await page.locator('.route-summary-spot strong').allTextContents()).filter((_, i) => i !== 1)).toEqual(before.filter((_, i) => i !== 1));
+  await details.first().tap();
+  await details.nth(1).tap();
+  await expect(page.locator('.inline-stop-expansion')).toHaveCount(1);
+  await expect(details.first()).toHaveAttribute('aria-expanded', 'false');
+  await details.nth(1).tap();
+  await expect(page.locator('.inline-stop-expansion')).toHaveCount(0);
   await expand.tap();
   await expect(dialog).toBeVisible();
   await dialog.getByRole("button", { name: "close map" }).tap();
@@ -423,16 +397,11 @@ test("unavailable Google Maps leaves the plan, details and save action usable", 
   await expect(page.locator(".route-map .google-map-error [role='status']")).toHaveText(
     "Google Maps unavailable.",
   );
-  await page
-    .getByRole("button", { name: "view stop cards", exact: true })
-    .tap();
-  await page
-    .getByRole("button", { name: "the details", exact: true })
-    .first()
-    .tap();
-  await expect(page.locator(".stop-photo").first()).toBeVisible();
-  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
-  await page.getByRole("button", { name: "close spot details" }).tap();
+  await page.locator('.route-summary-spot').first().tap();
+  await expect(page.locator('.inline-stop-photo').first()).toBeVisible();
+  await expect(page.locator('.inline-stop-details')).toBeVisible();
+  await expect(page.locator('.spot-detail-dialog')).toHaveCount(0);
+  await page.locator('.route-summary-spot').first().tap();
   await page.getByRole("button", { name: "lock this in", exact: true }).tap();
   await expect(
     page.getByRole("status").filter({ hasText: "Saved on this device." }),
@@ -489,7 +458,7 @@ test("Google Places plans keep ordered directions without using demo map tiles",
 
   await page.getByRole("button", { name: "expand map", exact: true }).tap();
   await expect(page.getByRole("dialog").locator("ol li")).toHaveCount(
-    await page.locator(".route-summary-list li").count(),
+    await page.locator(".route-summary-list > li").count(),
   );
   await page.getByRole("button", { name: "close map", exact: true }).tap();
   expect(new URL(await page.getByRole("link", { name: "open Google Maps" }).getAttribute("href")).searchParams.get("travelmode")).toBeNull();
@@ -656,20 +625,16 @@ test("result search, filters and map selection preserve the full generated day",
   await page.goto("/plan/notes");
   await page.getByRole("button", { name: "submit", exact: true }).tap();
   await expect(page).toHaveURL(/\/itinerary$/);
-  await page
-    .getByRole("button", { name: "view stop cards", exact: true })
-    .tap();
-  await expect(page.locator(".stop-photo").first()).toBeVisible();
   const original = await page.evaluate(
     () => JSON.parse(localStorage.getItem("melloway.current")).plan,
   );
   const count = original.stops.length;
-  await expect(page.locator(".stop-photo")).toHaveCount(count);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(count);
   await page
     .getByLabel("search ur stops", { exact: true })
     .fill(original.stops[0].name);
-  await expect(page.locator(".stop-card")).toHaveCount(1);
-  await expect(page.locator(".sheet-count")).toHaveText(`1 of ${count} stops`);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(1);
+  await expect(page.locator(".route-summary-spot")).toHaveCount(1);
   await page
     .getByLabel("search ur stops", { exact: true })
     .fill("no venue like this anywhere");
@@ -677,59 +642,28 @@ test("result search, filters and map selection preserve the full generated day",
     page.getByRole("heading", { name: "no stops match that one." }),
   ).toBeVisible();
   await page.getByRole("button", { name: "show all stops", exact: true }).tap();
-  await expect(page.locator(".stop-card")).toHaveCount(count);
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(count);
   await page.getByRole("button", { name: "filter stops", exact: true }).tap();
   await page
     .getByLabel("show me", { exact: true })
     .selectOption(original.stops[1].category);
-  await expect(page.locator(".stop-card")).toHaveCount(
+  await expect(page.locator(".route-summary-list > li")).toHaveCount(
     original.stops.filter((s) => s.category === original.stops[1].category)
       .length,
   );
   await page.getByLabel("show me", { exact: true }).selectOption("all");
   await page.getByRole("button", { name: "filter stops", exact: true }).tap();
-  const card = page.locator(".stop-card").nth(1);
-  await card
-    .getByRole("button", {
-      name: `show ${original.stops[1].name} on map`,
-      exact: true,
-    })
-    .tap();
-  await expect(
-    card.getByRole("button", {
-      name: `show ${original.stops[1].name} on map`,
-      exact: true,
-    }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".map-preview .route-pin.is-selected")).toHaveCount(
-    1,
-  );
-  await page.locator(".map-preview .route-pin").first().tap();
-  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(
-    page
-      .locator(".stop-card")
-      .first()
-      .getByRole("button", {
-        name: `show ${original.stops[0].name} on map`,
-        exact: true,
-      }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "stop order", exact: true }).tap();
-  await expect(page.locator("#map-stop-legend li")).toHaveCount(count);
-  await page.locator("#map-stop-legend button").last().tap();
-  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
-  await page.keyboard.press("Escape");
-  await expect(
-    page
-      .locator(".stop-card")
-      .last()
-      .getByRole("button", {
-        name: `show ${original.stops.at(-1).name} on map`,
-        exact: true,
-      }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await page.locator('.route-summary-spot').nth(1).tap();
+  await expect(page.locator('.route-summary-spot').nth(1)).toHaveAttribute('aria-expanded','true');
+  await expect(page.locator('.map-preview .route-pin.is-selected')).toHaveCount(1);
+  await page.locator('.map-preview .route-pin').first().tap();
+  await expect(page.getByRole('region', {name:`${original.stops[0].name} stop details`, exact:true})).toBeVisible();
+  await expect(page.locator('.route-summary-spot').first()).toHaveAttribute('aria-expanded','true');
+  await page.getByRole('button', {name:'stop order',exact:true}).tap();
+  await expect(page.locator('#map-stop-legend li')).toHaveCount(count);
+  await page.locator('#map-stop-legend button').last().tap();
+  await expect(page.getByRole('region', {name:`${original.stops.at(-1).name} stop details`,exact:true})).toBeVisible();
+  await expect(page.locator('.inline-stop-expansion')).toHaveCount(1);
   await expect(
     page.getByRole("link", { name: "ur day", exact: true }),
   ).toHaveAttribute("aria-current", "page");

@@ -50,7 +50,7 @@ test('in-progress resumes; finishing and dismissing clears Home across reloads',
   await page.getByRole('link', { name: 'past dates' }).click();
   await expect(page.locator('.history-list article')).toHaveCount(1);
   await page.locator('.history-route-link').click();
-  await expect(page.locator('.route-summary-list li')).toHaveCount(3);
+  await expect(page.locator('.route-summary-list > li')).toHaveCount(3);
   await expect(page.getByRole('button', { name: 'edit', exact: true })).toHaveCount(0);
   await page.goto('/itinerary');
   await expect(page.getByRole('heading', { name: 'ur next good day is waiting.' })).toBeVisible();
@@ -102,7 +102,7 @@ test('redo creates a separately editable copy without changing the completed sna
   expect(current.plan.status).toBe('upcoming');
   expect(current.plan.stops[0].arrival).toBe(720);
   await page.getByRole('button', { name: 'remove Venue c from route', exact: true }).click();
-  await expect(page.locator('.route-summary-list li')).toHaveCount(2);
+  await expect(page.locator('.route-summary-list > li')).toHaveCount(2);
   expect(await page.evaluate(() => localStorage.getItem('melloway.history'))).toBe(original);
   await page.getByRole('button', { name: 'done', exact: true }).click();
   await page.getByRole('button', { name: 'start ur day', exact: true }).click();
@@ -224,7 +224,7 @@ test('completed bookmarks can open history without replacing a different active 
   await page.goto('/favourites');
   await page.getByRole('button', { name: 'open plan', exact: true }).click();
   await expect(page).toHaveURL(/\/history\/original$/);
-  await expect(page.locator('.route-summary-list li')).toHaveCount(3);
+  await expect(page.locator('.route-summary-list > li')).toHaveCount(3);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')).plan.id)).toBe('another-active-day');
   await page.getByRole('button', { name: 'redo route', exact: true }).click();
   await expect(page.getByRole('dialog').getByRole('button', { name: 'redo route', exact: true })).toBeDisabled();
