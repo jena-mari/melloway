@@ -26,10 +26,13 @@ License: CC BY-SA 4.0
 Changes: resized thumbnail (1280 x 960), converted to WebP, metadata omitted.
 The existing card layout may crop the image for display; no content was added.
 
-No endorsement is implied. Visible author/source/license credits and change
-notices appear on the existing picks photo cards and detail pages.
+No endorsement is implied. These two local adaptations remain available;
+the picks now use the ten remote image links supplied in the research pack.
+Visible source credits and display-crop notices remain on the existing cards.
 
 The supplied melloway_photo_research_pack.zip has eight further reference-only
-entries without confirmed reuse permissions. Those images are not included;
-the corresponding existing placeholders remain. No Google Photos requests
-or new provider integrations have been added.
+entries without confirmed reuse permissions. At the user’s explicit request,
+their provided remote image URLs are now used without downloading/bundling
+those eight images. Credits retain “Reuse unverified”; contextual/branch
+uncertainty remains in the captions. Existing placeholders handle failed loads.
+No Google Photos requests or new provider integrations have been added.

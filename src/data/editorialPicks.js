@@ -31,6 +31,8 @@ export const editorialPicks = [
     scheduleLabel: "Westfield Sydney · Level 1",
     sources: [source(chubby.website), source("https://www.openstreetmap.org/way/214485654", ["building coordinates"])],
     coordinateSource: "https://mapcarta.com/W214485654",
+    image: "https://img3.restaurantguru.com/c68c-Chubby-Cubby-Cafe-Sydney-tiramisu.jpg",
+    photo: { author: "Restaurant Guru", license: "Reuse unverified", licenseUrl: "https://restaurantguru.com/The-Cubby-Sydney", sourceUrl: "https://restaurantguru.com/The-Cubby-Sydney", caption: "Chubby Cubby · source photo · display crop" },
   }),
   pick({}, {
     id: "pick-ace-sydney-photobooth", name: "Ace Hotel Sydney Photobooth",
@@ -44,6 +46,8 @@ export const editorialPicks = [
     scheduleLabel: "Lobby photobooth · drop-in access",
     sources: [source("https://acehotel.com/sydney/neighborhood/the-ace-hotel-sydney-photobooth-surry-hills-viral-film-strip-spot/")],
     coordinateSource: "https://concreteplayground.com/sydney/hotel/ace-hotel-sydney",
+    image: "https://cdn.sanity.io/images/74hnwp2p/production/753fc0ffc02e5edc68e9bf96e10741ad6cb80e75-2364x1773.jpg?auto=format&w=2200",
+    photo: { author: "Castorina", license: "Reuse unverified", licenseUrl: "https://www.castorina.com.au/stories/ace-hotel-sydney", sourceUrl: "https://www.castorina.com.au/stories/ace-hotel-sydney", caption: "Ace Hotel lobby · photobooth not shown · display crop" },
   }),
   pick(glebe, {
     address: "Glebe Public School, 46–56 Glebe Point Road, Glebe NSW 2037",
@@ -55,8 +59,8 @@ export const editorialPicks = [
     scheduleLabel: "Saturday only · 10am–4pm",
     website: "https://glebemarkets.com.au/home", sources: [source("https://glebemarkets.com.au/home", ["name", "address", "published hours"])],
     coordinateSource: "https://www.google.com/maps/search/?api=1&query=Glebe+Public+School+46-56+Glebe+Point+Road",
-    image: "/images/picks/glebe-markets.webp",
-    photo: { author: "Nick-D", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", sourceUrl: "https://commons.wikimedia.org/wiki/File:Part_of_Glebe_Markets_April_2026.jpg", caption: "Glebe Markets · archive, Apr 2026 · resized/WebP; display crop" },
+    image: "https://commons.wikimedia.org/wiki/Special:FilePath/Part_of_Glebe_Markets_April_2026.jpg?width=1280",
+    photo: { author: "Nick-D", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", sourceUrl: "https://commons.wikimedia.org/wiki/File:Part_of_Glebe_Markets_April_2026.jpg", caption: "Glebe Markets · archive, Apr 2026 · display crop" },
   }),
   pick({}, {
     id: "pick-birdcage-bank-hotel", name: "Birdcage at The Bank Hotel",
@@ -71,6 +75,8 @@ export const editorialPicks = [
     scheduleLabel: "Weekly event · Wednesday from 9pm",
     sources: [source("https://bankhotel.com.au/birdcage", ["name", "address", "event schedule"])],
     coordinateSource: "https://concreteplayground.com/sydney/bars/the-bank-hotel-beer-garden",
+    image: "https://images-r2-1.thebrag.com/tmn/uploads/image-1200x630-57-1.jpg",
+    photo: { author: "The Music Network", license: "Reuse unverified", licenseUrl: "https://themusicnetwork.com/sydney-venue-waywards-ballroom-returns-with-more-music/", sourceUrl: "https://themusicnetwork.com/sydney-venue-waywards-ballroom-returns-with-more-music/", caption: "Waywards Ballroom · Birdcage night unverified · display crop" },
   }),
   pick({}, {
     id: "pick-caterpillar-club", name: "The Caterpillar Club",
@@ -85,6 +91,8 @@ export const editorialPicks = [
     scheduleLabel: "Sun–Wed 5pm–3am · Thu–Sat 5pm–4am",
     sources: [source("https://swillhouse.com/venues/the-caterpillar-club/", ["name", "address", "published hours", "walk-in policy"])],
     coordinateSource: "https://concreteplayground.com/sydney/bars/the-caterpillar-club",
+    image: "https://static.martin-audio.com/pressrelease/medium/martin-audio-cdd-brings-out-the-detail-at-vinyl-led-caterpillar-club-5.jpg",
+    photo: { author: "Martin Audio", license: "Reuse unverified", licenseUrl: "https://martin-audio.com/news/press-release/martin-audio-cdd-brings-out-the-detail-at-vinyl-led-caterpillar-club", sourceUrl: "https://martin-audio.com/news/press-release/martin-audio-cdd-brings-out-the-detail-at-vinyl-led-caterpillar-club", caption: "Caterpillar Club · interior · display crop" },
   }),
   pick({}, {
     id: "pick-joji-sydney", name: "JŌJI Sydney",
@@ -99,6 +107,8 @@ export const editorialPicks = [
     scheduleLabel: "Rooftop · smart dress and age policy apply",
     sources: [source("https://www.jojisydney.com/plan-your-visit", ["name", "address", "published hours", "age policy", "dress code"])],
     coordinateSource: "https://concreteplayground.com/sydney/event/social-saturdays-at-joji",
+    image: "https://media.timeout.com/images/106196307/1024/576/image.jpg",
+    photo: { author: "Time Out Sydney", license: "Reuse unverified", licenseUrl: "https://www.timeout.com/sydney/bars/joji", sourceUrl: "https://www.timeout.com/sydney/bars/joji", caption: "JŌJI · rooftop interior · display crop" },
   }),
   pick({}, {
     id: "pick-o3-newtown", name: "O3 Space Newtown",
@@ -112,6 +122,8 @@ export const editorialPicks = [
     scheduleLabel: "10am–9pm · membership required",
     sources: [source("https://o3space.org/", ["name", "address", "published hours"]), source("https://o3space.org/terms-of-use", ["membership terms"])],
     coordinateSource: "https://maps.app.goo.gl/HER2m5WwpVB5uzf66",
+    image: "https://framerusercontent.com/images/5qYpdbbCYzzgkI7Zlz3Tccpntyc.jpeg?height=4284&scale-down-to=2048&width=5712",
+    photo: { author: "O3 Space", license: "Reuse unverified", licenseUrl: "https://o3space.org/", sourceUrl: "https://o3space.org/", caption: "O3 Space · branch pictured unverified · display crop" },
   }),
   pick({}, {
     id: "pick-old-school-kafey", name: "Old School Kafey",
@@ -124,6 +136,8 @@ export const editorialPicks = [
     scheduleLabel: "Trading hours and afternoon breaks: confirm",
     sources: [source("https://maps.apple.com/place?place-id=IB2BCA5A6A8F6572F")],
     coordinateSource: "https://www.openstreetmap.org/node/4027321790",
+    image: "https://images.notquitenigella.com/images/old-school-kafey-sydney/ll.jpg",
+    photo: { author: "Not Quite Nigella", license: "Reuse unverified", licenseUrl: "https://www.notquitenigella.com/2019/02/22/old-school-kafey/", sourceUrl: "https://www.notquitenigella.com/2019/02/22/old-school-kafey/", caption: "Old School Kafey · archive, 2019 · display crop" },
   }),
   pick({}, {
     id: "pick-observatory-hill-park", name: "Observatory Hill Park",
@@ -137,8 +151,8 @@ export const editorialPicks = [
     scheduleLabel: "Public park · Observatory tours are separate",
     sources: [source("https://www.cityofsydney.nsw.gov.au/parks/observatory-park", ["name", "address", "park access"])],
     coordinateSource: "https://www.google.com/maps?daddr=-33.85897,151.20482",
-    image: "/images/picks/observatory-hill.webp",
-    photo: { author: "MDRX", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", sourceUrl: "https://commons.wikimedia.org/wiki/File:Observatory_Hill_Sydney.jpg", caption: "Observatory Hill · archive, 2020 · resized/WebP; display crop" },
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Observatory_Hill_Sydney.jpg/1280px-Observatory_Hill_Sydney.jpg",
+    photo: { author: "MDRX", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", sourceUrl: "https://commons.wikimedia.org/wiki/File:Observatory_Hill_Sydney.jpg", caption: "Observatory Hill · archive, 2020 · display crop" },
   }),
   pick({}, {
     id: "pick-mamuki-glebe", name: "MaMUKI Bake Bar — Glebe",
@@ -153,6 +167,8 @@ export const editorialPicks = [
     scheduleLabel: "Glebe branch · confirm directory hours",
     sources: [source("https://onacoffee.com.au/pages/locations", ["name", "address", "reported hours"]), source("https://www.instagram.com/mamuki.bake.bar/", ["operator profile"])],
     coordinateSource: "https://www.google.com/maps/dir/?api=1&destination=-33.88402959280173%2C151.1922248067457",
+    image: "https://cdn.broadsheet.com.au/images/2026/03/12/Mamuki_Yusuke_Oba_Feb_2026_Low_2-c5b1fc0e15.webp",
+    photo: { author: "Broadsheet / Yusuke Oba", license: "Reuse unverified", licenseUrl: "https://www.broadsheet.com.au/sydney/food-and-drink/article/first-look-mamuki", sourceUrl: "https://www.broadsheet.com.au/sydney/food-and-drink/article/first-look-mamuki", caption: "MaMUKI Glebe · archive, Feb 2026 · display crop" },
   }),
 ];
 

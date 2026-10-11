@@ -5,9 +5,6 @@ import { mockMapTiles } from "./fixtures.js";
 import { communityExamples } from "../../src/data/community.js";
 
 async function mockPicks(page, { maps = true, images = true } = {}) {
-  // Successful local photos use the real committed assets; failure cases still
-  // exercise the existing placeholder fallback after moving off remote URLs.
-  await page.route("**/images/picks/*.webp", route => images ? route.continue() : route.abort());
   await page.route("https://**", (route) => route.abort());
   await mockMapTiles(page);
   await page.route("**/api/**", (route) => {
@@ -16,8 +13,9 @@ async function mockPicks(page, { maps = true, images = true } = {}) {
     return route.fulfill({ status: 503, json: { error: "Providers disabled in picks fixture" } });
   });
   await page.route("https://maps.googleapis.com/maps/api/js?**", (route) => route.fulfill({ contentType: "text/javascript", body: googleMapsFixture }));
-  await page.route("https://upload.wikimedia.org/**", (route) => images
-    ? route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600"><rect width="800" height="600" fill="#cbd8bc"/><text x="160" y="300" font-size="28">Licensed photo test fixture</text></svg>' })
+  // Every supplied image URL is intercepted: no third-party/paid calls in tests.
+  for (const venue of editorialPicks) await page.route(url => url.href === venue.image, route => images
+    ? route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="960"><rect width="1280" height="960" fill="#cbd8bc"/><text x="160" y="300" font-size="28">Supplied photo test fixture</text></svg>' })
     : route.abort());
 }
 
@@ -230,7 +228,9 @@ test.describe("Explore vertical reels", () => {
         await expect(page.getByRole("dialog")).toHaveCount(0);
         expect(await page.evaluate(() => scrollY)).toBe(originalScroll);
       }
-      await photo.tap();
+      // The compact photo now has a clickable source credit across its centre.
+      // Tap the uncovered image, preserving the credit link’s normal behaviour.
+      await photo.tap({ position: { x: box.width / 2, y: 4 } });
       const sheet = page.getByRole("dialog", { name: editorialPicks[0].name, exact: true });
       await expect(sheet).toBeVisible();
       const bounds = await sheet.boundingBox();
@@ -519,23 +519,38 @@ for (const path of ["/explore", "/picks"]) test(`${path} has compact pointed pla
   await expect(camera).toHaveAttribute("aria-pressed", "true");
 });
 
-test("the supplied picks photos load locally with author, license and change credits", async ({ page }, info) => {
+test("all ten supplied image links render with source credits", async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockPicks(page, { maps: false });
   await page.goto("/picks");
-  for (const id of ["sydney-glebe-markets", "pick-observatory-hill-park"]) {
-    const venue = editorialPicks.find(v => v.id === id);
+  for (const venue of editorialPicks) {
+    const id = venue.id;
     const card = page.locator(`.editorial-place-card[data-venue-id="${id}"]`);
     await card.scrollIntoViewIfNeeded();
     const image = card.getByRole("img", { name: venue.photo.caption, exact: true });
     await expect(image).toBeVisible();
     await expect.poll(() => image.evaluate(node => node.complete && node.naturalWidth)).toBe(1280);
-    const pathname = await image.evaluate(node => new URL(node.currentSrc).pathname);
-    expect(pathname).toBe(venue.image);
+    expect(await image.evaluate(node => node.currentSrc)).toBe(venue.image);
     const credit = card.locator(".editorial-photo-credit");
     await expect(credit.getByRole("link", { name: venue.photo.author, exact: true })).toHaveAttribute("href", venue.photo.sourceUrl);
-    await expect(credit.getByRole("link", { name: "CC BY-SA 4.0", exact: true })).toHaveAttribute("href", venue.photo.licenseUrl);
-    await expect(credit).toContainText("resized/WebP; display crop");
+    await expect(credit.getByRole("link", { name: venue.photo.license, exact: true })).toHaveAttribute("href", venue.photo.licenseUrl);
+    await expect(credit).toContainText(venue.photo.caption);
     await card.screenshot({ path: info.outputPath(`${id}.png`) });
   }
+});
+
+test("failed supplied images retain all ten pick cards and their placeholders", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockPicks(page, { maps: false, images: false });
+  await page.goto("/picks");
+  for (const venue of editorialPicks) {
+    const card = page.locator(`.editorial-place-card[data-venue-id="${venue.id}"]`);
+    await card.scrollIntoViewIfNeeded();
+    await expect(card.locator(".editorial-photo-placeholder")).toBeVisible();
+    const image = card.getByRole("img", { name: venue.photo.caption, exact: true, includeHidden: true });
+    await expect(image).toHaveAttribute("src", venue.image);
+    await expect(image).toBeHidden();
+    await expect(card).toContainText(venue.name);
+  }
+  await expect(page.locator(".editorial-place-card")).toHaveCount(10);
 });
