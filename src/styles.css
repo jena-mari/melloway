@@ -1916,8 +1916,7 @@ dd {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 12px;
-  font-weight: 700;
+  font: 800 13px/1 Outfit, sans-serif;
 }
 .route-summary-spot {
   display: flex;
