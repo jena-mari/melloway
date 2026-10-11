@@ -5464,11 +5464,11 @@ html:has(.profile-page) {
   left: 10px;
   display: grid;
   place-items: center;
-  min-width: 28px;
+  width: 28px;
   height: 28px;
-  padding: 0 8px;
+  padding: 0;
   border: 1px solid #111;
-  border-radius: 10px;
+  border-radius: 50%;
   background: #fffefb;
   color: #111;
   font: 700 16px/1 Outfit, sans-serif;
