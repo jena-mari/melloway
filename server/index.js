@@ -1,3 +1,6 @@
+import { createRecommendationResearchProvider } from './recommendationResearch.js';
+import { recommendationLeads } from '../src/data/recommendationSources.js';
+import { attachRecommendationEvidence } from '../src/engine/recommendationEvidence.js';
 import http from "node:http";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,6 +43,8 @@ export function createApiServer(options = {}) {
   const instagramEvents = options.instagramEventsProvider ?? createInstagramEventsProvider(
     openaiKey, env.OPENAI_MODEL || defaultRecommendationModel,
   );
+  const researchEnabled = Boolean(openaiKey) && env.OPENAI_RECOMMENDATION_RESEARCH !== 'false';
+  const research = options.researchProvider ?? createRecommendationResearchProvider(openaiKey, env.OPENAI_MODEL || defaultRecommendationModel);
   const rates = new Map();
   const recommendationRates = new Map();
   const allowedOrigins = (env.APP_ORIGINS || "")
@@ -90,6 +95,7 @@ export function createApiServer(options = {}) {
         "/api/recommendations",
         "/api/intent",
       ].includes(req.url);
+      const researchRequest = req.url === '/api/discovery';
       const locationSearch = req.url === "/api/locations/search";
       const locationResolve = req.url === "/api/locations/resolve";
       const socialSearch = req.url === "/api/social/search";
@@ -109,6 +115,7 @@ export function createApiServer(options = {}) {
         !eventsRequest &&
         (req.method !== "POST" ||
           ![
+            "/api/discovery",
             "/api/venues",
             "/api/matrix",
             "/api/recommendations",
@@ -127,6 +134,7 @@ export function createApiServer(options = {}) {
         return reply(503, { error: "Social search is unavailable" });
       if (
         !key &&
+        !researchRequest &&
         !locationSearch &&
         !recommendationRequest &&
         !eventsRequest &&
@@ -146,7 +154,7 @@ export function createApiServer(options = {}) {
       if (++rate.count > 40)
         return reply(429, { error: "Please retry in a minute" });
       if (rates.size > 10000) rates.clear();
-      if (recommendationRequest || socialSearch || instagramEventsSearch) {
+      if (recommendationRequest || socialSearch || instagramEventsSearch || (researchRequest && researchEnabled)) {
         let aiRate = recommendationRates.get(ip);
         if (!aiRate || now - aiRate.start > 60000) {
           aiRate = { start: now, count: 0 };
@@ -236,6 +244,31 @@ export function createApiServer(options = {}) {
       const { prefs } = body;
       if (!validPreferences(prefs))
         return reply(400, { error: "Invalid planning details" });
+      if (researchRequest) {
+        let leads = recommendationLeads, researchStatus = 'sources';
+        if (researchEnabled) {
+          try { leads = [...await research.discover(prefs), ...leads]; researchStatus = 'web'; }
+          catch { researchStatus = 'unavailable'; }
+        }
+        // Resolve only source-supported candidates relevant to this request.
+        const interests = prefs.preferences.length ? prefs.preferences : ['Coffee shops', 'Art galleries', 'Scenic walks'];
+        const relevant = leads.filter(lead => lead.visitMode !== 'event-service' && lead.tags.some(tag => interests.includes(tag)))
+          .sort((a, b) => Number(b.locality.toLowerCase() === prefs.area.toLowerCase()) - Number(a.locality.toLowerCase() === prefs.area.toLowerCase()));
+        const unique = [];
+        for (const lead of relevant) if (!unique.some(other => other.name.toLowerCase() === lead.name.toLowerCase() && other.locality.toLowerCase() === lead.locality.toLowerCase())) unique.push(lead);
+        const shortlist = [];
+        for (const tag of interests) {
+          const lead = unique.find(lead => lead.tags.includes(tag) && !shortlist.includes(lead));
+          if (lead && shortlist.length < 6) shortlist.push(lead);
+        }
+        for (const lead of unique) if (shortlist.length < 6 && !shortlist.includes(lead)) shortlist.push(lead);
+        let venues = [];
+        if (key && provider.resolveResearch) {
+          try { venues = attachRecommendationEvidence(await provider.resolveResearch(prefs, shortlist), leads); }
+          catch { /* Research still enriches existing, operator-verified venues. */ }
+        }
+        return reply(200, { leads, venues, researchStatus });
+      }
       if (recommendationRequest) {
         if (
           req.url !== "/api/intent" &&

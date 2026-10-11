@@ -1,3 +1,4 @@
+import { cleanEvidence } from '../engine/recommendationEvidence.js';
 import { useEffect, useId, useRef, useState } from "react";
 import { ArrowUpRight, Play, Plus, X } from "lucide-react";
 import { discoverSocial, previewSocial } from "../services/social.js";
@@ -109,7 +110,10 @@ export default function VenueSocial({ venue, compact = false }) {
     setAdding(false);
     const links = savedLinks(key);
     // Shared links appear immediately, even if search or metadata is unavailable.
-    setPosts(links.map((link) => ({ ...socialPost(link), shared: true })));
+    const researched = cleanEvidence(venue.recommendationEvidence).flatMap(item => {
+      const post = socialPost(item.url); return post ? [{ ...post, caption: item.summary, discovery: 'web' }] : [];
+    });
+    setPosts([...researched, ...links.map((link) => ({ ...socialPost(link), shared: true }))]);
     Promise.allSettled([
       discoverSocial(venue, abort.signal),
       Promise.all(

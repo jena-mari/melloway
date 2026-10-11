@@ -1,4 +1,4 @@
-import { Fragment, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Heart,
@@ -17,11 +17,8 @@ import { communityExamples } from "../data/community";
 import useCommunity from "../hooks/useCommunity";
 import { profileHandle } from "../utils/profile";
 import { createId } from "../utils/id";
-import MellowayPicks from "../components/MellowayPicks.jsx";
-import WeeklySuggestions from "../components/WeeklySuggestions";
-import { weeklyEdition, weeklyMatches } from "../data/weeklySuggestions.js";
 import BrandLogo from "../components/BrandLogo";
-import { matchingPicks } from "../data/mellowayPicks.js";
+import { communityRouteSnapshot } from "../utils/routeHistory";
 
 import { Avatar, timeAgo } from "../components/CommunityIdentity";
 
@@ -207,7 +204,7 @@ export function CommunityPost({
   );
 }
 export default function Community() {
-  const { saved, save, remove, current, draft, profile, setStatus } = useApp();
+  const { history, saved, save, remove, current, draft, profile, setStatus } = useApp();
   const {
     posts,
     likes,
@@ -218,6 +215,7 @@ export default function Community() {
   } = useCommunity();
   const [examples] = useState(communityExamples);
   const [params, setParams] = useSearchParams();
+  const sharedDate = history.find(r => r.id === params.get("history"));
   const [show, setShow] = useState(params.get("compose") === "1");
   const [photo, setPhoto] = useState("");
   const [query, setQuery] = useState("");
@@ -226,7 +224,7 @@ export default function Community() {
   }, [show]);
   const available = [
     ...new Map(
-      [...(current?.plan ? [current.plan] : []), ...saved].map((plan) => [
+      [...(sharedDate ? [sharedDate.plan] : []), ...(current?.plan ? [current.plan] : []), ...saved].map((plan) => [
         plan.id,
         plan,
       ]),
@@ -267,10 +265,10 @@ export default function Community() {
         profile?.handle || data.get("handle").replace(/^@/, "").toLowerCase(),
       avatar: profile?.avatar,
       area: plan?.prefs.area || "Sydney",
-      rating: Number(data.get("rating")),
+      rating: data.get("rating") ? Number(data.get("rating")) : undefined,
       image: photo || plan?.stops[0].image,
       photo: photo || undefined,
-      plan,
+      plan: plan ? communityRouteSnapshot(plan) : undefined,
       createdAt: new Date().toISOString(),
     };
     if (!post.name || !post.description) {
@@ -313,7 +311,7 @@ export default function Community() {
           <UserRound size={23} strokeWidth={2.4} aria-hidden="true" />
         </Link>
         <label className="community-search" htmlFor="ideas-search">
-          <span className="sr-only">search ideas</span>
+          <span className="sr-only">search posts</span>
           <input
             id="ideas-search"
             type="search"
@@ -384,12 +382,13 @@ export default function Community() {
             label="title"
             id="title"
             name="title"
+            defaultValue={sharedDate ? sharedDate.plan.title || sharedDate.plan.prefs.area : ""}
             required
             maxLength={80}
           />
           <label className="field">
             <span>attach a route</span>
-            <select name="plan" defaultValue={available[0]?.id || ""}>
+            <select name="plan" defaultValue={sharedDate?.id || available[0]?.id || ""}>
               <option value="">no route</option>
               {available.map((plan) => (
                 <option value={plan.id} key={plan.id}>
@@ -408,7 +407,9 @@ export default function Community() {
             <span>post</span>
             <textarea
               id="description"
+              aria-label="post"
               name="description"
+              defaultValue={sharedDate?.review.text || ""}
               required
               maxLength={300}
               rows={3}
@@ -418,7 +419,8 @@ export default function Community() {
           <div className="two-fields">
             <label className="field">
               <span>your rating</span>
-              <select name="rating">
+              <select name="rating" defaultValue={sharedDate ? sharedDate.review.rating || '' : 5}>
+                <option value="">unrated</option>
                 {[5, 4, 3, 2, 1].map((n) => (
                   <option key={n}>{n}</option>
                 ))}
@@ -445,29 +447,26 @@ export default function Community() {
           </Button>
         </form>
       )}
-      {!show && text && <><MellowayPicks query={query} /><WeeklySuggestions query={query} /></>}
       <section className="community-feed" aria-label="community route posts">
-        {feed.map((post, index) => (
-          <Fragment key={post.id}>
-            <CommunityPost
-              post={post}
-              liked={likes.includes(post.id)}
-              onLike={() => like(post.id)}
-              replies={replies[post.id] || []}
-              onReply={(text) => reply(post.id, text)}
-              saved={saved.some((plan) => plan.id === post.plan?.id)}
-              onSave={(plan) =>
-                saved.some((p) => p.id === plan.id)
-                  ? remove(plan.id)
-                  : save(plan)
-              }
-              author={author}
-              handle={handle}
-            />
-            {!show && !text && index === 0 && <><WeeklySuggestions /><MellowayPicks /></>}
-          </Fragment>
+        {feed.map((post) => (
+          <CommunityPost
+            key={post.id}
+            post={post}
+            liked={likes.includes(post.id)}
+            onLike={() => like(post.id)}
+            replies={replies[post.id] || []}
+            onReply={(text) => reply(post.id, text)}
+            saved={saved.some((plan) => plan.id === post.plan?.id)}
+            onSave={(plan) =>
+              saved.some((p) => p.id === plan.id)
+                ? remove(plan.id)
+                : save(plan)
+            }
+            author={author}
+            handle={handle}
+          />
         ))}
-        {!feed.length && !matchingPicks(query).length && !weeklyMatches(weeklyEdition(), {}, query).length && (
+        {!feed.length && (
           <div className="community-empty">
             <p>no posts found</p>
             <button
@@ -475,7 +474,7 @@ export default function Community() {
               className="text-button"
               onClick={() => setQuery("")}
             >
-              see all ideas
+              see all posts
             </button>
           </div>
         )}

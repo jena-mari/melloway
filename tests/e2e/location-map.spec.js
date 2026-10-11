@@ -123,3 +123,18 @@ test("unavailable Google Maps still allows selecting an area and continuing", as
     ),
   ).toBe("Newtown");
 });
+
+test("map zoom and idle keep the focused area button available for keyboard selection", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto("/plan/details?q=2");
+  const map = page.getByRole("region", { name: "Choose an area on the Sydney map" });
+  await expect(map).toHaveAttribute("data-map-state", "ready");
+  const eastern = map.getByRole("button", { name: "Choose Eastern Suburbs", exact: true });
+  await eastern.focus();
+  // Change the view without transferring keyboard focus to a zoom control.
+  await map.getByRole("button", { name: "Zoom in", exact: true }).evaluate(button => button.click());
+  await expect(map.locator(".google-map-surface")).toHaveAttribute("data-map-zoom", "14");
+  await expect(eastern).toBeFocused();
+  await page.keyboard.press(" ");
+  await expect(page.getByLabel("any specific location in mind?")).toHaveValue("Eastern Suburbs");
+});

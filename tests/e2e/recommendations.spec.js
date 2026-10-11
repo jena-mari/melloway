@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test("OpenAI ranking affects the generated outing while retaining OpenStreetMap and original place facts", async ({
+test("OpenAI ranking affects the generated outing while retaining Google Maps and original place facts", async ({
   page,
 }) => {
   let request;
@@ -56,15 +56,11 @@ test("OpenAI ranking affects the generated outing while retaining OpenStreetMap 
     const original = request.venues.find((v) => v.id === stop.id);
     expect(stop.name).toBe(original.name);
     expect(stop.lat).toBe(original.lat);
-    expect(stop.cost).toBe(original.cost);
+    expect(stop.estimatedCost).toBe(original.estimatedCost ?? original.cost);
+    expect(stop.cost).toBeGreaterThanOrEqual(stop.estimatedCost);
   }
   await expect(page.locator(".map-preview")).toBeVisible();
-  await expect(
-    page.getByRole("link", {
-      name: "© OpenStreetMap contributors",
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.locator(".map-preview .google-map-canvas")).toHaveAttribute("data-map-state", "ready");
 });
 
 for (const failure of ["unavailable", "invalid"])

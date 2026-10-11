@@ -340,7 +340,7 @@ export default function Profile() {
     toggleEventSave,
     save,
     remove,
-    setCurrent,
+    openSavedPlan,
     setStatus,
   } = useApp();
   const { posts, likes, replies, like, reply } = useCommunity();
@@ -439,6 +439,7 @@ export default function Profile() {
             {identity.location}
           </p>
         )}
+        <Link className="text-button profile-history-link" to="/history">past dates ↗</Link>
       </section>
       <div
         className="profile-tabs"
@@ -484,8 +485,8 @@ export default function Profile() {
                   ? "nothing saved yet"
                   : "no likes yet"}
             </p>
-            <Link to={tab === "posts" ? "/community?compose=1" : "/community"}>
-              {tab === "posts" ? "make a post" : "explore"}
+            <Link to={tab === "posts" ? "/community?compose=1" : tab === "saved" ? "/explore" : "/community"}>
+              {tab === "posts" ? "make a post" : tab === "saved" ? "explore" : "browse feed"}
               <ArrowUpRight size={16} />
             </Link>
           </div>
@@ -521,8 +522,8 @@ export default function Profile() {
                 className="profile-route-open"
                 aria-label={`Open saved route ${plan.prefs.area}`}
                 onClick={() => {
-                  setCurrent({ plan, candidates: [], matrix: [] });
-                  navigate("/itinerary");
+                  const destination = openSavedPlan(plan);
+                  if (destination) navigate(destination);
                 }}
               >
                 <span>

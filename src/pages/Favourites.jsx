@@ -8,7 +8,7 @@ import { savedInstagramEvents } from "../services/instagramEvents.js";
 import EventPoster from "../components/EventPoster";
 import { Doodle } from "../components/DoodleBackdrop";
 export default function Favourites() {
-  const { saved, savedEvents, toggleEventSave, setCurrent, remove } = useApp(),
+  const { saved, savedEvents, toggleEventSave, openSavedPlan, remove } = useApp(),
     navigate = useNavigate();
   const [search, setSearch] = useSearchParams();
   const tab =
@@ -18,6 +18,7 @@ export default function Favourites() {
   return (
     <div className="page collection">
       <h1>saved</h1>
+      <Link className="text-button" to="/history">past dates ↗</Link>
       <div
         className="community-filters saved-tabs"
         role="group"
@@ -116,8 +117,8 @@ export default function Favourites() {
                   <button
                     className="text-button"
                     onClick={() => {
-                      setCurrent({ plan: p, candidates: [], matrix: [] });
-                      navigate("/itinerary");
+                      const destination = openSavedPlan(p);
+                      if (destination) navigate(destination);
                     }}
                   >
                     open plan <ArrowUpRight size={17} />

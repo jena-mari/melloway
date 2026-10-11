@@ -227,16 +227,16 @@ test("profile saved and liked tabs include routes and events with working action
   await first
     .getByRole("button", { name: "Save route a slow saturday in newtown" })
     .click();
-  await page.goto("/events");
+  await page.goto("/events?event=sydney:surplus-2026");
   await page
     .getByRole("button", {
-      name: "Like event a weekend market wander",
+      name: "Like event SURPLUS 2026",
       exact: true,
     })
     .click();
   await page
     .getByRole("button", {
-      name: "Save event a weekend market wander",
+      name: "Save event SURPLUS 2026",
       exact: true,
     })
     .click();
@@ -256,7 +256,7 @@ test("profile saved and liked tabs include routes and events with working action
   await expect(page.locator(".community-place-list button")).toHaveCount(3);
   await page.goto("/profile?tab=likes");
   await page
-    .getByRole("button", { name: "Unlike event a weekend market wander" })
+    .getByRole("button", { name: "Unlike event SURPLUS 2026" })
     .click();
   await expect(page.locator(".profile-event-card")).toHaveCount(0);
   await page.getByRole("tab", { name: "Your Saved" }).click();
@@ -264,7 +264,7 @@ test("profile saved and liked tabs include routes and events with working action
     .getByRole("button", { name: "Unsave route Newtown", exact: true })
     .click();
   await page
-    .getByRole("button", { name: "Unsave event a weekend market wander" })
+    .getByRole("button", { name: "Unsave event SURPLUS 2026" })
     .click();
   await expect(page.locator(".profile-empty")).toContainText(
     "nothing saved yet",
@@ -273,12 +273,12 @@ test("profile saved and liked tabs include routes and events with working action
   await expect(page.locator(".profile-empty")).toContainText(
     "nothing saved yet",
   );
-  await page.goto("/events?event=market-wander");
+  await page.goto("/events?event=sydney:surplus-2026");
   await expect(
-    page.getByRole("button", { name: "Like event a weekend market wander" }),
+    page.getByRole("button", { name: "Like event SURPLUS 2026" }),
   ).toHaveAttribute("aria-pressed", "false");
   await expect(
-    page.getByRole("button", { name: "Save event a weekend market wander" }),
+    page.getByRole("button", { name: "Save event SURPLUS 2026" }),
   ).toHaveAttribute("aria-pressed", "false");
 });
 

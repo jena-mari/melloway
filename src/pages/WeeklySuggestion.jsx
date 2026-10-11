@@ -9,10 +9,10 @@ export default function WeeklySuggestion() {
   const navigate = useNavigate();
   const { draft, update } = useApp();
   const item = findWeeklySuggestion(id);
-  if (!item) return <div className="page"><h1>suggestion not found</h1><Link to="/community">back to explore</Link></div>;
+  if (!item) return <div className="page"><h1>suggestion not found</h1><Link to="/explore">back to explore</Link></div>;
   return (
     <div className="page weekly-detail">
-      <Link className="back" to="/community"><ArrowLeft size={17} /> explore</Link>
+      <Link className="back" to="/explore"><ArrowLeft size={17} /> explore</Link>
       <div className="weekly-detail-art" aria-hidden="true"><Doodle kind={item.doodle} /></div>
       <p className="weekly-detail-kicker">Weekly Suggestions · {item.activity}</p>
       <h1>{item.name}</h1>

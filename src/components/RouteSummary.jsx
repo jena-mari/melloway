@@ -20,8 +20,10 @@ export default function RouteSummary({
   visibleStops,
   onReset,
   onEdit,
+  readOnly = false,
+  initialEditing = false,
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(initialEditing && !readOnly);
   return (
     <section
       className="route-summary"
@@ -32,7 +34,7 @@ export default function RouteSummary({
         <div>
           <h2>{location}</h2>
         </div>
-        <button
+        {!readOnly && <button
           className="route-edit-toggle"
           aria-label={editing ? "done" : "edit"}
           aria-pressed={editing}
@@ -48,7 +50,7 @@ export default function RouteSummary({
               <Pencil size={17} aria-hidden="true" />
             </>
           )}
-        </button>
+        </button>}
       </div>
       <ol className={`route-summary-list ${editing ? "editing" : ""}`}>
         {(editing || !visibleStops
@@ -126,7 +128,7 @@ export default function RouteSummary({
           </button>
         </div>
       )}
-      <button
+      {!readOnly && <button
         type="button"
         className="route-add-stop"
         aria-haspopup="dialog"
@@ -136,7 +138,7 @@ export default function RouteSummary({
       >
         <span className="route-add-icon" aria-hidden="true"><Plus size={20} /></span>
         add a stop
-      </button>
+      </button>}
     </section>
   );
 }

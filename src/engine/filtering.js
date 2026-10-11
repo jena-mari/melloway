@@ -1,3 +1,4 @@
+import { eventServiceOnly } from './recommendationEvidence.js';
 import { km, schedule, transportAllowance } from "../utils/planner.js";
 import { planningArea } from "../utils/location.js";
 import { venueRoles } from "./preferences.js";
@@ -18,6 +19,7 @@ export function spendAllowance(v, intent) {
 export function venueRejection(v, prefs, intent, rejectedIds = []) {
   const area = planningArea(prefs),
     rs = venueRoles(v);
+  if (eventServiceOnly(v)) return "event-service";
   if (v.source === "demo") return "demo";
   if (rejectedIds.includes(v.id)) return "rejected";
   if (

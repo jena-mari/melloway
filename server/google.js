@@ -1,5 +1,6 @@
 import { categories } from "../src/data/preferences.js";
 import { inSydney, planningArea, sydneyBounds } from "../src/utils/location.js";
+import { attachRecommendationEvidence, matchesLead, eventServiceOnly } from '../src/engine/recommendationEvidence.js';
 import { outingInstant } from "../src/utils/date.js";
 
 export function openingHours(periods) {
@@ -86,15 +87,15 @@ export function createGoogleProvider(key, fetcher = fetch) {
     return response.json();
   }
 
-  async function discover(prefs) {
+  async function discover(prefs, leads = null) {
     const area = planningArea(prefs);
-    const lists = await Promise.all(
-      discoveryQueries(prefs.preferences).map(async (tag) => {
+    const settled = await Promise.allSettled(
+      (leads ? leads.slice(0, 6).filter(lead => lead.tags?.length).map(lead => ({ tag: lead.tags[0], lead })) : discoveryQueries(prefs.preferences).map(tag => ({ tag }))).map(async ({ tag, lead }) => {
         const data = await google(
           "https://places.googleapis.com/v1/places:searchText",
           {
-            textQuery: `${tag} near ${prefs.area}, Sydney Australia`,
-            pageSize: 6,
+            textQuery: lead ? `${lead.name}, ${lead.locality}, Sydney Australia` : `${tag === 'Photo booths' ? 'walk-in self-service photobooth studio' : tag} near ${prefs.area}, Sydney Australia`,
+            pageSize: lead ? 2 : 6,
             locationBias: {
               circle: {
                 center: { latitude: area.lat, longitude: area.lng },
@@ -102,19 +103,22 @@ export function createGoogleProvider(key, fetcher = fetch) {
               },
             },
           },
-          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.regularOpeningHours,places.photos,places.googleMapsUri,places.businessStatus",
+          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.regularOpeningHours,places.photos,places.googleMapsUri,places.businessStatus,places.websiteUri,places.types,places.pureServiceAreaBusiness",
         );
-        return (data.places || [])
+        const candidates = (data.places || [])
           .filter(
             (p) =>
               p.businessStatus === "OPERATIONAL" &&
               p.regularOpeningHours?.periods &&
-              p.location,
+              p.location && inSydney({ lat: p.location.latitude, lng: p.location.longitude }),
           )
           .map((p) => ({
             id: p.id,
             name: p.displayName.text,
             address: p.formattedAddress,
+            website: p.websiteUri,
+            providerTypes: p.types,
+            pureServiceAreaBusiness: p.pureServiceAreaBusiness,
             area: prefs.area,
             lat: p.location.latitude,
             lng: p.location.longitude,
@@ -125,7 +129,7 @@ export function createGoogleProvider(key, fetcher = fetch) {
             attribution: p.photos?.[0]?.authorAttributions
               ?.map((a) => a.displayName)
               .join(", "),
-            tags: [tag],
+            tags: lead ? lead.tags : [tag],
             category: tag,
             weeklyHours: openingHours(p.regularOpeningHours.periods),
             source: "google",
@@ -140,10 +144,18 @@ export function createGoogleProvider(key, fetcher = fetch) {
                     : 45,
             note: "Discovered with Google Places. Estimated spend is a planning allowance, not a venue quote. Check the venue before visiting.",
             mapsUri: p.googleMapsUri,
-          }));
+          }))
+          .filter(v => !eventServiceOnly(v) && (!lead || matchesLead(v, lead)))
+          .map(v => lead ? { ...attachRecommendationEvidence([v], [lead])[0], visitMode: lead.visitMode || 'unknown' } : v);
+        // A name/suburb pair that resolves to multiple addresses is ambiguous.
+        // Never choose the first Google hit and attribute a different branch's post.
+        if (lead && new Set(candidates.map(v => v.address)).size > 1) return [];
+        return candidates;
       }),
     );
     const merged = new Map();
+    const lists = settled.filter(result => result.status === "fulfilled").map(result => result.value);
+    if (settled.length && !lists.length) throw new Error("Google provider unavailable");
     for (const venue of lists.flat()) {
       const existing = merged.get(venue.id);
       if (existing) {
@@ -296,5 +308,17 @@ export function createGoogleProvider(key, fetcher = fetch) {
       source: "google",
     };
   }
-  return { discover, routeMatrix, photo, searchLocations, resolveLocation };
+  const researchCache = new Map(), researchPending = new Map();
+  async function resolveResearch(prefs, leads) {
+    const id = JSON.stringify([planningArea(prefs), leads]);
+    const cached = researchCache.get(id);
+    if (cached?.expires > Date.now()) return cached.value;
+    if (researchPending.has(id)) return researchPending.get(id);
+    const work = discover(prefs, leads).then(value => {
+      if (researchCache.size >= 100) researchCache.delete(researchCache.keys().next().value);
+      researchCache.set(id, { value, expires: Date.now() + 30 * 60000 }); return value;
+    }).finally(() => researchPending.delete(id));
+    researchPending.set(id, work); return work;
+  }
+  return { discover, resolveResearch, routeMatrix, photo, searchLocations, resolveLocation };
 }

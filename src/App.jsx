@@ -8,6 +8,7 @@ import Generating from "./pages/Generating";
 import Venue from "./pages/Venue";
 import { useEffect, lazy, Suspense } from "react";
 import { useLocation } from "react-router-dom";
+const Explore = lazy(() => import("./pages/Explore"));
 const Community = lazy(() => import("./pages/Community"));
 const CommunityRoute = lazy(() => import("./pages/CommunityRoute"));
 const Pick = lazy(() => import("./pages/Pick"));
@@ -15,6 +16,7 @@ const WeeklySuggestion = lazy(() => import("./pages/WeeklySuggestion"));
 const Itinerary = lazy(() => import("./pages/Itinerary"));
 const Favourites = lazy(() => import("./pages/Favourites"));
 const Profile = lazy(() => import("./pages/Profile"));
+const History = lazy(() => import("./pages/History"));
 const Events = lazy(() =>
   import("./pages/Discover").then((module) => ({ default: module.Events })),
 );
@@ -38,6 +40,9 @@ export default function App() {
           <Routes>
             <Route element={<Layout />}>
               <Route path="/" element={<Landing />} />
+              {["/history", "/history/:historyId", "/history/:historyId/venue/:id"].map(path => (
+                <Route key={path} path={path} element={<Suspense fallback={<div className="page" role="status">opening past dates…</div>}><History /></Suspense>} />
+              ))}
               <Route path="/plan/:step" element={<Onboarding />} />
               <Route path="/generating" element={<Generating />} />
               <Route path="/weekly/:id" element={<Suspense fallback={<div className="page" role="status">opening the suggestion…</div>}><WeeklySuggestion /></Suspense>} />
@@ -83,13 +88,14 @@ export default function App() {
                   </Suspense>
                 }
               />
+              <Route path="/explore" element={<Suspense fallback={<div className="page" role="status">finding spots…</div>}><Explore /></Suspense>} />
               <Route
                 path="/community"
                 element={
                   <Suspense
                     fallback={
                       <div className="page" role="status">
-                        bringing up the ideas…
+                        opening the feed…
                       </div>
                     }
                   >

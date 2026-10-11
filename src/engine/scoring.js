@@ -1,3 +1,4 @@
+import { evidenceScore } from './recommendationEvidence.js';
 import { km } from "../utils/planner.js";
 import { planningArea } from "../utils/location.js";
 import { venueRoles, venueAtmosphere } from "./preferences.js";
@@ -9,6 +10,7 @@ export const recommendationWeights = Object.freeze({
   proximity: 18,
   budget: 10,
   quality: 6,
+  evidence: 12,
   variety: 8,
   timing: 14,
 });
@@ -52,6 +54,7 @@ export function scoreVenue(v, prefs, intent, weights = recommendationWeights) {
     proximity: weights.proximity * proximity,
     budget: weights.budget * budget,
     quality: weights.quality * quality,
+    evidence: (weights.evidence ?? 12) * evidenceScore(v, prefs.date),
   };
   return {
     ...v,

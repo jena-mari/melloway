@@ -51,7 +51,11 @@ export default function Generating() {
           );
           return;
         }
-        setCurrent(bundle);
+        if (!setCurrent(bundle)) {
+          setError('Couldn’t store your new plan. Free some device storage and retry.');
+          setCanRetry(true);
+          return;
+        }
         navigate("/itinerary", { replace: true });
       })
       .catch((error) => {

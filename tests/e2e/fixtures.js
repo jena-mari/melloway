@@ -4,6 +4,13 @@ import { renderVenueMap } from "../../server/eventMap.ts";
 import { itineraryMapPoints } from "../../server/itineraryMap.ts";
 // Keep the shared fixture entry point while moving maps to the offline Google SDK.
 export async function mockMapTiles(page) {
+  await page.route('https://*.supabase.co/**', route => route.fulfill({ status: 503, json: { error: 'Offline test fixture' } }));
+  // Never reach configured paid providers, including research added to Explore.
+  await page.route("**/api/status", route => route.fulfill({ json: { venues: "curated", recommendations: "planner", socialDiscovery: "unavailable" } }));
+  await page.route("**/api/discovery", route => route.fulfill({ json: { leads: [], venues: [], researchStatus: "sources" } }));
+  for (const endpoint of ["venues", "matrix", "intent", "recommendations", "social/search", "social/preview"])
+    await page.route(`**/api/${endpoint}`, route => route.fulfill({ status: 503, json: { error: "Offline test fixture" } }));
+  await page.route("**/api/events?**", route => route.fulfill({ status: 503, json: { error: "Offline test fixture" } }));
   for (const host of ["surplus.sydney", "atparramatta.com", "sculpturebythesea.com"]) {
     await page.route(`https://${host}/**`, route => route.fulfill({ contentType: "image/svg+xml",
       body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><rect width="400" height="500" fill="#d9dfcb"/><text x="24" y="240" font-size="28">Mock organiser artwork</text></svg>' }));
@@ -29,8 +36,11 @@ export async function mockMapTiles(page) {
 }
 
 export async function continueQuestions(page, count = 1) {
-  for (let i = 0; i < count; i++)
+  for (let i = 0; i < count; i++) {
+    const previousUrl = page.url();
     await page.getByRole("button", { name: "continue", exact: true }).click();
+    await page.waitForURL(url => url.href !== previousUrl);
+  }
 }
 
 export async function chooseTime(page, value) {
