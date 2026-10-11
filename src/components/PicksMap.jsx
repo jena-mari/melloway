@@ -22,7 +22,7 @@ export default function PicksMap({ venues, selectedId, focusPoint, onSelect, onS
         </a>
       </div>} />
     <button className="picks-show-all" type="button" onClick={onShowAll} aria-label="show all pick pins">
-      <Maximize2 size={15} /> all {venues.length} pins
+      <Maximize2 size={18} aria-hidden="true" />
     </button>
   </section>;
 }

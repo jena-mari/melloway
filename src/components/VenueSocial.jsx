@@ -4,6 +4,7 @@ import { ArrowUpRight, Instagram, Play, Plus, X } from "lucide-react";
 import { discoverSocial, previewSocial } from "../services/social.js";
 import { socialEmbed, socialPost } from "../utils/social.js";
 import { readLocal, writeLocal } from "../services/storage.js";
+import { venuePostLinks } from "../data/venuePosts.ts";
 
 const storageKey = (venue) =>
   `melloway.social.${JSON.stringify([venue.name, venue.lat, venue.lng])}`;
@@ -98,6 +99,8 @@ export default function VenueSocial({ venue, compact = false }) {
     [saving, setSaving] = useState(false);
   const controller = useRef(null);
   const key = storageKey(venue);
+  const attached = venuePostLinks(venue);
+  const attachedKey = JSON.stringify(attached);
   useEffect(() => {
     const abort = new AbortController();
     controller.current = abort;
@@ -107,17 +110,21 @@ export default function VenueSocial({ venue, compact = false }) {
     setError("");
     setAdding(false);
     const links = savedLinks(key);
-    // Shared links appear immediately, even if search or metadata is unavailable.
+    const previewLinks = [...new Set([...attached, ...links])];
+    // Attached and shared links appear even without search or metadata.
     const researched = cleanEvidence(venue.recommendationEvidence).flatMap(item => {
       const post = socialPost(item.url); return post ? [{ ...post, caption: item.summary, discovery: 'web' }] : [];
     });
-    setPosts([...researched, ...links.map((link) => ({ ...socialPost(link), shared: true }))]);
+    const initial = [...researched, ...previewLinks.map(link => ({
+      ...socialPost(link), attached: attached.includes(link), shared: links.includes(link),
+    }))];
+    setPosts([...new Map(initial.map(post => [post.url, post])).values()]);
     Promise.allSettled([
       discoverSocial(venue, abort.signal),
       Promise.all(
-        links.map(async (link) => ({
+        previewLinks.map(async (link) => ({
           ...(await previewSocial(link, abort.signal)),
-          shared: true,
+          attached: attached.includes(link),
         })),
       ),
     ]).then(([discovered, shared]) => {
@@ -130,16 +137,17 @@ export default function VenueSocial({ venue, compact = false }) {
           : [])
           merged.set(post.url, post);
         for (const post of shared.status === "fulfilled" ? shared.value : [])
-          if (currentLinks.has(post.url)) merged.set(post.url, post);
+          if (currentLinks.has(post.url) || attached.includes(post.url)) merged.set(post.url, post);
         return [...merged.values()].map((post) => ({
           ...post,
           shared: currentLinks.has(post.url),
+          attached: attached.includes(post.url),
         }));
       });
       setState(discovered.status === "fulfilled" ? "ready" : "unavailable");
     });
     return () => abort.abort();
-  }, [key]);
+  }, [key, attachedKey]);
   async function addPost(event) {
     event.preventDefault();
     const post = socialPost(url.trim());
@@ -159,7 +167,7 @@ export default function VenueSocial({ venue, compact = false }) {
       writeLocal(key, [...new Set([...links, post.url])]);
       setPosts((previous) => [
         ...previous.filter((p) => p.url !== post.url),
-        { ...preview, shared: true },
+        { ...preview, shared: true, attached: attached.includes(post.url) },
       ]);
       setUrl("");
       setAdding(false);
@@ -176,7 +184,8 @@ export default function VenueSocial({ venue, compact = false }) {
         key,
         savedLinks(key).filter((link) => link !== post.url),
       );
-      setPosts((previous) => previous.filter((item) => item.url !== post.url));
+      setPosts((previous) => previous.flatMap(item => item.url !== post.url
+        ? [item] : item.attached ? [{ ...item, shared: false }] : []));
     } catch {
       setAdding(true);
       setError("Couldn’t update saved links.");
@@ -253,6 +262,7 @@ export default function VenueSocial({ venue, compact = false }) {
                     (post.shared ? "shared post" : `${post.platform} post`)}
                 </span>
                 {post.creator && <small>{post.creator}</small>}
+                {post.attached && <small>venue link</small>}
                 {post.shared && <small>shared link</small>}
               </button>
               {post.shared && (

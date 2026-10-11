@@ -214,7 +214,7 @@ export default function Itinerary({
       plan: { ...plan, ...next, prefs, notice: options.notice, id: createId() },
     });
     if (committed === false) return false;
-    setExtraPool(null);
+    setExtraPool(extraPool ? options : null);
     setQuery("");
     setCategory("all");
     setStatus(message);
