@@ -64,7 +64,7 @@ export default function GoogleMapCanvas({
           map.setZoom(16);
           map.setCenter({ lat: valid[0].lat, lng: valid[0].lng });
         } else {
-          const fitted = new maps.LatLngBounds();
+          const fitted = new window.google.maps.LatLngBounds();
           valid.forEach(point => fitted.extend({ lat: point.lat, lng: point.lng }));
           routePositions.forEach(point => fitted.extend(point));
           map.fitBounds(fitted, groupNearby ? { top: 64, bottom: 20, left: 24, right: 24 }
