@@ -71,6 +71,9 @@ test('Google stops match Explore styling with round alphabetical pins in both ma
     border:getComputedStyle(node).borderTopWidth}))).toEqual({radius:'20px',border:'1px'});
   await expect(page.getByText('bringing ur stops into view…')).toHaveCount(0);
   await expect(page.locator('.leaflet-container')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'stop order', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'show whole route', exact: true })).toHaveCount(0);
+  await page.locator('.route-map-hero').screenshot({path:info.outputPath('ur-day-map-controls.png')});
   await frame.getByRole('button', { name: 'B. Mock stop 2' }).click();
   await expect(frame.getByRole('button', {name:'B. Mock stop 2'})).toHaveAttribute('aria-pressed','true');
   await expectRoundLetterPin(frame.getByRole('button', {name:'B. Mock stop 2'}));

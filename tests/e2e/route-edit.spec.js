@@ -370,11 +370,11 @@ test("editable summary updates order, totals, map and directions; extras stay op
   await expect(page.locator(".route-summary-total")).toContainText(
     `~$${added.cost} each`,
   );
-  await page.getByRole("button", { name: "stop order", exact: true }).tap();
-  await expect(page.locator("#map-stop-legend li")).toHaveCount(3);
-  await expect(page.locator("#map-stop-legend li").last()).toContainText(
-    added.stops[2].name,
+  await page.getByRole("button", { name: "expand map", exact: true }).tap();
+  await expect(page.locator(".expanded-route-footer ol li")).toHaveText(
+    added.stops.map((stop) => stop.name),
   );
+  await page.getByRole("button", { name: "close map", exact: true }).tap();
   const href = await page
     .getByRole("link", { name: "open Google Maps", exact: true })
     .getAttribute("href");
@@ -385,7 +385,6 @@ test("editable summary updates order, totals, map and directions; extras stay op
   expect(directions.searchParams.get("waypoints")).toBe(
     `${added.stops[1].lat},${added.stops[1].lng}`,
   );
-  await page.getByRole("button", { name: "stop order", exact: true }).tap();
   await page.getByRole("button", { name: "lock this in", exact: true }).tap();
   await page.reload();
   await expect(page.locator(".route-summary-list > li")).toHaveCount(3);
