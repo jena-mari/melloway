@@ -24,24 +24,14 @@ import { createId } from "../utils/id.js";
 import { demoMatrix, directions, formatTime } from "../utils/planner.js";
 import { sydneyToday } from "../utils/date.js";
 import Venue from "./Venue.jsx";
-import MellowayPicks from "../components/MellowayPicks.jsx";
 import BrandLogo from "../components/BrandLogo";
-import WeeklySuggestions from "../components/WeeklySuggestions";
+import PicksExplorer from "../components/PicksExplorer.jsx";
 const RouteMap = lazy(() => import("../components/RouteMap.jsx"));
 
 export default function Pick() {
   const { pickId } = useParams();
   if (!pickId)
-    return (
-      <div className="page picks-page">
-        <Link className="back" to="/community">
-          <ArrowLeft size={18} /> explore
-        </Link>
-        <h1>melloway picks.</h1>
-        <MellowayPicks showHeading={false} />
-        <WeeklySuggestions />
-      </div>
-    );
+    return <PicksExplorer />;
   return (
     <PickView
       key={pickId}

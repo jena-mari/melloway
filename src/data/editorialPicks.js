@@ -1,0 +1,163 @@
+import { sydneyVenues } from "./sydneyVenues.js";
+import { mellowayPicks } from "./mellowayPicks.js";
+
+const checkedAt = "2026-10-11";
+const glebe = sydneyVenues.find((venue) => venue.id === "sydney-glebe-markets");
+const chubby = mellowayPicks[0].stops.find((venue) => venue.id === "pick-matcha-chubby-westfield");
+const daily = (open, close) => Array.from({ length: 7 }, () => [{ open, close }]);
+const source = (url, fields = ["name", "address"]) => ({ url, checkedAt, fields });
+
+// Browsing metadata stays separate from both the generation pool and saved routes.
+// Existing IDs identify the same place across collections; overlays do not edit it.
+function pick(base, details) {
+  return {
+    tags: [], roles: [], source: "curated", coordinatesStatus: "approximate",
+    priceStatus: "estimate", hoursStatus: "unconfirmed", weeklyHours: null,
+    cost: null, checkedAt, collections: ["melloway"], editorialPick: true,
+    ...base, ...details,
+    note: `${details.description} ${details.conditions} Visit length and spending allowances are estimates. Confirm hours and access with the venue.`,
+  };
+}
+
+export const editorialPicks = [
+  pick(chubby, {
+    name: "Chubby Cubby Café",
+    address: "Level 1, Westfield Sydney, 188 Pitt Street, Sydney NSW 2000 · near Cotton On Body",
+    lat: -33.87011, lng: 151.20893, category: "Matcha café / dessert",
+    vibes: ["Cute café", "Matcha date", "Shopping break"], artwork: "matcha",
+    mins: 40, cost: 18, costLabel: "$18 AUD / person allowance",
+    description: "A little matcha-and-sweets pause between shops, at the current Westfield Sydney branch.",
+    conditions: "Level 1, near Cotton On Body. Check centre trading hours and holiday changes.",
+    scheduleLabel: "Westfield Sydney · Level 1",
+    sources: [source(chubby.website), source("https://www.openstreetmap.org/way/214485654", ["building coordinates"])],
+    coordinateSource: "https://mapcarta.com/W214485654",
+  }),
+  pick({}, {
+    id: "pick-ace-sydney-photobooth", name: "Ace Hotel Sydney Photobooth",
+    address: "47–53 Wentworth Avenue, Sydney NSW 2000",
+    lat: -33.878801, lng: 151.2099833, area: "Sydney CBD", category: "Photobooth / date activity",
+    tags: ["Photo booths"], vibes: ["Retro", "Photo memories", "Cute date"], artwork: "camera",
+    mins: 20, cost: 10, costLabel: "$10 AUD / person allowance · confirm price",
+    website: "https://acehotel.com/sydney/neighborhood/the-ace-hotel-sydney-photobooth-surry-hills-viral-film-strip-spot/",
+    description: "Drop into the hotel lobby for a film-strip keepsake and a small date-day detour.",
+    conditions: "The photobooth is inside the lobby and welcomes drop-in visitors. Confirm access and current strip prices.",
+    scheduleLabel: "Lobby photobooth · drop-in access",
+    sources: [source("https://acehotel.com/sydney/neighborhood/the-ace-hotel-sydney-photobooth-surry-hills-viral-film-strip-spot/")],
+    coordinateSource: "https://concreteplayground.com/sydney/hotel/ace-hotel-sydney",
+  }),
+  pick(glebe, {
+    address: "Glebe Public School, 46–56 Glebe Point Road, Glebe NSW 2037",
+    category: "Flea market / vintage shopping", collections: ["melloway", "shana"],
+    vibes: ["Thrifting", "Vintage", "Girls’ day", "Outdoor"], artwork: "bag",
+    mins: 75, cost: 0, costLabel: "Free entry / browsing · purchases extra",
+    description: "Take your time among vintage finds, local makers and outdoor stalls at the school grounds.",
+    conditions: "Saturday only, 10am–4pm. Purchases and food are extra; check weather and market announcements.",
+    scheduleLabel: "Saturday only · 10am–4pm",
+    website: "https://glebemarkets.com.au/home", sources: [source("https://glebemarkets.com.au/home", ["name", "address", "published hours"])],
+    coordinateSource: "https://www.google.com/maps/search/?api=1&query=Glebe+Public+School+46-56+Glebe+Point+Road",
+    image: "https://upload.wikimedia.org/wikipedia/commons/d/de/Glebe_Markets.jpg",
+    photo: { author: "Lacrimosus", license: "Public domain", licenseUrl: "https://commons.wikimedia.org/wiki/File:Glebe_Markets.jpg", sourceUrl: "https://commons.wikimedia.org/wiki/File:Glebe_Markets.jpg", caption: "Glebe Markets · archive, 2005" },
+  }),
+  pick({}, {
+    id: "pick-birdcage-bank-hotel", name: "Birdcage at The Bank Hotel",
+    address: "Waywards Ballroom, The Bank Hotel, 324 King Street, Newtown NSW 2042",
+    lat: -33.8974865, lng: 151.1792614, area: "Newtown", category: "Weekly queer nightlife event",
+    kind: "recurring-event", eventSchedule: { weekday: 3, start: "21:00", end: null },
+    vibes: ["Sapphic nightlife", "Dancing", "DJs", "Queer community"], artwork: "music",
+    mins: 90, costLabel: "Entry varies by arrival time · check listing",
+    website: "https://bankhotel.com.au/birdcage",
+    description: "A Wednesday-night queer party in Waywards Ballroom, with DJs and a dance floor to settle into.",
+    conditions: "Recurring event every Wednesday from 9pm. Entry depends on arrival time; check the current event listing.",
+    scheduleLabel: "Weekly event · Wednesday from 9pm",
+    sources: [source("https://bankhotel.com.au/birdcage", ["name", "address", "event schedule"])],
+    coordinateSource: "https://concreteplayground.com/sydney/bars/the-bank-hotel-beer-garden",
+  }),
+  pick({}, {
+    id: "pick-caterpillar-club", name: "The Caterpillar Club",
+    address: "92 Pitt Street, Sydney NSW 2000", lat: -33.8672489, lng: 151.2086816,
+    area: "Sydney CBD", category: "Underground bar / live music",
+    vibes: ["Retro", "Vinyl", "Late-night music", "Dancing"], artwork: "music",
+    mins: 75, cost: 30, costLabel: "$30 AUD / person drinks allowance",
+    website: "https://swillhouse.com/venues/the-caterpillar-club/", hoursStatus: "published",
+    weeklyHours: daily(1020, 1620).map((hours, day) => day >= 4 ? [{ open: 1020, close: 1680 }] : hours),
+    description: "An underground city bar for records, live music and a late-night drink with friends.",
+    conditions: "Walk-in only. Published hours: Sun–Wed 5pm–3am; Thu–Sat 5pm–4am. Confirm any changes before visiting.",
+    scheduleLabel: "Sun–Wed 5pm–3am · Thu–Sat 5pm–4am",
+    sources: [source("https://swillhouse.com/venues/the-caterpillar-club/", ["name", "address", "published hours", "walk-in policy"])],
+    coordinateSource: "https://concreteplayground.com/sydney/bars/the-caterpillar-club",
+  }),
+  pick({}, {
+    id: "pick-joji-sydney", name: "JŌJI Sydney",
+    address: "Level 5, 388 George Street, Sydney NSW 2000", lat: -33.8683961, lng: 151.2074048,
+    area: "Sydney CBD", category: "Rooftop bar / Japanese dining",
+    vibes: ["Rooftop", "Dressy date", "Cocktails", "City views"], artwork: "wine",
+    mins: 75, cost: 45, costLabel: "$45 AUD / person allowance",
+    website: "https://www.jojisydney.com/plan-your-visit", hoursStatus: "published",
+    weeklyHours: [[{ open: 960, close: 1380 }], [{ open: 960, close: 1380 }], [{ open: 720, close: 1380 }], [{ open: 720, close: 1440 }], [{ open: 720, close: 1500 }], [{ open: 720, close: 1500 }], [{ open: 720, close: 1560 }]],
+    description: "Head upstairs for Japanese dining, cocktails and a dressier city-view catch-up.",
+    conditions: "18+ venue policy and smart dress apply; check the operator’s age-policy times, opening hours and reservations.",
+    scheduleLabel: "Rooftop · smart dress and age policy apply",
+    sources: [source("https://www.jojisydney.com/plan-your-visit", ["name", "address", "published hours", "age policy", "dress code"])],
+    coordinateSource: "https://concreteplayground.com/sydney/event/social-saturdays-at-joji",
+  }),
+  pick({}, {
+    id: "pick-o3-newtown", name: "O3 Space Newtown",
+    address: "32–38 King Street, Newtown NSW 2042", lat: -33.8927518, lng: 151.1866322,
+    area: "Newtown", category: "Study café / third space",
+    vibes: ["Study date", "Productivity", "Cozy hangout"], artwork: "book",
+    mins: 90, costLabel: "Membership applies · paid plans and drinks extra",
+    website: "https://o3space.org/", hoursStatus: "published", weeklyHours: daily(600, 1260),
+    description: "Bring a project or a friend and settle into a study café built for working together.",
+    conditions: "10am–9pm. Sign-up is required; free membership has limited weekly access. After-hours access depends on membership.",
+    scheduleLabel: "10am–9pm · membership required",
+    sources: [source("https://o3space.org/", ["name", "address", "published hours"]), source("https://o3space.org/terms-of-use", ["membership terms"])],
+    coordinateSource: "https://maps.app.goo.gl/HER2m5WwpVB5uzf66",
+  }),
+  pick({}, {
+    id: "pick-old-school-kafey", name: "Old School Kafey",
+    address: "459 Pitt Street, Haymarket NSW 2000", lat: -33.87989, lng: 151.20677,
+    area: "Haymarket", category: "Dessert café", vibes: ["Bingsu", "Waffles", "Sweet treats", "Casual date"], artwork: "dessert",
+    mins: 45, cost: 20, costLabel: "$20 AUD / person allowance",
+    website: "https://maps.apple.com/place?place-id=IB2BCA5A6A8F6572F",
+    description: "A casual Haymarket stop for bingsu, waffles and something sweet to share.",
+    conditions: "Confirm current trading hours and any afternoon break before making a plan around this stop.",
+    scheduleLabel: "Trading hours and afternoon breaks: confirm",
+    sources: [source("https://maps.apple.com/place?place-id=IB2BCA5A6A8F6572F")],
+    coordinateSource: "https://www.openstreetmap.org/node/4027321790",
+  }),
+  pick({}, {
+    id: "pick-observatory-hill-park", name: "Observatory Hill Park",
+    address: "Upper Fort Street, Millers Point NSW 2000", lat: -33.85897, lng: 151.20482,
+    area: "Millers Point", category: "Scenic lookout / park", tags: ["Scenic walks"],
+    vibes: ["Harbour views", "Sunset", "Romantic walk", "Picnic"], artwork: "leaf",
+    mins: 40, cost: 0, costLabel: "Free public park visit",
+    website: "https://www.cityofsydney.nsw.gov.au/parks/observatory-park",
+    description: "Find a patch of grass for harbour views, a slow walk or a picnic around sunset.",
+    conditions: "This is the public park. Observatory tours have separate opening times and bookings; check park notices before visiting.",
+    scheduleLabel: "Public park · Observatory tours are separate",
+    sources: [source("https://www.cityofsydney.nsw.gov.au/parks/observatory-park", ["name", "address", "park access"])],
+    coordinateSource: "https://www.google.com/maps?daddr=-33.85897,151.20482",
+    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Observatory_Hill_Sydney.jpg/1280px-Observatory_Hill_Sydney.jpg",
+    photo: { author: "MDRX", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", sourceUrl: "https://commons.wikimedia.org/wiki/File:Observatory_Hill_Sydney.jpg", caption: "Observatory Hill · archive, 2020" },
+  }),
+  pick({}, {
+    id: "pick-mamuki-glebe", name: "MaMUKI Bake Bar — Glebe",
+    address: "16 Glebe Point Road, Glebe NSW 2037", lat: -33.88402959280173, lng: 151.1922248067457,
+    area: "Glebe", category: "Matcha café / Japanese-inspired bakery",
+    vibes: ["Matcha", "Minimalist café", "Brunch", "Friends"], artwork: "matcha",
+    mins: 45, cost: 20, costLabel: "$20 AUD / person allowance",
+    website: "https://onacoffee.com.au/pages/locations", hoursStatus: "reported",
+    weeklyHours: [[{ open: 480, close: 960 }], ...Array.from({ length: 5 }, () => [{ open: 420, close: 900 }]), [{ open: 480, close: 960 }]],
+    description: "Make a Glebe coffee-and-matcha pause with Japanese-inspired bakes and a friend.",
+    conditions: "The Glebe branch. ONA’s directory lists weekdays 7am–3pm and weekends 8am–4pm; confirm changes with the café.",
+    scheduleLabel: "Glebe branch · confirm directory hours",
+    sources: [source("https://onacoffee.com.au/pages/locations", ["name", "address", "reported hours"]), source("https://www.instagram.com/mamuki.bake.bar/", ["operator profile"])],
+    coordinateSource: "https://www.google.com/maps/dir/?api=1&destination=-33.88402959280173%2C151.1922248067457",
+  }),
+];
+
+export const pickCollections = [
+  { id: "all", label: "All picks" },
+  { id: "melloway", label: "Melloway’s picks" },
+  { id: "shana", label: "Shana’s picks" },
+];

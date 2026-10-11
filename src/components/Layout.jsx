@@ -41,7 +41,7 @@ export default function Layout() {
   }, [pathname]);
   return (
     <div
-      className={`app-shell ${planning ? "planning" : ""} ${introduction ? "journey-shell" : ""} ${keyboardOpen ? "keyboard-open" : ""} ${calendar ? "calendar-shell" : ""}`}
+      className={`app-shell ${pathname === "/picks" ? "picks-explorer-shell" : ""} ${planning ? "planning" : ""} ${introduction ? "journey-shell" : ""} ${keyboardOpen ? "keyboard-open" : ""} ${calendar ? "calendar-shell" : ""}`}
     >
       <DoodleBackdrop screen={pathname} paused={keyboardOpen} />
       {!introduction &&

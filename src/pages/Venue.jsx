@@ -5,7 +5,7 @@ import { sydneyVenues } from "../data/sydneyVenues";
 import { useApp } from "../hooks/useApp";
 import { MoodImage } from "../components/UI";
 import VenueSocial from "../components/VenueSocial";
-export default function Venue({ route, backTo = "/itinerary" }) {
+export default function Venue({ route, backTo = "/itinerary", backLabel = "back to ur day", photoCredit, extraDetails }) {
   const { id } = useParams(),
     { current } = useApp();
   const v =
@@ -21,7 +21,7 @@ export default function Venue({ route, backTo = "/itinerary" }) {
   return (
     <div className="page venue">
       <Link className="back" to={backTo} state={route ? { route } : undefined}>
-        <ArrowLeft size={17} /> back to ur day
+        <ArrowLeft size={17} /> {backLabel}
       </Link>
       <div className="venue-layout">
         {v.image && (
@@ -31,11 +31,11 @@ export default function Venue({ route, backTo = "/itinerary" }) {
               alt={v.source === "demo" ? "Illustrative mood photograph" : ""}
             />
             <span className="pill-label">
-              {v.source === "demo"
+              {photoCredit || (v.source === "demo"
                 ? "demo venue · mood imagery"
                 : v.source === "curated"
                   ? "sourced Sydney venue"
-                  : `Google Places${v.attribution ? " · " + v.attribution : ""}`}
+                  : `Google Places${v.attribution ? " · " + v.attribution : ""}`)}
             </span>
           </div>
         )}
@@ -52,6 +52,7 @@ export default function Venue({ route, backTo = "/itinerary" }) {
           </div>
           {v.reason && <p>{v.reason}</p>}
           <p className="venue-description">{v.note}</p>
+          {extraDetails}
           {v.website && (
             <a href={v.website} target="_blank" rel="noreferrer">
               venue source ↗
@@ -60,7 +61,7 @@ export default function Venue({ route, backTo = "/itinerary" }) {
           <dl>
             <div>
               <dt>estimated spend</dt>
-              <dd>~${v.cost} each</dd>
+              <dd>{v.costLabel || `~$${v.cost} each`}</dd>
             </div>
             <div>
               <dt>visit</dt>

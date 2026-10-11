@@ -116,6 +116,7 @@ export default function App() {
                   />
                 ),
               )}
+              <Route path="/picks/places/:id" element={<Suspense fallback={<div className="page" role="status">opening the pick…</div>}><Pick /></Suspense>} />
               {["/community/:postId", "/community/:postId/venue/:id"].map(
                 (path) => (
                   <Route
