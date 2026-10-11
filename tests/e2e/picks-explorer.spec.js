@@ -18,7 +18,7 @@ async function mockPicks(page, { maps = true, images = true } = {}) {
     : route.abort());
 }
 
-test("Explore immediately shows ten mapped swipe cards without suggestion API calls or changing the plan", async ({ page }, info) => {
+test("Explore shows ten normal pick cards and opens details without changing the plan", async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await mockPicks(page);
@@ -47,28 +47,43 @@ test("Explore immediately shows ten mapped swipe cards without suggestion API ca
   await expect(page.locator(".editorial-place-card")).toHaveCount(10);
   await expect(page.getByRole("button", { name: "show suggestions", exact: true })).toBeVisible();
   await expect(page.getByRole("list", { name: "Nearby spot suggestions" })).toHaveCount(0);
-  const carousel = page.getByRole("list", { name: "Swipe through Melloway’s Picks" });
-  await carousel.press("ArrowDown");
-  await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
-  await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
+  expect(requests).toEqual([]);
+  const trigger = page.getByRole("button", { name: `view ${editorialPicks[1].name} details`, exact: true });
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  const sheet = page.getByRole("dialog", { name: editorialPicks[1].name, exact: true });
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toContainText(editorialPicks[1].costLabel);
+  await expect(sheet.getByRole("link", { name: "venue source", exact: true })).toHaveAttribute("href", editorialPicks[1].sources[0].url);
+  await expect(sheet.getByRole("link", { name: "check it on Google Maps" })).toHaveAttribute("href", /-33.878801,151.2099833/);
+  expect(new URL(page.url()).pathname).toBe("/explore");
   expect(new URL(page.url()).searchParams.get("keep")).toBe("1");
+  await expect(mapSurface).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
   await expect(mapSurface).toHaveAttribute("data-map-zoom", "16");
+  await page.keyboard.press("Escape");
+  await expect(sheet).toHaveCount(0);
+  await expect(trigger).toBeFocused();
   await showAll.click();
   await expect(mapSurface).toHaveAttribute("data-map-zoom", overviewZoom);
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
   const last = editorialPicks.at(-1);
   await page.getByRole("button", { name: `select ${last.name} on map`, exact: true }).click();
+  await expect(page.getByRole("dialog", { name: last.name, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "close pick details", exact: true }).click();
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", last.id);
   await expect(page.locator(".picks-carousel-progress")).toHaveCount(0);
-  await expect(page.locator(".picks-carousel-dots")).toHaveCount(0);
+  await expect(page.getByRole("list", { name: "Swipe through Melloway’s Picks" })).toHaveCount(0);
+  const list = page.getByRole("list", { name: "Melloway’s Picks", exact: true });
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const map = await page.locator(".picks-map").boundingBox();
     const cards = await page.locator(".editorial-card-panel").boundingBox();
-    const tabs = await page.locator(".bottom-tabs").boundingBox();
     expect(map.y + map.height).toBeLessThan(cards.y);
-    expect(cards.y + cards.height).toBeLessThanOrEqual(tabs.y);
+    expect(await list.evaluate(node => ({ snap: getComputedStyle(node).scrollSnapType,
+      scrollHeight: node.scrollHeight, height: node.clientHeight, scrollWidth: node.scrollWidth, width: node.clientWidth })))
+      .toEqual(expect.objectContaining({ snap: "none" }));
+    expect(await list.evaluate(node => node.scrollHeight <= node.clientHeight + 1 && node.scrollWidth <= node.clientWidth + 1)).toBe(true);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: info.outputPath("explore-ten-spots.png") });
@@ -84,55 +99,103 @@ test("Explore immediately shows ten mapped swipe cards without suggestion API ca
   expect(await state()).toEqual(before);
 });
 
-test.describe("Explore reel swipes", () => {
+test.describe("Explore pick taps", () => {
   test.use({ hasTouch: true, reducedMotion: "reduce" });
   for (const width of [390, 320])
-    test(`vertical touch swipes follow the spot on the map at ${width}px without fetching suggestions`, async ({ page }, info) => {
+    test(`horizontal gestures do not switch picks and taps open a bottom sheet at ${width}px`, async ({ page }, info) => {
       await page.setViewportSize({ width, height: 844 });
       await mockPicks(page);
-      const requests = [];
-      page.on("request", request => {
-        if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/"))
-          requests.push(request.url());
-      });
       await page.goto("/explore");
       await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
-      const feed = page.getByRole("list", { name: "Swipe through Melloway’s Picks" });
-      const pageScroll = await page.evaluate(() => scrollY);
+      const first = page.locator(".editorial-place-card").first();
+      const photo = first.locator(".editorial-place-photo");
+      const box = await photo.boundingBox();
+      const y = box.y + box.height / 2;
       const session = await page.context().newCDPSession(page);
-      async function swipe(start, end) {
-        const box = await feed.boundingBox();
-        const x = box.x + box.width / 2;
-        const from = box.y + box.height * start, to = box.y + box.height * end;
-        await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: from }] });
+      for (const [from, to] of [[0.85, 0.15], [0.15, 0.85]]) {
+        await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: box.x + box.width * from, y }] });
         for (let step = 1; step <= 10; step++) {
-          await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: from + (to - from) * step / 10 }] });
-          await page.waitForTimeout(16); // Pace a real touch gesture over multiple animation frames.
+          await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: box.x + box.width * (from + (to - from) * step / 10), y }] });
+          await page.waitForTimeout(16);
         }
         await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
       }
-      // Start on the caption and swipe up, then start on the photo and swipe down.
-      await swipe(0.82, 0.12);
-      await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
-      await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
-      await expect(page.locator(".picks-carousel-progress")).toHaveCount(0);
-      const centered = () => feed.evaluate(list => {
-        const card = list.querySelector(".is-selected").getBoundingClientRect();
-        const box = list.getBoundingClientRect();
-        return Math.abs(card.top + card.height / 2 - box.top - box.height / 2);
-      });
-      await expect.poll(centered).toBeLessThan(2);
-      const details = page.locator(".editorial-place-card.is-selected").getByRole("link", { name: "the details", exact: true });
-      await expect(details).toBeInViewport();
-      await swipe(0.12, 0.82);
       await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[0].id);
-      await expect.poll(centered).toBeLessThan(2);
-      expect(await feed.evaluate(list => list.scrollLeft)).toBe(0);
-      expect(await page.evaluate(() => scrollY)).toBe(pageScroll);
-      expect(requests).toEqual([]);
-      await page.screenshot({ path: info.outputPath(`explore-reels-${width}.png`) });
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await photo.tap();
+      const sheet = page.getByRole("dialog", { name: editorialPicks[0].name, exact: true });
+      await expect(sheet).toBeVisible();
+      const bounds = await sheet.boundingBox();
+      expect(Math.abs(bounds.y + bounds.height - 844)).toBeLessThan(2);
+      expect(bounds.x).toBeGreaterThanOrEqual(0);
+      expect(bounds.width).toBeLessThanOrEqual(width);
+      expect(await page.evaluate(() => document.body.style.overflow)).toBe("hidden");
+      await page.screenshot({ path: info.outputPath(`explore-bottom-sheet-${width}.png`) });
+      await sheet.getByRole("button", { name: "close pick details" }).tap();
+      await expect(sheet).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
+      const last = page.locator(".editorial-place-card").last();
+      await last.getByRole("button", { name: "the details", exact: true }).tap();
+      await expect(page.getByRole("dialog", { name: editorialPicks.at(-1).name, exact: true })).toBeVisible();
+      expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.locator(".editorial-place-cards").evaluate(list => list.scrollLeft)).toBe(0);
       await session.detach();
     });
+});
+
+test("Explore sheets retain unknown prices, access conditions and licensed photos", async ({ page }) => {
+  await mockPicks(page, { maps: false, images: false });
+  await page.goto("/explore");
+  await expect(page.locator(".picks-map-unavailable")).toBeVisible();
+  for (const id of ["pick-birdcage-bank-hotel", "pick-o3-newtown", "pick-observatory-hill-park"]) {
+    const venue = editorialPicks.find(pick => pick.id === id);
+    await page.locator(`[data-venue-id="${id}"]`).getByRole("button", { name: "the details", exact: true }).click();
+    const sheet = page.getByRole("dialog", { name: venue.name, exact: true });
+    await expect(sheet).toContainText(venue.costLabel);
+    await expect(sheet.getByRole("region", { name: "Pick sources and access" })).toContainText(venue.conditions);
+    await expect(sheet.getByText("$0 allowance", { exact: true })).toHaveCount(0);
+    await expect(sheet.locator(".editorial-photo-placeholder")).toBeVisible();
+    if (venue.photo) {
+      await expect(sheet.getByRole("link", { name: venue.photo.license, exact: true }).first()).toHaveAttribute("href", venue.photo.licenseUrl);
+      await expect(sheet).toContainText(venue.photo.author);
+    }
+    await sheet.getByRole("button", { name: "close pick details" }).click();
+  }
+});
+
+test("closing a reel returns to the same Explore bottom sheet", async ({ page }) => {
+  await mockPicks(page);
+  const post = "https://www.tiktok.com/@visitor/video/7123456789012345678";
+  let requested;
+  await page.route("**/api/status", route => route.fulfill({ json: { socialDiscovery: "openai" } }));
+  await page.route("**/api/social/search", route => {
+    requested = route.request().postDataJSON().venue;
+    return route.fulfill({ json: { posts: [{ url: post, creator: "visitor", caption: "A visit to Chubby Cubby" }] } });
+  });
+  const errors = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/explore");
+  await page.getByRole("button", { name: `view ${editorialPicks[0].name} details`, exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: editorialPicks[0].name, exact: true });
+  const trigger = sheet.getByRole("button", { name: "watch TikTok post by visitor", exact: true });
+  await expect(trigger).toBeVisible();
+  expect(requested).toEqual({ name: editorialPicks[0].name, address: editorialPicks[0].address,
+    lat: editorialPicks[0].lat, lng: editorialPicks[0].lng });
+  await trigger.click();
+  const player = page.getByRole("dialog", { name: "TikTok", exact: true });
+  await expect(player.getByRole("link", { name: "open on TikTok" })).toHaveAttribute("href", post);
+  await page.keyboard.press("Escape");
+  await expect(player).toHaveCount(0);
+  await expect(sheet).toBeVisible();
+  await expect(trigger).toBeFocused();
+  expect(await page.evaluate(() => document.body.style.overflow)).toBe("hidden");
+  await sheet.getByRole("button", { name: "close pick details" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
+  expect(errors).toEqual([]);
 });
 
 test("desktop keeps the phone-width frame, stacked map and synced horizontal cards", async ({ page }, info) => {

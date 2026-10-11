@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useReducedMotion } from "framer-motion";
-import { ArrowLeft, ArrowUpRight, Clock3, MapPin } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Clock3, MapPin, X } from "lucide-react";
 import { editorialPicks } from "../data/editorialPicks.js";
 import { Doodle } from "./DoodleBackdrop.jsx";
 import { MoodImage } from "./UI.jsx";
@@ -9,6 +9,7 @@ import PicksMap from "./PicksMap.jsx";
 import Venue from "../pages/Venue.jsx";
 import MellowayPicks from "./MellowayPicks.jsx";
 import WeeklySuggestions from "./WeeklySuggestions.jsx";
+import VenueSocial from "./VenueSocial.jsx";
 
 function PhotoCredit({ photo }) {
   return <span className="editorial-photo-credit">
@@ -45,6 +46,40 @@ function PickEvidence({ venue }) {
   </section>;
 }
 
+function PickDetails({ venue, onClose }) {
+  const dialog = useRef(null);
+  useEffect(() => {
+    dialog.current.showModal();
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, []);
+  return <dialog ref={dialog} className="stop-picker-dialog spot-detail-dialog pick-detail-dialog"
+    aria-labelledby="pick-detail-title"
+    onClose={(event) => { if (event.target === dialog.current) onClose(); }}
+    onClick={(event) => { if (event.target === dialog.current) dialog.current.close(); }}>
+    <div className="stop-picker-content">
+      <header>
+        <div><p>Melloway’s pick · {venue.category.toLowerCase()}</p><h2 id="pick-detail-title">{venue.name}</h2></div>
+        <button type="button" autoFocus aria-label="close pick details" onClick={() => dialog.current.close()}><X size={22} /></button>
+      </header>
+      <div className="spot-detail-photo"><PlacePhoto venue={venue} /></div>
+      <div className="stop-detail">
+        <div className="stop-kicker"><span>~{venue.mins} min visit</span><span>{venue.costLabel}</span></div>
+        <p className="stop-address"><MapPin size={14} /> {venue.address}</p>
+        <div className="editorial-vibes">{venue.vibes.map((vibe) => <span key={vibe}>{vibe}</span>)}</div>
+        <p>{venue.description}</p><p>{venue.scheduleLabel}</p>
+        <VenueSocial venue={venue} compact />
+        <PickEvidence venue={venue} />
+        <a className="button green" target="_blank" rel="noreferrer"
+          href={venue.mapsUri || `https://www.google.com/maps/search/?api=1&query=${venue.lat},${venue.lng}`}>
+          check it on Google Maps <ArrowUpRight size={17} />
+        </a>
+      </div>
+    </div>
+  </dialog>;
+}
+
 export default function PicksExplorer({ embedded = false }) {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
@@ -54,6 +89,7 @@ export default function PicksExplorer({ embedded = false }) {
   const [focused, setFocused] = useState(false), [resetView, setResetView] = useState(0);
   const cards = useRef(new Map()), carousel = useRef(null), scrollTimer = useRef(null), drag = useRef(null), skipClick = useRef(false);
   const [dragging, setDragging] = useState(false);
+  const [detail, setDetail] = useState(null);
   const reduced = useReducedMotion();
   const active = venues.find((venue) => venue.id === selectedId) || venues[0];
   const activeIndex = venues.indexOf(active);
@@ -71,13 +107,17 @@ export default function PicksExplorer({ embedded = false }) {
     next.set("place", id);
     setParams(next, { replace: true });
     const card = cards.current.get(id), list = carousel.current;
-    if (!scroll || !card || !list) return;
+    if (embedded || !scroll || !card || !list) return;
     const cardBox = card.getBoundingClientRect(), listBox = list.getBoundingClientRect();
     list.scrollTo({
       left: embedded ? 0 : list.scrollLeft + cardBox.left - listBox.left - (list.clientWidth - cardBox.width) / 2,
       top: embedded ? list.scrollTop + cardBox.top - listBox.top - (list.clientHeight - cardBox.height) / 2 : 0,
       behavior: reduced ? "instant" : "smooth",
     });
+  }
+  function view(venue) {
+    select(venue.id, false);
+    setDetail(venue);
   }
   function followSwipe() {
     clearTimeout(scrollTimer.current);
@@ -145,20 +185,25 @@ export default function PicksExplorer({ embedded = false }) {
       </>}
     </header>
     <div className="editorial-picks-browser">
-      <PicksMap venues={venues} selectedId={active.id} focusPoint={focused ? active : null} onSelect={select}
+      <PicksMap venues={venues} selectedId={active.id} focusPoint={focused ? active : null}
+        onSelect={embedded ? (id) => view(venues.find((venue) => venue.id === id)) : select}
         resetView={resetView} onShowAll={() => { setFocused(false); setResetView((old) => old + 1); }} />
       <section className="editorial-card-panel" aria-label="Pick photo cards">
-        <ul className={`editorial-place-cards ${dragging ? "is-dragging" : ""}`} ref={carousel} onScroll={followSwipe}
-          tabIndex={0} aria-label="Swipe through Melloway’s Picks" onKeyDown={carouselKey}
-          onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}
-          onDragStart={(event) => event.preventDefault()}
-          onClickCapture={(event) => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } }}>
+        <ul className={`editorial-place-cards ${dragging ? "is-dragging" : ""}`} ref={carousel}
+          aria-label={embedded ? "Melloway’s Picks" : "Swipe through Melloway’s Picks"}
+          {...(!embedded && { onScroll: followSwipe, tabIndex: 0, onKeyDown: carouselKey,
+            onPointerDown: startDrag, onPointerMove: moveDrag, onPointerUp: endDrag, onPointerCancel: endDrag,
+            onDragStart: (event) => event.preventDefault(),
+            onClickCapture: (event) => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } },
+          })}>
           {venues.map((venue) => <li key={venue.id} ref={(element) => { if (element) cards.current.set(venue.id, element); else cards.current.delete(venue.id); }}
-            className={`editorial-place-card ${active.id === venue.id ? "is-selected" : ""}`} data-venue-id={venue.id}>
+            className={`editorial-place-card ${active.id === venue.id ? "is-selected" : ""}`} data-venue-id={venue.id}
+            onClick={embedded ? (event) => { if (!event.target.closest("a, button")) view(venue); } : undefined}>
             <PlacePhoto venue={venue} />
             <div className="editorial-place-copy">
               {!embedded && <div className="editorial-place-kicker"><span>{venue.kind === "recurring-event" ? "weekly event" : venue.category}</span><span>{String(venue.number).padStart(2, "0")}</span></div>}
-              <h2><button type="button" aria-label={`show ${venue.name} on map`} onClick={() => select(venue.id)}>{venue.name}</button></h2>
+              <h2><button type="button" aria-label={embedded ? `view ${venue.name} details` : `show ${venue.name} on map`}
+                aria-haspopup={embedded ? "dialog" : undefined} onClick={() => embedded ? view(venue) : select(venue.id)}>{venue.name}</button></h2>
               <p className="editorial-place-address"><MapPin size={14} /> {venue.address}</p>
               {!embedded && <>
                 <div className="editorial-vibes">{venue.vibes.map((vibe) => <span key={vibe}>{vibe}</span>)}</div>
@@ -166,7 +211,9 @@ export default function PicksExplorer({ embedded = false }) {
                 <div className="editorial-place-facts"><span><Clock3 size={14} /> ~{venue.mins} min visit</span><span>{venue.costLabel}</span></div>
                 <p className="editorial-place-schedule">{venue.scheduleLabel}</p>
               </>}
-              <Link className="text-button" to={`/picks/places/${venue.id}`}>the details <ArrowUpRight size={15} /></Link>
+              {embedded
+                ? <button type="button" className="text-button" aria-haspopup="dialog" onClick={() => view(venue)}>the details <ArrowUpRight size={15} /></button>
+                : <Link className="text-button" to={`/picks/places/${venue.id}`}>the details <ArrowUpRight size={15} /></Link>}
             </div>
           </li>)}
         </ul>
@@ -176,6 +223,7 @@ export default function PicksExplorer({ embedded = false }) {
       </section>
     </div>
   </div>
+    {detail && <PickDetails key={detail.id} venue={detail} onClose={() => setDetail(null)} />}
     {!embedded && <section className="editorial-existing-picks" aria-label="Existing pick routes">
       <h2>make a day of it.</h2><MellowayPicks showHeading={false} /><WeeklySuggestions />
     </section>}
