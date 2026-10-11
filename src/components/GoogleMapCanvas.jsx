@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { loadGoogleMaps } from "../services/googleMaps";
 import { animateMapCamera } from "../utils/mapCamera.js";
+import { drawRouteOverlays, transitMapStyles } from "../../shared/routeMapOverlays.ts";
 
 const located = (point) => Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
@@ -31,7 +32,7 @@ export default function GoogleMapCanvas({
   points, selectedId, onSelect, focusPoint, resetView, interactive = true, smoothFocus = false,
   groupNearby = false, fitPadding, mapStyles, markerContent, ariaLabel = "Google Maps",
   className = "map-canvas", statusClassName = "map-status", fallback,
-  renderPreview, previewOnTap = false, routePaths, routeTransport = "Walking", routeColorVar,
+  renderPreview, renderRoutePreview, previewOnTap = false, routePaths, routeTransport = "Walking", routeColorVar,
 }) {
   const canvas = useRef(null);
   const view = useRef(null);
@@ -45,16 +46,22 @@ export default function GoogleMapCanvas({
   const [status, setStatus] = useState("loading");
   const [error, setError] = useState("");
   const [preview, setPreview] = useState(null);
+  const [routePreview, setRoutePreview] = useState(null);
+  const [routePinned, setRoutePinned] = useState(false);
+  const pinnedPreview = useRef(false);
   const previewRenderer = useRef(renderPreview);
   previewRenderer.current = renderPreview;
+  const routePreviewRenderer = useRef(renderRoutePreview);
+  routePreviewRenderer.current = renderRoutePreview;
   const tapPreview = useRef(previewOnTap);
   tapPreview.current = previewOnTap;
   const closeTimer = useRef(null);
   function keepPreview() { clearTimeout(closeTimer.current); }
-  function closePreview() { keepPreview(); setPreview(null); }
+  function closePreview() { keepPreview(); pinnedPreview.current = false; setRoutePinned(false); setPreview(null); setRoutePreview(null); }
+  function pinPreview() { keepPreview(); pinnedPreview.current = true; setRoutePinned(true); }
   function leavePreview() {
     keepPreview();
-    closeTimer.current = setTimeout(() => setPreview(null), 250);
+    if (!pinnedPreview.current) closeTimer.current = setTimeout(closePreview, 250);
   }
   useEffect(() => { select.current = onSelect; }, [onSelect]);
   selected.current = selectedId;
@@ -86,7 +93,7 @@ export default function GoogleMapCanvas({
       let drawnProjection;
       const bounds = new core.LatLngBounds();
       valid.forEach((point) => bounds.extend({ lat: point.lat, lng: point.lng }));
-      let routeLines = [];
+      let clearRoutes = () => {};
       let routePositions = [];
       const routeColor = () => routeColorVar ? getComputedStyle(canvas.current).getPropertyValue(routeColorVar).trim() : null;
       function fit() {
@@ -142,7 +149,10 @@ export default function GoogleMapCanvas({
           element.setAttribute("aria-label", group.map((p) => p.ariaLabel || p.name).join(" · "));
           markerContent(element, group);
           if (previewRenderer.current) {
-            const show = () => { keepPreview(); setPreview(group); };
+            const show = () => {
+              if (pinnedPreview.current) return;
+              keepPreview(); setRoutePreview(null); setPreview(group);
+            };
             element.addEventListener("pointerenter", event => { if (event.pointerType !== "touch") show(); });
             element.addEventListener("pointerleave", leavePreview);
             element.addEventListener("focus", show);
@@ -172,13 +182,17 @@ export default function GoogleMapCanvas({
         icons: [{ icon: { path: "M 0,-1 0,1", strokeColor: routeColor() || "#f39aad", strokeOpacity: 1, scale: 2 }, offset: "0", repeat: "12px" }],
       }) : null;
       function setRoutes(paths, transport) {
-        routeLines.forEach(line => line.setMap(null));
+        clearRoutes();
+        closePreview();
         routePositions = (paths || []).flatMap(leg => leg.path);
-        routeLines = (paths || []).flatMap(leg => [
-          new maps.Polyline({ map, path: leg.path, strokeColor: "#ffffff", strokeOpacity: .95, strokeWeight: 9, zIndex: 1 }),
-          new maps.Polyline({ map, path: leg.path, strokeColor: routeColor() || (transport === "Walking" ? "#cc5478" : "#287665"),
-            strokeOpacity: 1, strokeWeight: 5, zIndex: 2 }),
-        ]);
+        clearRoutes = drawRouteOverlays({ maps, core, map, paths: paths || [], transport,
+          color: routeColor() || (transport === "Walking" ? "#cc5478" : "#287665"), points,
+          onPreview: (fromIndex, pinned) => {
+            if (!routePreviewRenderer.current || pinnedPreview.current && !pinned) return;
+            const leg = routeState.current.paths?.find(leg => leg.fromIndex === fromIndex);
+            if (!leg) return;
+            keepPreview(); pinnedPreview.current = pinned; setRoutePinned(pinned); setPreview(null); setRoutePreview(leg);
+          }, onLeave: leavePreview, onClose: closePreview });
         canvas.current.dataset.routeMode = transport;
         canvas.current.dataset.routeLegs = String((paths || []).length);
         fit();
@@ -204,7 +218,7 @@ export default function GoogleMapCanvas({
         readyListener.remove();
         pins.forEach(({ pin }) => { pin.map = null; });
         line?.setMap(null);
-        routeLines.forEach(line => line.setMap(null));
+        clearRoutes();
         window.google.maps.event.clearInstanceListeners(map);
         canvas.current?.replaceChildren();
         view.current = null;
@@ -238,17 +252,18 @@ export default function GoogleMapCanvas({
   useEffect(() => { view.current?.fit(); }, [resetView]);
   return (
     <div className={`google-map-canvas ${className}`} role="region" aria-label={ariaLabel} data-map-state={status} data-map-error={error || undefined}
-      onPointerLeave={leavePreview} onKeyDown={event => { if (event.key === "Escape" && preview) { event.stopPropagation(); closePreview(); } }}>
+      onPointerLeave={leavePreview} onKeyDown={event => { if (event.key === "Escape" && (preview || routePreview)) { event.preventDefault(); event.stopPropagation(); closePreview(); } }}>
+      {routeTransport === "Public transport" && <style>{transitMapStyles}</style>}
       <div ref={canvas} className="google-map-surface"
         onPointerDownCapture={() => stopCamera.current()}
         onWheelCapture={() => stopCamera.current()}
         onKeyDownCapture={() => stopCamera.current()} />
       {status === "loading" && <p className={statusClassName} role="status">loading Google Maps…</p>}
       {status === "error" && <div className="google-map-error">{fallback || <p role="status">Google Maps unavailable.</p>}</div>}
-      {status === "ready" && preview && renderPreview && <div className="map-preview-layer"
+      {status === "ready" && (routePreview && renderRoutePreview || preview && renderPreview) && <div className={`map-preview-layer${routePreview ? " map-route-preview-layer" : ""}`}
         onPointerEnter={keepPreview} onPointerLeave={leavePreview}
         onFocus={keepPreview} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) leavePreview(); }}>
-        {renderPreview(preview, id => { closePreview(); select.current?.(id); }, closePreview)}
+        {routePreview ? renderRoutePreview(routePreview, closePreview, pinPreview, routePinned) : renderPreview(preview, id => { closePreview(); select.current?.(id); }, closePreview)}
       </div>}
     </div>
   );

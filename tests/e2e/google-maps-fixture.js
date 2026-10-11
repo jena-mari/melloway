@@ -96,8 +96,10 @@ export const googleMapsFixture = String.raw`
       this.node.dataset.routePath = JSON.stringify(options.path);
       if (options.strokeColor) this.node.dataset.routeColor = options.strokeColor;
       if (options.icons) this.node.dataset.routeIcons = JSON.stringify(options.icons);
+      if (options.clickable) this.node.dataset.routeClickable = 'true';
       this.setMap(options.map);
     }
+    addListener(name, fn) { this.node.addEventListener(name, fn); return { remove: () => this.node.removeEventListener(name, fn) }; }
     setMap(map) { this.map = map; this.node.remove(); if (map) map.element.append(this.node); }
   }
   // Match the real SDK: coordinates belong to core, not the maps library.

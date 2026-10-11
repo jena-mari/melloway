@@ -7,6 +7,7 @@ import {
 import GoogleMapCanvas from "./GoogleMapCanvas";
 import GoogleStopMap from "./GoogleStopMap";
 import MapSpotPreview from "./MapSpotPreview";
+import MapRoutePreview from "./MapRoutePreview";
 
 import { requestItineraryRoutes } from "../services/itineraryRoutes.ts";
 import { directions } from "../utils/planner";
@@ -48,6 +49,7 @@ function MapCanvas({ stops, transport, interactive, selectedStopId, onSelectStop
         onSelect={onSelectStop} interactive={interactive}
         groupNearby mapStyles={quietMapStyles} routeColorVar="--pink" markerContent={routeMarker} ariaLabel="Map of your stops"
         renderPreview={(points, onSelect, onClose) => <MapSpotPreview points={points} onSelect={onSelect} onClose={onClose} />}
+        renderRoutePreview={(leg, onClose, onPin, pinned) => <MapRoutePreview leg={leg} stops={stops} onClose={onClose} onPin={onPin} pinned={pinned} />}
         fallback={<div className="map-unavailable">
           <p role="status">Google Maps unavailable.</p>
           <a href={directions(stops, transport)} target="_blank" rel="noreferrer">

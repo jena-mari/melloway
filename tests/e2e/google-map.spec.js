@@ -121,11 +121,13 @@ test('unrelated window messages cannot select a stop or hide the map', async ({ 
     window.postMessage({ type: 'melloway-map-stop', index: 2 }, '*');
     window.postMessage({ type: 'melloway-map-error' }, '*');
     window.postMessage({ type: 'melloway-map-preview', index: 2 }, '*');
+    window.postMessage({ type: 'melloway-map-route-preview', index: 0, pinned: true }, '*');
   });
   await expect(page.locator('.route-summary-list > li').first()).toHaveClass(/selected-route-stop/);
   await expect(page.locator('.inline-stop-expansion')).toHaveCount(0);
   await expect(page.locator('.map-unavailable')).toHaveCount(0);
   await expect(page.getByRole('complementary', { name: 'Place preview' })).toHaveCount(0);
+  await expect(page.getByRole('complementary', { name: 'Transport preview' })).toHaveCount(0);
 });
 
 
@@ -204,4 +206,127 @@ for (const source of ['google','curated']) test(`${source} routes read --pink fr
   await page.getByRole('combobox',{name:'transportation',exact:true}).selectOption('Driving');
   await expect(surface).toHaveAttribute('data-route-mode','Driving');
   await expect(surface.locator('[data-route-color="#de789c"]')).toHaveCount(2);
+});
+
+function mockJourney(index, options = {}) {
+  const journey = { departureTime: '2026-10-12T00:45:00.000Z', durationMinutes: 22, steps: [
+    { mode: 'walk', minutes: 4 },
+    { mode: 'transit', minutes: 12, vehicle: 'BUS', line: '333', headsign: 'Mock destination', stopCount: 5,
+      departureStop: { name: `Mock boarding stop ${index + 1}`, location: { lat: stops[index].lat + .002, lng: stops[index].lng + .002 } },
+      arrivalStop: { name: `Mock arrival stop ${index + 1}`, location: { lat: stops[index + 1].lat - .002, lng: stops[index + 1].lng - .002 } },
+      departureTime: '2026-10-12T00:49:00Z', arrivalTime: '2026-10-12T01:01:00Z' },
+    { mode: 'walk', minutes: 6 },
+  ] };
+  if (options.walkOnly) journey.steps = [{ mode: 'walk', minutes: 10 }];
+  if (options.transfer) journey.steps.splice(2, 0, { mode: 'walk', minutes: 2 },
+    { ...journey.steps[1], vehicle: 'HEAVY_RAIL', line: 'T2', headsign: 'Mock train destination' });
+  if (options.malformed) journey.steps[1].departureStop.location.lat = 91;
+  return journey;
+}
+
+async function transportFixture(page, source = 'google', options = {}) {
+  await mapFixture(page);
+  await page.addInitScript(source => {
+    const value = JSON.parse(localStorage.getItem('melloway.current'));
+    value.plan.prefs.transport = 'Public transport'; value.plan.prefs.date = '2026-10-12';
+    value.plan.stops.forEach(stop => stop.source = source);
+    localStorage.setItem('melloway.current', JSON.stringify(value));
+  }, source);
+  await page.route('**/api/itinerary-routes', route => {
+    const { stops, transport } = route.request().postDataJSON();
+    return route.fulfill({ json: { transport, missingLegs: 0, warnings: [], paths: stops.slice(1).map((to, index) => ({
+      fromIndex: index, toIndex: index + 1,
+      path: [{ lat: stops[index].lat, lng: stops[index].lng }, { lat: stops[index].lat, lng: to.lng }, { lat: to.lat, lng: to.lng }],
+      ...(transport === 'Public transport' && !options.missing ? { journey: mockJourney(index, options) } : {}),
+    })) } });
+  });
+}
+
+const routeSurface = (page, source, expanded = false) => source === 'google'
+  ? page.frameLocator(`${expanded ? 'dialog' : '.route-map-hero'} .google-route-map`).locator('#map')
+  : page.locator(`${expanded ? 'dialog' : '.route-map-hero'} .google-map-surface`);
+
+for (const source of ['google', 'curated']) test(`${source} transit lines preview boarding, service, schedule and walking with pinned cards in both views`, async ({ page }, info) => {
+  await transportFixture(page, source);
+  await page.goto('/itinerary');
+  const surface = routeSurface(page, source);
+  await expect(surface).toHaveAttribute('data-route-mode', 'Public transport');
+  await expect(surface.locator('.map-route-journey-pin')).toHaveCount(2);
+  await expect(surface.locator('.map-transit-pin')).toHaveCount(4);
+  // The SDK fixture forwards polyline events without contacting Google.
+  await surface.locator('[data-route-clickable]').first().dispatchEvent('mouseover');
+  const preview = page.locator('.route-map-hero').getByRole('complementary', { name: 'Transport preview' });
+  await expect(preview).toContainText('A → B · 22 min');
+  await expect(preview).toContainText('Bus 333 · 12 min');
+  await expect(preview).toContainText('Board at Mock boarding stop 1 · 11:49 am');
+  await expect(preview).toContainText('Get off at Mock arrival stop 1 · 12:01 pm');
+  await expect(preview).toContainText('Walk 4 min'); await expect(preview).toContainText('Walk 6 min');
+  await expect(preview).toContainText('Leaving Mon, 12 Oct, 11:45 am · estimated');
+  await preview.hover();
+  const url = new URL(await preview.getByRole('link').getAttribute('href'));
+  expect(url.searchParams.get('origin')).toBe(`${stops[0].lat},${stops[0].lng}`);
+  expect(url.searchParams.get('destination')).toBe(`${stops[1].lat},${stops[1].lng}`);
+  expect(url.searchParams.get('travelmode')).toBe('transit');
+  await preview.getByRole('button', { name: 'keep transport preview open' }).click();
+  await expect(preview.getByRole('button', { name: 'keep transport preview open' })).toHaveAttribute('aria-pressed', 'true');
+  await preview.getByRole('button', { name: 'close transport preview' }).click();
+  await surface.locator('[data-route-clickable]').first().dispatchEvent('click');
+  await page.mouse.move(1, 1);
+  await expect(preview).toBeVisible();
+  await surface.locator('.route-pin').first().focus();
+  await expect(page.getByRole('complementary', { name: 'Place preview' })).toHaveCount(0);
+  await expect(preview).toBeVisible();
+  await preview.getByRole('button', { name: 'close transport preview' }).click();
+  await surface.locator('.route-pin').first().focus();
+  await expect(page.getByRole('complementary', { name: 'Place preview' })).toBeVisible();
+  await surface.locator('.route-pin').first().press('Escape');
+  await expect(page.getByRole('complementary', { name: 'Place preview' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'expand map', exact: true }).click();
+  const expanded = routeSurface(page, source, true);
+  const connection = expanded.getByRole('button', { name: 'Transport from Mock stop 1 to Mock stop 2', exact: true });
+  await connection.focus();
+  await expect(page.getByRole('dialog').getByRole('complementary', { name: 'Transport preview' })).toContainText('Bus 333');
+  await connection.press('Escape');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('complementary', { name: 'Transport preview' })).toHaveCount(0);
+  await expanded.getByRole('button', { name: /^Board at Mock boarding stop 1/ }).click();
+  await expect(page.getByRole('dialog').getByRole('complementary', { name: 'Transport preview' })).toBeVisible();
+  await page.getByRole('dialog').screenshot({ path: info.outputPath(`${source}-transit-expanded.png`) });
+});
+
+test.describe('transport tap previews', () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  for (const source of ['google', 'curated']) test(`${source} connections open on tap and fit inside the compact map`, async ({ page }, info) => {
+    await transportFixture(page, source, { transfer: true });
+    await page.goto('/itinerary');
+    const surface = routeSurface(page, source);
+    await surface.getByRole('button', { name: 'Transport from Mock stop 1 to Mock stop 2', exact: true }).tap();
+    const preview = page.getByRole('complementary', { name: 'Transport preview' });
+    await expect(preview).toContainText('1 transfer');
+    await expect(preview).toContainText('Train T2');
+    const cardBox = await preview.boundingBox(), mapBox = await page.locator('.route-map-hero').boundingBox();
+    expect(cardBox.y).toBeGreaterThanOrEqual(mapBox.y);
+    expect(cardBox.y + cardBox.height).toBeLessThanOrEqual(mapBox.y + mapBox.height);
+    await page.locator('.route-map-hero').screenshot({ path: info.outputPath(`${source}-transit-mobile.png`) });
+    await preview.getByRole('button', { name: 'close transport preview' }).tap();
+    await expect(preview).toHaveCount(0);
+  });
+});
+
+for (const options of [{ missing: true }, { malformed: true }, { walkOnly: true }]) test(`transit preview handles ${Object.keys(options)[0]} details without losing the route`, async ({ page }) => {
+  await transportFixture(page, 'google', options);
+  await page.goto('/itinerary');
+  const surface = routeSurface(page, 'google');
+  await expect(surface).toHaveAttribute('data-route-legs', '2');
+  await surface.getByRole('button', { name: 'Transport from Mock stop 1 to Mock stop 2', exact: true }).click();
+  const preview = page.getByRole('complementary', { name: 'Transport preview' });
+  if (options.walkOnly) {
+    await expect(preview).toContainText('Walking connection'); await expect(preview).toContainText('Walk 10 min');
+  } else await expect(preview).toContainText('Transport details aren’t available');
+  await expect(preview.getByRole('link')).toHaveAttribute('href', /travelmode=transit/);
+  await expect(surface.locator('.map-transit-pin')).toHaveCount(0);
+  await page.getByRole('combobox', { name: 'transportation', exact: true }).selectOption('Walking');
+  await expect(preview).toHaveCount(0);
+  await expect(surface.locator('.map-route-journey-pin')).toHaveCount(0);
+  await expect(surface).toHaveAttribute('data-route-mode', 'Walking');
 });
