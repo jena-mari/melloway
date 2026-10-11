@@ -5475,6 +5475,17 @@ html:has(.profile-page) {
   height: auto;
   aspect-ratio: 1;
 }
+.result-photo-strip .image-caption {
+  display: none;
+}
+.result-photo-letter {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  color: #fff;
+  font: 700 22px/1 Arial, sans-serif;
+  text-shadow: 0 1px 4px #000, 0 0 2px #000;
+}
 .route-summary-meta {
   margin: 0 12px 8px;
   font-size: 10px;

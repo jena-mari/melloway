@@ -502,8 +502,7 @@ export default function Itinerary({
             aria-label="Route photos"
           >
             {plan.stops
-              .filter((stop) => stop.image)
-              .map((stop) => (
+              .map((stop, index) => stop.image && (
                 <button
                   key={stop.id}
                   className="community-stop-photo"
@@ -518,7 +517,9 @@ export default function Itinerary({
                         : ""
                     }
                   />
-                  <strong>{stop.name}</strong>
+                  <span className="result-photo-letter" aria-hidden="true">
+                    {String.fromCharCode(65 + index)}
+                  </span>
                 </button>
               ))}
           </div>
