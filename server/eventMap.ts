@@ -30,9 +30,20 @@ function notifyParent(message) {
   else window.parent.postMessage(message, parentOrigin || '*');
 }
 let selectMarker = () => {};
+let drawRoutes = () => {};
+let fitMap = () => {};
 if (itinerary) window.addEventListener('message', event => {
-  if (!itinerary || event.source !== window.parent || event.origin !== parentOrigin
-    || event.data?.type !== 'melloway-map-select') return;
+  if (event.source !== window.parent || event.origin !== parentOrigin) return;
+  if (event.data?.type === 'melloway-map-fit') return fitMap();
+  if (event.data?.type === 'melloway-map-route') {
+    const { paths, transport } = event.data;
+    if (!['Walking', 'Public transport'].includes(transport) || !Array.isArray(paths) || paths.length > pins.length - 1
+      || paths.some(leg => !Array.isArray(leg?.path) || leg.path.length < 2 || leg.path.length > 10000
+        || leg.path.some(p => !Number.isFinite(p?.lat) || !Number.isFinite(p?.lng)
+          || Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180))) return;
+    return drawRoutes(paths, transport);
+  }
+  if (event.data?.type !== 'melloway-map-select') return;
   const index = event.data.index;
   if (Number.isInteger(index) && index >= 0 && index < pins.length) selectMarker(index);
 });
@@ -53,10 +64,10 @@ function failMap(reason = 'load') {
 window.gm_authFailure = () => { complete = false; failMap('auth'); };
 window.initVenueMap = async () => {
   try {
-    const { Map } = await google.maps.importLibrary('maps');
+    const { Map, Polyline } = await google.maps.importLibrary('maps');
     const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary('marker');
     const map = new Map(document.getElementById('map'), { center: { lat: pins[0].latitude, lng: pins[0].longitude },
-      zoom: 14, mapId: 'DEMO_MAP_ID', streetViewControl: false, mapTypeControl: false });
+      zoom: itinerary ? 17 : 14, maxZoom: 18, mapId: 'DEMO_MAP_ID', streetViewControl: false, mapTypeControl: false });
     const bounds = new google.maps.LatLngBounds();
     const markers = [];
     for (const [index, pin] of pins.entries()) {
@@ -86,7 +97,30 @@ window.initVenueMap = async () => {
       });
     };
     if (itinerary) selectMarker(0);
-    if (pins.length > 1) map.fitBounds(bounds, itinerary ? { top: 110, right: 45, bottom: 35, left: 45 } : 40);
+    let lines = [];
+    let routePaths = [];
+    fitMap = () => {
+      const fitted = new google.maps.LatLngBounds();
+      const positions = pins.map(pin => ({ lat: pin.latitude, lng: pin.longitude }));
+      routePaths.forEach(leg => positions.push(...leg.path));
+      positions.forEach(position => fitted.extend(position));
+      if (positions.some(position => position.lat !== positions[0].lat || position.lng !== positions[0].lng))
+        map.fitBounds(fitted, itinerary ? { top: 76, right: 24, bottom: 24, left: 24 } : 40);
+      else { map.setCenter(positions[0]); map.setZoom(itinerary ? 17 : 14); }
+    };
+    drawRoutes = (paths, transport) => {
+      lines.forEach(line => line.setMap(null));
+      routePaths = paths;
+      lines = paths.flatMap(leg => [
+        new Polyline({ map, path: leg.path, strokeColor: '#ffffff', strokeOpacity: .95, strokeWeight: 9, zIndex: 1 }),
+        new Polyline({ map, path: leg.path, strokeColor: transport === 'Walking' ? '#cc5478' : '#287665',
+          strokeOpacity: 1, strokeWeight: 5, zIndex: 2 }),
+      ]);
+      document.getElementById('map').dataset.routeMode = transport;
+      document.getElementById('map').dataset.routeLegs = String(paths.length);
+      fitMap();
+    };
+    fitMap();
     complete = true;
     clearTimeout(timer);
     if (itinerary) notifyParent({ type: 'melloway-map-ready' });

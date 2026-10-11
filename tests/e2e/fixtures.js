@@ -17,6 +17,13 @@ export async function mockMapTiles(page) {
     await page.route(`https://${host}/**`, route => route.fulfill({ contentType: "image/svg+xml",
       body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><rect width="400" height="500" fill="#d9dfcb"/><text x="24" y="240" font-size="28">Mock organiser artwork</text></svg>' }));
   }
+  await page.route("**/api/itinerary-routes", route => {
+    const { stops, transport } = route.request().postDataJSON();
+    return route.fulfill({ json: { transport, missingLegs: 0, warnings: [], paths: stops.slice(1).map((to, index) => ({
+      fromIndex: index, toIndex: index + 1,
+      path: [{ lat: stops[index].lat, lng: stops[index].lng }, { lat: stops[index].lat, lng: to.lng }, { lat: to.lat, lng: to.lng }],
+    })) } });
+  });
   await page.route("**/api/social/events", route => route.fulfill({ json: { posts: [] } }));
   await page.route("**/api/maps/config", route => route.fulfill({
     json: { apiKey: "offline-browser-map-key", mapId: "DEMO_MAP_ID" },

@@ -31,6 +31,8 @@ Before this push, the completed work passed 407 automated tests, typechecking, t
 
 The push checkpoint also integrates teammate main through `a286d23`, preserving the Picks map/photo explorer, shared Hack48 event, discovery CLI and social updates. After integration, all 428 automated tests, typechecking and the build passed; all 33 selected browser regressions passed across history, recommendation research, Picks, Hack48, social posts and events (saved-Picks and social fixtures rechecked after the initial run).
 
+The final fetch also included teammate route-geometry/map-framing updates through `806e81f`. Both additive API endpoints were retained. The full automated suite, typechecking and build passed again, plus 18 affected Google-map/history browser checks; the preserved Picks explorer also passed its five browser checks after its Back link was aligned with Explore.
+
 ## Pending brief and evidence gaps
 
 The full new brief is preserved below. Main pending work: richer multi-category venue profiles and verification states; configurable compatibility-first scoring; better intent/vibe interpretation; cohesive activity sequencing, meal/market/sunset timing and constrained routing; controlled diversity using prior/rejected venues; concise personalised explanations; legitimate social metadata; and the eight requested scenario tests/results.

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { RoutePaths } from '../services/itineraryRoutes.ts';
 import MapSpotPreview from './MapSpotPreview';
 
 interface StopPin { id: string; name: string; lat: number; lng: number }
@@ -7,11 +8,14 @@ interface GoogleStopMapProps {
   selectedStopId?: string;
   onSelectStop?: (id: string) => void;
   directionsUrl: string;
+  routePaths?: RoutePaths['paths'];
+  transport?: RoutePaths['transport'];
+  resetView?: number;
 }
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
 
-export default function GoogleStopMap({ stops, selectedStopId, onSelectStop, directionsUrl }: GoogleStopMapProps) {
+export default function GoogleStopMap({ stops, selectedStopId, onSelectStop, directionsUrl, routePaths, transport, resetView }: GoogleStopMapProps) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
@@ -62,6 +66,15 @@ export default function GoogleStopMap({ stops, selectedStopId, onSelectStop, dir
       type: 'melloway-map-select', index: selectedIndex,
     }, origin);
   }, [status, selectedIndex, origin]);
+
+  useEffect(() => {
+    if (status === 'ready') frame.current?.contentWindow?.postMessage({
+      type: 'melloway-map-route', paths: routePaths || [], transport,
+    }, origin);
+  }, [status, routePaths, transport, origin]);
+  useEffect(() => {
+    if (status === 'ready') frame.current?.contentWindow?.postMessage({ type: 'melloway-map-fit' }, origin);
+  }, [resetView, status, origin]);
 
   if (status === 'error') return <div className="map-unavailable" role="status">
     <span className="map-unavailable-dots" aria-hidden="true">{stops.map((_, i) => i + 1).join(' · ')}</span>

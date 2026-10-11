@@ -8,13 +8,15 @@ export default function GoogleMapCanvas({
   points, selectedId, onSelect, focusPoint, resetView, interactive = true,
   groupNearby = false, markerContent, ariaLabel = "Google Maps",
   className = "map-canvas", statusClassName = "map-status", fallback,
-  renderPreview, previewOnTap = false,
+  renderPreview, previewOnTap = false, routePaths, routeTransport = "Walking",
 }) {
   const canvas = useRef(null);
   const view = useRef(null);
   const select = useRef(onSelect);
   const selected = useRef(selectedId);
   const focused = useRef(focusPoint);
+  const routeState = useRef({ paths: routePaths, transport: routeTransport });
+  routeState.current = { paths: routePaths, transport: routeTransport };
   const reduced = useReducedMotion();
   const [status, setStatus] = useState("loading");
   const [preview, setPreview] = useState(null);
@@ -44,7 +46,7 @@ export default function GoogleMapCanvas({
       const valid = points.filter(located);
       if (!valid.length) { setStatus("error"); return; }
       const map = new maps.Map(canvas.current, {
-        center: { lat: valid[0].lat, lng: valid[0].lng }, zoom: 14, mapId,
+        center: { lat: valid[0].lat, lng: valid[0].lng }, zoom: 17, maxZoom: 18, mapId,
         disableDefaultUI: true, zoomControl: interactive,
         gestureHandling: interactive ? "cooperative" : "none",
         keyboardShortcuts: interactive, clickableIcons: false,
@@ -54,6 +56,8 @@ export default function GoogleMapCanvas({
       let drawnProjection;
       const bounds = new core.LatLngBounds();
       valid.forEach((point) => bounds.extend({ lat: point.lat, lng: point.lng }));
+      let routeLines = [];
+      let routePositions = [];
       function fit() {
         if (focused.current && located(focused.current)) {
           map.setZoom(16);
@@ -61,7 +65,13 @@ export default function GoogleMapCanvas({
         } else if (valid.length === 1) {
           map.setZoom(16);
           map.setCenter({ lat: valid[0].lat, lng: valid[0].lng });
-        } else map.fitBounds(bounds, { top: 60, bottom: 35, left: 45, right: 45 });
+        } else {
+          const fitted = new window.google.maps.LatLngBounds();
+          valid.forEach(point => fitted.extend({ lat: point.lat, lng: point.lng }));
+          routePositions.forEach(point => fitted.extend(point));
+          map.fitBounds(fitted, groupNearby ? { top: 64, bottom: 20, left: 24, right: 24 }
+            : { top: 60, bottom: 35, left: 45, right: 45 });
+        }
       }
       function selectPins() {
         pins.forEach(({ element, ids, pin }) => {
@@ -124,11 +134,24 @@ export default function GoogleMapCanvas({
         });
         selectPins();
       }
-      const line = groupNearby ? new maps.Polyline({
+      const line = groupNearby && routeState.current.paths === undefined ? new maps.Polyline({
         map, path: valid.map(({ lat, lng }) => ({ lat, lng })), strokeOpacity: 0,
         icons: [{ icon: { path: "M 0,-1 0,1", strokeColor: "#f39aad", strokeOpacity: 1, scale: 2 }, offset: "0", repeat: "12px" }],
       }) : null;
-      view.current = { map, fit, selectPins };
+      function setRoutes(paths, transport) {
+        routeLines.forEach(line => line.setMap(null));
+        routePositions = (paths || []).flatMap(leg => leg.path);
+        routeLines = (paths || []).flatMap(leg => [
+          new maps.Polyline({ map, path: leg.path, strokeColor: "#ffffff", strokeOpacity: .95, strokeWeight: 9, zIndex: 1 }),
+          new maps.Polyline({ map, path: leg.path, strokeColor: transport === "Walking" ? "#cc5478" : "#287665",
+            strokeOpacity: 1, strokeWeight: 5, zIndex: 2 }),
+        ]);
+        canvas.current.dataset.routeMode = transport;
+        canvas.current.dataset.routeLegs = String((paths || []).length);
+        fit();
+      }
+      view.current = { map, fit, selectPins, setRoutes };
+      setRoutes(routeState.current.paths, routeState.current.transport);
       fit();
       drawPins();
       const zoomListener = map.addListener("zoom_changed", drawPins);
@@ -147,6 +170,7 @@ export default function GoogleMapCanvas({
         readyListener.remove();
         pins.forEach(({ pin }) => { pin.map = null; });
         line?.setMap(null);
+        routeLines.forEach(line => line.setMap(null));
         window.google.maps.event.clearInstanceListeners(map);
         canvas.current?.replaceChildren();
         view.current = null;
@@ -159,6 +183,7 @@ export default function GoogleMapCanvas({
       clean();
     };
   }, [points, interactive, groupNearby, markerContent]);
+  useEffect(() => { view.current?.setRoutes(routePaths, routeTransport); }, [routePaths, routeTransport]);
   useEffect(() => { view.current?.selectPins(); }, [selectedId]);
   useEffect(() => {
     if (!focusPoint || !view.current || !located(focusPoint)) return;
