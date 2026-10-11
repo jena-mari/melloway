@@ -10,6 +10,7 @@ import Venue from "../pages/Venue.jsx";
 import MellowayPicks from "./MellowayPicks.jsx";
 import WeeklySuggestions from "./WeeklySuggestions.jsx";
 import VenueSocial from "./VenueSocial.jsx";
+import VenueReviews from "./VenueReviews.jsx";
 
 function PhotoCredit({ photo }) {
   return <span className="editorial-photo-credit">
@@ -70,6 +71,7 @@ function PickDetails({ venue, onClose }) {
         <div className="editorial-vibes">{venue.vibes.map((vibe) => <span key={vibe}>{vibe}</span>)}</div>
         <p>{venue.description}</p><p>{venue.scheduleLabel}</p>
         <VenueSocial venue={venue} compact />
+        <VenueReviews key={venue.id} venue={venue} />
         <PickEvidence venue={venue} />
         <a className="button green" target="_blank" rel="noreferrer"
           href={venue.mapsUri || `https://www.google.com/maps/search/?api=1&query=${venue.lat},${venue.lng}`}>
