@@ -51,7 +51,7 @@ export default function PicksExplorer({ embedded = false }) {
   const venues = useMemo(() => editorialPicks
     .map((venue, index) => ({ ...venue, number: index + 1 })), []);
   const [selectedId, setSelectedId] = useState(() => params.get("place") || venues[0].id);
-  const [focused, setFocused] = useState(false);
+  const [focused, setFocused] = useState(false), [resetView, setResetView] = useState(0);
   const cards = useRef(new Map()), carousel = useRef(null), scrollTimer = useRef(null), drag = useRef(null), skipClick = useRef(false);
   const [dragging, setDragging] = useState(false);
   const reduced = useReducedMotion();
@@ -145,7 +145,8 @@ export default function PicksExplorer({ embedded = false }) {
       </>}
     </header>
     <div className="editorial-picks-browser">
-      <PicksMap venues={venues} selectedId={active.id} focusPoint={focused ? active : null} onSelect={select} />
+      <PicksMap venues={venues} selectedId={active.id} focusPoint={focused ? active : null} onSelect={select}
+        resetView={resetView} onShowAll={() => { setFocused(false); setResetView((old) => old + 1); }} />
       <section className="editorial-card-panel" aria-label="Pick photo cards">
         <ul className={`editorial-place-cards ${dragging ? "is-dragging" : ""}`} ref={carousel} onScroll={followSwipe}
           tabIndex={0} aria-label="Swipe through Melloway’s Picks" onKeyDown={carouselKey}
