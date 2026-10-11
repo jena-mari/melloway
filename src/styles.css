@@ -5482,9 +5482,16 @@ html:has(.profile-page) {
   position: absolute;
   top: 8px;
   left: 10px;
-  color: #fff;
-  font: 700 22px/1 Arial, sans-serif;
-  text-shadow: 0 1px 4px #000, 0 0 2px #000;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid #111;
+  border-radius: 10px;
+  background: #fffefb;
+  color: #111;
+  font: 700 16px/1 Outfit, sans-serif;
 }
 .route-summary-meta {
   margin: 0 12px 8px;
