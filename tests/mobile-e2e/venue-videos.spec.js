@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { defaultDraft, generateItinerary } from '@melloway/domain';
+import { defaultOnboarding } from '../../apps/mobile/src/services/onboarding.ts';
 
 const tiktok = 'https://tiktok.com/@prototype/video/1234567890123456789?share=1';
 const instagram = 'https://instagram.com/reel/Prototype_Reel-1/?igsh=test';
@@ -28,7 +29,7 @@ test('confirmed video persists for its venue across reload without changing plan
   const draft = defaultDraft();
   const current = await generateItinerary(draft, { seed: 0, createId: () => 'kept-plan' });
   expect(current.plan).not.toBeNull();
-  const stored = JSON.stringify({ state: { draft, current, saved: [current.plan] }, version: 1 });
+  const stored = JSON.stringify({ state: { draft, onboarding: defaultOnboarding(), current, saved: [current.plan] }, version: 1 });
   await page.addInitScript(value => {
     if (!localStorage.getItem('melloway.mobile.v1')) localStorage.setItem('melloway.mobile.v1', value);
   }, stored);

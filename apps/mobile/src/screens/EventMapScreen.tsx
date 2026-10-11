@@ -57,12 +57,14 @@ export default function EventMapScreen() {
     </View>}
     {query.isError && <Text accessibilityRole="alert" style={common.error}>Event venues could not be loaded. Check the event server connection and try again.</Text>}
     {data && <>
+      <Text style={common.label}>{allEvents.length} events · {data.points.length} venue pins</Text>
       <Text accessibilityLiveRegion="polite" style={common.label}>{data.events.length} events within advertised budget · {data.unknownPriceEvents.length} with unknown AUD prices</Text>
       <Text style={common.fine}>Ticketmaster venue coordinates are listed below. These events are separate from your itinerary and are not a route.</Text>
       {!!data.points.length && data.mapAvailable && !failedMap && <View style={styles.map}>
         <EventVenueMap uri={`${eventApiOrigin()}/api/events-map?${search}`} onError={() => setFailedMap(true)} />
       </View>}
-      {(!data.mapAvailable || failedMap) && !!data.points.length && <Notice>The Google map preview is unavailable. Venue coordinates are still listed below.</Notice>}
+      {!data.mapAvailable && !!data.points.length && <Notice>Google Maps is not configured on the event server. Venue coordinates are still listed below.</Notice>}
+      {failedMap && data.mapAvailable && <Notice>The Google map preview could not load. Check the connection, browser key and allowed website referrers. Venue coordinates are still listed below.</Notice>}
       {allEvents.length === 0 && <Text style={common.text}>No Ticketmaster events match your selected date, hours, budget and area.</Text>}
       {data.points.length > 10 && <Notice>The map preview shows the first ten venue locations. All matching events remain listed below.</Notice>}
       {data.truncated && <Notice>This is a limited search; more Ticketmaster events may exist.</Notice>}
@@ -81,8 +83,6 @@ export default function EventMapScreen() {
           <EventDetails event={event} />
           <Text style={common.text}>{event.venue?.name ?? 'Venue unavailable'} · Cannot pin without coordinates</Text>
         </View>)}
-    </>}
-      </View>)}
     </>}
     {linkError && <Text accessibilityRole="alert" style={common.error}>Google Maps could not be opened.</Text>}
   </Screen>;

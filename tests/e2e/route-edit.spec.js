@@ -304,13 +304,16 @@ test("editable summary updates order, totals, map and directions; extras stay op
     added.stops.map((s) => s.id),
   );
   await page.getByRole("button", { name: "edit", exact: true }).tap();
-  for (const stop of added.stops.slice(1))
+  for (const stop of added.stops.slice(1)) {
+    const edit = page.getByRole("button", { name: "edit", exact: true });
+    if (await edit.isVisible()) await edit.tap();
     await page
       .getByRole("button", {
         name: `remove ${stop.name} from route`,
         exact: true,
       })
       .tap();
+  }
   await expect(page.locator(".route-summary-list li")).toHaveCount(1);
   await expect(
     page.getByRole("button", {

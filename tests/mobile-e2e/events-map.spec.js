@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { renderVenueMap } from '../../server/eventMap.ts';
 
-const origin = 'http://localhost:3001';
 const fixture = {
   events: [{ id: 'mock-1', name: 'Mock Sydney event', startDate: '2026-10-12', startTime: '19:00:00',
     venue: { name: 'Mock venue' }, priceRanges: null },
@@ -30,8 +29,20 @@ const failedMap = 'The Google map preview could not load. Check the connection, 
 async function events(page, data = fixture, script = mapsScript, key = 'mock-js-key') {
   await page.route('https://maps.googleapis.com/**', route => route.fulfill({ contentType: 'text/javascript', body: script }));
   await page.context().route('https://www.google.com/maps/**', route => route.fulfill({ contentType: 'text/html', body: 'Mock external Google Maps' }));
-  await page.route(`${origin}/api/events`, route => route.fulfill({ json: data, headers: { 'Access-Control-Allow-Origin': '*' } }));
-  await page.route(`${origin}/api/events-map?*`, route => route.fulfill({ contentType: 'text/html',
+  await page.route('**/api/events?*', route => {
+    const entries = data.events.map(event => {
+      const prices = (event.priceRanges ?? []).filter(range => range.currency === 'AUD' && Number.isFinite(range.min));
+      return { ...event, startDateTime: `${event.startDate}T${event.startTime ?? '12:00:00'}+11:00`,
+        endDateTime: null, minimumPriceAUD: prices.length ? Math.min(...prices.map(range => range.min)) : null,
+        timeWindowFit: 'start-only' };
+    });
+    return route.fulfill({ json: { ...data,
+      events: entries.filter(event => event.minimumPriceAUD !== null),
+      unknownPriceEvents: entries.filter(event => event.minimumPriceAUD === null),
+      truncated: false, preferences: { date: '2026-10-12', time: '11:00', duration: 5, budget: 80, location: null },
+    }, headers: { 'Access-Control-Allow-Origin': '*' } });
+  });
+  await page.route('**/api/events-map?*', route => route.fulfill({ contentType: 'text/html',
     body: data.points.length ? renderVenueMap(data.points, key) : '' }));
 }
 
@@ -56,12 +67,12 @@ test('home opens the venue map, showing real-coordinate pins and events without 
 test('empty events show an empty state and no map', async ({ page }) => {
   await events(page, { events: [], points: [], missingCoordinates: 0, mapAvailable: true });
   await page.goto('/events-map');
-  await expect(page.getByText('No upcoming Sydney events were returned.')).toBeVisible();
+  await expect(page.getByText('No Ticketmaster events match your selected date, hours, budget and area.')).toBeVisible();
   await expect(page.getByTestId('ticketmaster-venue-map')).toHaveCount(0);
 });
 
 test('a failed event request can be retried', async ({ page }) => {
-  await page.route(`${origin}/api/events`, route => route.fulfill({ status: 502,
+  await page.route('**/api/events?*', route => route.fulfill({ status: 502,
     json: { error: 'Unavailable' }, headers: { 'Access-Control-Allow-Origin': '*' } }));
   await page.goto('/events-map');
   await expect(page.getByRole('alert')).toContainText('Event venues could not be loaded.');

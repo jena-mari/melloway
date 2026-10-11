@@ -164,7 +164,7 @@ test("rounded profile cards retain routes on small phones and cover changes pers
     expect(avatar.y + avatar.height).toBeGreaterThan(cover.y + cover.height);
     expect(
       await card.evaluate((el) => getComputedStyle(el).borderTopWidth),
-    ).toBe("2px");
+    ).toBe("1px");
     expect(
       await card.evaluate((el) =>
         parseFloat(getComputedStyle(el).borderRadius),

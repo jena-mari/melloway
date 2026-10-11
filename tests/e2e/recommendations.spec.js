@@ -40,6 +40,7 @@ test("OpenAI ranking affects the generated outing while retaining OpenStreetMap 
     .fill("matcha and books, no restaurant");
   await page.getByRole("button", { name: "submit", exact: true }).click();
   await expect(page).toHaveURL(/\/itinerary$/);
+  await page.getByRole("button", { name: "view stop cards", exact: true }).click();
   await expect(page.locator(".stop-card").first()).toBeVisible();
   const current = await page.evaluate(() =>
     JSON.parse(localStorage.getItem("melloway.current")),
@@ -85,6 +86,7 @@ for (const failure of ["unavailable", "invalid"])
     await page.goto("/plan/notes");
     await page.getByRole("button", { name: "submit", exact: true }).click();
     await expect(page).toHaveURL(/\/itinerary$/);
+    await page.getByRole("button", { name: "view stop cards", exact: true }).click();
     await expect(page.locator(".stop-card").first()).toBeVisible();
     const current = await page.evaluate(() =>
       JSON.parse(localStorage.getItem("melloway.current")),

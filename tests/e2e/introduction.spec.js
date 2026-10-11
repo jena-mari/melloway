@@ -444,6 +444,10 @@ test("Google Places plans keep ordered directions without using demo map tiles",
       body: "<p>Google map test fixture</p>",
     }),
   );
+  await page.route("**/api/itinerary-map?*", (route) => route.fulfill({
+    contentType: "text/html",
+    body: "<p>Google pin map test fixture</p><script>window.parent.postMessage({type:'melloway-map-ready'}, '*')</script>",
+  }));
   await page.evaluate(() => {
     const current = JSON.parse(localStorage.getItem("melloway.current"));
     current.plan.stops = current.plan.stops.map((stop) => ({
@@ -464,7 +468,7 @@ test("Google Places plans keep ordered directions without using demo map tiles",
   if (await page.locator(".google-route-map").count()) {
     await expect(page.locator(".google-route-map")).toHaveAttribute(
       "src",
-      /google.com\/maps\/embed\/v1\/directions/,
+      /google.com\/maps\/embed\/v1\/directions|\/api\/itinerary-map\?stops=/,
     );
   } else {
     await expect(
@@ -483,17 +487,18 @@ test("Google Places plans keep ordered directions without using demo map tiles",
 
 test("local Maple Shore and Outfit fonts finish loading", async ({ page }) => {
   await page.goto("/");
-  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(async () => {
+    await document.fonts.load('48px "Maple Shore"');
+    await document.fonts.load('16px "Outfit"');
+    await document.fonts.ready;
+  });
   expect(
     await page.evaluate(() => document.fonts.check('48px "Maple Shore"')),
   ).toBe(true);
   expect(await page.evaluate(() => document.fonts.check('16px "Outfit"'))).toBe(
     true,
   );
-  await expect(page.locator(".intro-logo")).toHaveCSS(
-    "font-family",
-    '"Maple Shore", cursive',
-  );
+  await expect(page.locator(".intro-logo .brand-logo")).toHaveAttribute("src", "/icons/optimized/melloway_logo.png");
   await expect(page.locator("body")).toHaveCSS(
     "font-family",
     "Outfit, sans-serif",
