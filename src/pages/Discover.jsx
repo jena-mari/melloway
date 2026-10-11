@@ -13,12 +13,15 @@ import { useApp } from "../hooks/useApp";
 import { events } from "../data/events";
 import EventPoster from "../components/EventPoster";
 import { readLocal, writeLocal } from "../services/storage";
+import { planningArea } from "../utils/location";
+import { eventQuery, loadEvents, eventPostFromTicketmaster } from "../services/events";
 
 function EventPost({ event, liked, onLike, focused }) {
   const { savedEvents, toggleEventSave, draft, update } = useApp();
   const navigate = useNavigate();
   const article = useRef(null);
   const kept = savedEvents.includes(event.id);
+  const real = event.source === "ticketmaster";
   useEffect(() => {
     if (!focused) return;
     const frame = requestAnimationFrame(() =>
@@ -44,10 +47,10 @@ function EventPost({ event, liked, onLike, focused }) {
           <strong>{event.host}</strong>
           <span>@{event.handle}</span>
         </div>
-        <span className="event-sample-label">sample event</span>
+        <span className="event-sample-label">{real ? "Ticketmaster" : "sample event"}</span>
       </header>
       <EventPoster event={event} />
-      <div className="event-social-actions">
+      {!real && <div className="event-social-actions">
         <button
           type="button"
           aria-label={`Like event ${event.title}`}
@@ -66,7 +69,7 @@ function EventPost({ event, liked, onLike, focused }) {
           <Bookmark size={21} fill={kept ? "currentColor" : "none"} />
           {kept ? "saved" : "save"}
         </button>
-      </div>
+      </div>}
       <div className="event-post-details">
         <span className="event-category">{event.type}</span>
         <h2 id={`event-title-${event.id}`}>{event.title}</h2>
@@ -77,32 +80,34 @@ function EventPost({ event, liked, onLike, focused }) {
               <CalendarDays size={15} aria-hidden="true" />
               when
             </dt>
-            <dd>date & time TBA</dd>
+            <dd>{real ? event.when : "date & time TBA"}</dd>
           </div>
           <div>
             <dt>
               <MapPin size={15} aria-hidden="true" />
               where
             </dt>
-            <dd>{event.area}, Sydney · venue TBA</dd>
+            <dd>{real ? event.area : `${event.area}, Sydney · venue TBA`}</dd>
           </div>
           <div>
             <dt>
               <Ticket size={15} aria-hidden="true" />
               entry
             </dt>
-            <dd>price not confirmed</dd>
+            <dd>{real ? event.entry : "price not confirmed"}</dd>
           </div>
         </dl>
         <details className="event-more-details" open={focused || undefined}>
           <summary>more about this one</summary>
           <p>{event.details}</p>
-          <p className="event-sample-copy">
+          {!real && <p className="event-sample-copy">
             This is a sample idea. Dates, venue, tickets and availability need a
             confirmed event listing.
-          </p>
+          </p>}
         </details>
-        <button
+        {real ? (event.bookingUrl && <a className="text-button event-plan-vibe" href={event.bookingUrl} target="_blank" rel="noopener noreferrer">
+          view tickets on Ticketmaster <ArrowUpRight size={16} />
+        </a>) : <button
           type="button"
           className="text-button event-plan-vibe"
           onClick={() => {
@@ -116,13 +121,26 @@ function EventPost({ event, liked, onLike, focused }) {
           }}
         >
           plan around this vibe <ArrowUpRight size={16} />
-        </button>
+        </button>}
       </div>
     </article>
   );
 }
 export function Events() {
-  const { savedEvents, setStatus } = useApp();
+  const { savedEvents, setStatus, draft } = useApp();
+  const requestQuery = eventQuery({ ...draft, location: planningArea(draft) });
+  const [live, setLive] = useState({ query: "", loading: true, error: "", data: null });
+  useEffect(() => {
+    const controller = new AbortController();
+    setLive({ query: requestQuery, loading: true, error: "", data: null });
+    loadEvents(requestQuery, controller.signal).then(data => {
+      if (!controller.signal.aborted) setLive({ query: requestQuery, loading: false, error: "", data });
+    }).catch(error => {
+      if (!controller.signal.aborted) setLive({ query: requestQuery, loading: false, error: error.message, data: null });
+    });
+    return () => controller.abort();
+  }, [requestQuery]);
+  const liveData = live.query === requestQuery ? live.data : null;
   const [search, setSearch] = useSearchParams();
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -147,8 +165,7 @@ export function Events() {
     if (focused) setSearch({});
   }
   const text = query.trim().toLowerCase();
-  const feed = events.filter(
-    (event) =>
+  const visible = (event) =>
       (focused
         ? event.id === focused
         : filter === "all" ||
@@ -168,8 +185,12 @@ export function Events() {
         ]
           .join(" ")
           .toLowerCase()
-          .includes(text.replace(/^@/, ""))),
-  );
+          .includes(text.replace(/^@/, "")));
+  const feed = events.filter(visible);
+  const matching = (liveData?.events || []).map(eventPostFromTicketmaster).filter(visible);
+  const unknown = (liveData?.unknownPriceEvents || []).map(eventPostFromTicketmaster).filter(visible);
+  const renderPost = event => <EventPost key={event.id} event={event} focused={focused === event.id}
+    liked={likes.includes(event.id)} onLike={() => like(event.id)} />;
   return (
     <div className="page events-page">
       <header className="events-heading">
@@ -179,9 +200,6 @@ export function Events() {
           <span>{savedEvents.length || "saved"}</span>
         </Link>
       </header>
-      <p className="events-preview-note">
-        sample posters · dates & venues unconfirmed
-      </p>
       <label className="community-search events-search" htmlFor="event-search">
         <Search size={18} aria-hidden="true" />
         <span className="sr-only">search events</span>
@@ -226,18 +244,26 @@ export function Events() {
           back to all events
         </button>
       )}
+      <p className="events-preview-note" role="status">
+        {live.loading ? "Loading Ticketmaster events for your planning details…" : live.error ||
+          `Ticketmaster · ${liveData?.preferences.date} · ${liveData?.preferences.time} Sydney time · ${liveData?.preferences.duration} hours · up to $${liveData?.preferences.budget} AUD each`}
+      </p>
+      {liveData && <>
+        <h2>events within your advertised budget</h2>
+        {!matching.length && <p className="events-preview-note">No Ticketmaster events match these details and feed filters.</p>}
+        <section className="event-feed" aria-label="Ticketmaster events within budget">{matching.map(renderPost)}</section>
+        {!!unknown.length && <>
+          <h2>price unknown · check tickets</h2>
+          <p className="events-preview-note">These start within your hours; budget fit is unconfirmed.</p>
+          <section className="event-feed" aria-label="Ticketmaster events with unknown AUD prices">{unknown.map(renderPost)}</section>
+        </>}
+        {liveData.truncated && <p className="events-preview-note">Showing a limited Ticketmaster search; more events may exist.</p>}
+      </>}
+      <p className="events-preview-note">sample posters · dates & venues unconfirmed</p>
       <section className="event-feed" aria-label="event poster feed">
-        {feed.map((event) => (
-          <EventPost
-            key={event.id}
-            event={event}
-            focused={focused === event.id}
-            liked={likes.includes(event.id)}
-            onLike={() => like(event.id)}
-          />
-        ))}
+        {feed.map(renderPost)}
       </section>
-      {!feed.length && (
+      {!feed.length && !matching.length && !unknown.length && (
         <div className="community-empty">
           <h2>
             {text

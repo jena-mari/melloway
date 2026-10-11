@@ -36,6 +36,16 @@ The production build is `dist/`. Deploy to any static host with a SPA rewrite to
 
 Copy `.env.example` to `.env` and configure only the providers you have.
 
+### Ticketmaster events
+
+Set server-only `TICKETMASTER_API_KEY` and restart `npm run dev`. What’s On uses the existing onboarding draft's date, start time, duration, per-person budget and selected Sydney area. Skipping the date uses today in Sydney; skipping time uses 11 am. No events enter itinerary generation.
+
+`GET /api/events?date=2026-10-12&time=11:00&duration=3&budget=30` accepts optional Sydney `lat`, `lng` and `radius` (1–30 km). Duration is 3–8 hours and budget is $0–$200 AUD. Searches use Sydney daylight-saving rules and events starting on the selected date. Known finishes must fit the available hours; unknown/approximate finishes are marked `start-only`, never a confirmed full-window fit. Repeated DST times use their first occurrence; nonexistent times return 400.
+
+`events` contains events with an advertised minimum AUD price within budget. `unknownPriceEvents` contains time/location matches without a usable advertised AUD minimum (including foreign-currency or max-only prices). Prices are per person, with fees/availability unconfirmed; unknown never means free. Original booking URLs and coordinates are preserved. Real listings, unknown-price listings and fictional sample posters stay separate in the existing feed.
+
+The [Ticketmaster Discovery API](https://developer.ticketmaster.com/products-and-docs/apis/discovery-manual/v2/) search is limited to three pages of 50 events under one 10-second deadline. Responses indicate `truncated` when more pages exist. Identical requests share work and a 60-second cache, capped at 32 preference combinations and four simultaneous unique searches. Missing credentials return 503; provider failures return a safe 502; empty results stay empty. Automated tests use synthetic events without live Ticketmaster calls. The existing `npm run events:sydney` CLI retains its ten-event, 30-day snapshot.
+
 ### OpenAI recommendations
 
 Set `OPENAI_API_KEY` in the server-only `.env`, then restart `npm run dev`. `OPENAI_MODEL` defaults to `gpt-4.1-mini` and can be changed to a Responses API model supporting structured outputs. See [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses).

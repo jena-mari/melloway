@@ -3,10 +3,10 @@ export default function EventPoster({ event, compact = false }) {
     <div
       className={`event-poster poster-${event.theme} ${compact ? "poster-compact" : ""}`}
       role="img"
-      aria-label={`${event.posterTitle.join(" ")} — sample event poster`}
+      aria-label={`${event.posterTitle.join(" ")} — ${event.source === "ticketmaster" ? "Ticketmaster event" : "sample event poster"}`}
     >
       <span className="poster-topline" aria-hidden="true">
-        melloway presents <span>✳</span>
+        {event.source === "ticketmaster" ? "Ticketmaster listing" : "melloway presents"} <span>✳</span>
       </span>
       <strong className="poster-title" aria-hidden="true">
         {event.posterTitle.map((line) => (
@@ -84,7 +84,7 @@ export default function EventPoster({ event, compact = false }) {
       </svg>
       <span className="poster-bottomline" aria-hidden="true">
         <span>SYDNEY</span>
-        <span>SAMPLE POSTER</span>
+        <span>{event.source === "ticketmaster" ? "ILLUSTRATION" : "SAMPLE POSTER"}</span>
       </span>
     </div>
   );
