@@ -27,7 +27,7 @@ window.google = { maps: {
 } }; window.initVenueMap();`;
 async function events(page, data = fixture, script = mapsScript) {
   await page.route('https://maps.googleapis.com/**', route => route.fulfill({ contentType: 'text/javascript', body: script }));
-  await page.route('https://www.google.com/maps/**', route => route.fulfill({ contentType: 'text/html', body: 'Mock external Google Maps' }));
+  await page.context().route('https://www.google.com/maps/**', route => route.fulfill({ contentType: 'text/html', body: 'Mock external Google Maps' }));
   await page.route(`${origin}/api/events`, route => route.fulfill({ json: data, headers: { 'Access-Control-Allow-Origin': '*' } }));
   await page.route(`${origin}/api/events-map?*`, route => route.fulfill({ contentType: 'text/html',
     body: data.points.length ? renderVenueMap(data.points, 'mock-demo-key') : '' }));
@@ -105,4 +105,82 @@ test('a failed JavaScript loader preserves the venue list', async ({ page }) => 
   await page.goto('/events-map');
   await expect(page.getByText('The Google map preview is unavailable. Venue coordinates are still listed below.')).toBeVisible();
   await expect(page.getByTestId('venue-pin-A')).toBeVisible();
+});
+
+
+// Useful event details: fixture-only listing links, prices and categories.
+test('pinned and unpinned events show supplied dates, categories, prices and listing links', async ({ page, context }) => {
+  const data = { ...fixture, events: [
+    { ...fixture.events[0], category: 'Music', timezone: 'Australia/Sydney',
+      priceRanges: [{ min: 25.5, max: 80, currency: 'AUD' }], url: 'https://tickets.example/mock-1?source=fixture' },
+    { ...fixture.events[1], category: 'Arts', priceRanges: [{ min: 10, max: 10, currency: 'NZD' }],
+      url: 'https://tickets.example/mock-2' },
+  ] };
+  await context.route('https://tickets.example/**', route => route.fulfill({ contentType: 'text/html', body: 'Mock original event listing' }));
+  await events(page, data);
+  await page.goto('/events-map');
+  const pinned = page.getByTestId('event-details-mock-1');
+  const unpinned = page.getByTestId('event-details-mock-2');
+  await expect(pinned.getByText('Mock Sydney event', { exact: true })).toBeVisible();
+  await expect(pinned.getByText('2026-10-12 · 19:00:00 · Australia/Sydney', { exact: true })).toBeVisible();
+  await expect(pinned.getByText('Music', { exact: true })).toBeVisible();
+  await expect(pinned.getByText('Advertised price: 25.5–80 AUD', { exact: true })).toBeVisible();
+  await expect(unpinned.getByText('2026-10-13 · Time unconfirmed', { exact: true })).toBeVisible();
+  await expect(unpinned.getByText('Arts', { exact: true })).toBeVisible();
+  await expect(unpinned.getByText('Advertised price: 10 NZD', { exact: true })).toBeVisible();
+  for (const [details, url] of [[pinned, data.events[0].url], [unpinned, data.events[1].url]]) {
+    const opened = page.waitForEvent('popup');
+    await details.getByRole('button', { name: 'View event / tickets', exact: true }).click();
+    const popup = await opened;
+    await expect(popup).toHaveURL(url);
+    await popup.close();
+  }
+});
+
+test('missing prices stay unavailable, zero is not called free, and invalid listing links are hidden', async ({ page }) => {
+  await events(page, { ...fixture, events: [
+    { ...fixture.events[0], category: null, url: 'javascript:alert(1)' },
+    { ...fixture.events[1], category: '', priceRanges: [{ min: 0, max: 0, currency: null }], url: 'https:///tickets.example' },
+  ] });
+  await page.goto('/events-map');
+  await expect(page.getByTestId('event-details-mock-1').getByText('Price unavailable', { exact: true })).toBeVisible();
+  await expect(page.getByTestId('event-details-mock-2').getByText('Advertised price: 0 (currency unavailable)', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'View event / tickets', exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Free/i)).toHaveCount(0);
+});
+
+test('absent optional event fields do not crash or invent prices, categories or links', async ({ page }) => {
+  const { priceRanges, ...missing } = fixture.events[1];
+  await events(page, { events: [missing], points: [], missingCoordinates: 1, mapAvailable: false });
+  await page.goto('/events-map');
+  await expect(page.getByText('Another mock event', { exact: true })).toBeVisible();
+  await expect(page.getByText('2026-10-13 · Time unconfirmed', { exact: true })).toBeVisible();
+  await expect(page.getByText('Price unavailable', { exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'View event / tickets', exact: true })).toHaveCount(0);
+});
+
+test('a failed listing opener shows a recoverable error without crashing the event screen', async ({ page }) => {
+  await events(page, { ...fixture, events: [
+    { ...fixture.events[0], url: 'https://tickets.example/mock-1' }, fixture.events[1],
+  ] });
+  await page.addInitScript(() => {
+    const original = window.open;
+    let fail = true;
+    window.open = (...args) => {
+      if (fail) { fail = false; throw new Error('Mock browser opening failure'); }
+      return original.apply(window, args);
+    };
+  });
+  await page.context().route('https://tickets.example/**', route => route.fulfill({ body: 'Mock listing' }));
+  await page.goto('/events-map');
+  const details = page.getByTestId('event-details-mock-1');
+  await details.getByRole('button', { name: 'View event / tickets', exact: true }).click();
+  await expect(details.getByRole('alert')).toHaveText('The event listing could not be opened. Please try again.');
+  await expect(page.getByTestId('venue-pin-A')).toBeVisible();
+  const opened = page.waitForEvent('popup');
+  await details.getByRole('button', { name: 'View event / tickets', exact: true }).click();
+  const popup = await opened;
+  await expect(popup).toHaveURL('https://tickets.example/mock-1');
+  await expect(details.getByRole('alert')).toHaveCount(0);
+  await popup.close();
 });

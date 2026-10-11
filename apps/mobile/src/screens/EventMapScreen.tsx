@@ -4,36 +4,36 @@ import { useQuery } from '@tanstack/react-query';
 import type { MatchingSydneyEvent } from '@melloway/domain';
 import { Screen } from '../components/Screen';
 import { Button, Notice } from '../components/UI';
-import { eventPreferenceQuery, fetchPreferenceEvents } from '../services/events';
+import EventVenueMap from '../components/EventVenueMap';
+import { eventApiOrigin, eventPreferenceQuery, fetchPreferenceEvents } from '../services/events';
 import { useAppStore } from '../store/useAppStore';
 import { colors, common } from '../theme';
+import { eventListingUrl, formatEventDate, formatEventPrices, openEventListing } from '../services/eventDetails';
 
 function EventDetails({ event }: { event: MatchingSydneyEvent }) {
   const [linkError, setLinkError] = useState(false);
-  const start = new Intl.DateTimeFormat('en-AU', { timeZone: 'Australia/Sydney', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(event.startDateTime!));
-  const price = event.minimumPriceAUD === null ? 'AUD price unknown · budget fit unconfirmed'
-    : `Advertised from $${event.minimumPriceAUD} AUD per person · fees and availability unconfirmed`;
-  let bookingUrl: string | null = null;
-  try { if (event.url && new URL(event.url).protocol === 'https:') bookingUrl = event.url; } catch { /* No unsafe links. */ }
+  const url = eventListingUrl(event.url);
   const openListing = async () => {
-    if (!bookingUrl) return;
     setLinkError(false);
-    try { await Linking.openURL(bookingUrl); } catch { setLinkError(true); }
+    setLinkError(!await openEventListing(url, value => Linking.openURL(value)));
   };
-  return <View style={{ gap: 8 }}>
+  return <View testID={`event-details-${event.id}`} style={styles.details}>
     <Text style={common.label}>{event.name}</Text>
-    <Text style={common.text}>{start} · Sydney time</Text>
+    <Text style={common.text}>{formatEventDate(event)}</Text>
+    {event.category?.trim() && <Text style={common.text}>{event.category.trim()}</Text>}
+    <Text style={common.text}>{formatEventPrices(event.priceRanges)}</Text>
     <Text style={common.fine}>{event.timeWindowFit === 'start-only'
       ? 'Starts within your hours · finish unknown; full attendance may not fit.'
       : 'Advertised start and finish fit your selected hours.'}</Text>
-    <Text style={common.text}>{price}</Text>
-    {bookingUrl && <Button label="View event / tickets" tone="cream" onPress={() => { void openListing(); }} />}
-    {linkError && <Text accessibilityRole="alert" style={common.error}>The ticket listing could not be opened.</Text>}
+    {event.minimumPriceAUD === null && <Text style={common.fine}>AUD price unknown · budget fit unconfirmed</Text>}
+    {url && <Button label="View event / tickets" tone="cream" onPress={() => { void openListing(); }} />}
+    {linkError && <Text accessibilityRole="alert" style={common.error}>The event listing could not be opened. Please try again.</Text>}
   </View>;
 }
 
 export default function EventMapScreen() {
   const [linkError, setLinkError] = useState(false);
+  const [failedMap, setFailedMap] = useState(false);
   const draft = useAppStore(state => state.draft);
   const onboarding = useAppStore(state => state.onboarding);
   const preferences = { ...draft, date: onboarding.date ?? draft.date, time: onboarding.time ?? draft.time,
@@ -41,7 +41,8 @@ export default function EventMapScreen() {
   const search = eventPreferenceQuery(preferences);
   const query = useQuery({ queryKey: ['ticketmaster-preferences', search], queryFn: () => fetchPreferenceEvents(search), retry: false });
   const data = query.data;
-  const refresh = () => { void query.refetch(); };
+  const refresh = () => { setFailedMap(false); void query.refetch(); };
+  const allEvents = data ? [...data.events, ...data.unknownPriceEvents] : [];
   const openVenue = async (latitude: number, longitude: number) => {
     setLinkError(false);
     try { await Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`); }
@@ -58,37 +59,35 @@ export default function EventMapScreen() {
     {data && <>
       <Text accessibilityLiveRegion="polite" style={common.label}>{data.events.length} events within advertised budget · {data.unknownPriceEvents.length} with unknown AUD prices</Text>
       <Text style={common.fine}>Ticketmaster venue coordinates are listed below. These events are separate from your itinerary and are not a route.</Text>
-      {data.events.length === 0 && <Text style={common.text}>No Ticketmaster events match your selected date, hours, budget and area.</Text>}
+      {!!data.points.length && data.mapAvailable && !failedMap && <View style={styles.map}>
+        <EventVenueMap uri={`${eventApiOrigin()}/api/events-map?${search}`} onError={() => setFailedMap(true)} />
+      </View>}
+      {(!data.mapAvailable || failedMap) && !!data.points.length && <Notice>The Google map preview is unavailable. Venue coordinates are still listed below.</Notice>}
+      {allEvents.length === 0 && <Text style={common.text}>No Ticketmaster events match your selected date, hours, budget and area.</Text>}
       {data.truncated && <Notice>This is a limited search; more Ticketmaster events may exist.</Notice>}
       {data.missingCoordinates > 0 && <Notice>{data.missingCoordinates} events have no usable venue coordinates and cannot be pinned.</Notice>}
-      {data.points.filter(point => data.events.some(event => point.eventIds.includes(event.id))).map(point => <View key={point.label} testID={`venue-pin-${point.label}`} style={common.card}>
+      {data.points.map(point => <View key={point.label} testID={`venue-pin-${point.label}`} style={common.card}>
         <Text accessibilityRole="header" style={common.label}>{point.label}. {point.name ?? 'Venue name unavailable'}</Text>
         {point.address && <Text style={common.text}>{point.address}</Text>}
         <Text selectable style={common.fine}>{point.latitude}, {point.longitude}</Text>
-        {data.events.filter(event => point.eventIds.includes(event.id)).map(event =>
+        {allEvents.filter(event => point.eventIds.includes(event.id)).map(event =>
           <EventDetails key={event.id} event={event} />)}
         <Button label={`Open venue ${point.label} in Google Maps`} tone="cream"
           onPress={() => { void openVenue(point.latitude, point.longitude); }} />
       </View>)}
-      {data.events.filter(event => !data.points.some(point => point.eventIds.includes(event.id))).map(event =>
+      {allEvents.filter(event => !data.points.some(point => point.eventIds.includes(event.id))).map(event =>
         <View key={event.id} style={common.card}>
           <EventDetails event={event} />
           <Text style={common.text}>{event.venue?.name ?? 'Venue unavailable'} · Cannot pin without coordinates</Text>
         </View>)}
-      {!!data.unknownPriceEvents.length && <Text accessibilityRole="header" style={common.label}>Price unknown · check tickets</Text>}
-      {data.unknownPriceEvents.map(event => <View key={event.id} style={common.card}>
-        <EventDetails event={event} />
-        <Text style={common.text}>{event.venue?.name ?? 'Venue unavailable'}</Text>
-        {event.venue?.latitude != null && event.venue.longitude != null && <>
-          <Text selectable style={common.fine}>{event.venue.latitude}, {event.venue.longitude}</Text>
-          <Button label={`Open ${event.venue.name ?? 'venue'} in Google Maps`} tone="cream"
-            onPress={() => { void openVenue(event.venue!.latitude!, event.venue!.longitude!); }} />
-        </>}
+    </>}
       </View>)}
     </>}
     {linkError && <Text accessibilityRole="alert" style={common.error}>Google Maps could not be opened.</Text>}
   </Screen>;
 }
 const styles = StyleSheet.create({
+  details: { gap: 10 },
+  map: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors.white },
   loading: { alignItems: 'center', gap: 12, paddingVertical: 24 },
 });
