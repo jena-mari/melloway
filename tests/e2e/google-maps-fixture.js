@@ -28,13 +28,21 @@ export const googleMapsFixture = String.raw`
     addListener(name, fn) { const list = this.listeners.get(name) || new Set(); list.add(fn); this.listeners.set(name,list); return { remove: () => list.delete(fn) }; }
     emit(name) { this.listeners.get(name)?.forEach(fn => fn()); }
     scheduleIdle() { clearTimeout(this.timer); this.timer = setTimeout(() => this.emit('idle'),20); }
-    fitBounds(bounds) {
+    fitBounds(bounds, padding) {
+      this.element.dataset.fittedPoints = JSON.stringify(bounds.points);
+      this.element.dataset.fitPadding = JSON.stringify(padding);
+      this.element.dataset.fitCount = String(Number(this.element.dataset.fitCount || 0) + 1);
       this.bounds = bounds.points;
       this.center = {lat:bounds.points.reduce((sum,p)=>sum+p.lat,0)/bounds.points.length,lng:bounds.points.reduce((sum,p)=>sum+p.lng,0)/bounds.points.length};
       this.setZoom(13); this.render(); this.scheduleIdle();
     }
     setCenter(center) { this.center = center; this.bounds = null; this.element.dataset.centerLat = center.lat; this.element.dataset.centerLng = center.lng; this.render(); this.scheduleIdle(); }
     panTo(center) { this.setCenter(center); }
+    getCenter() { return new LatLng(this.center.lat, this.center.lng); }
+    moveCamera({ center, zoom }) {
+      this.element.dataset.cameraMoves = String(Number(this.element.dataset.cameraMoves || 0) + 1);
+      this.setZoom(zoom); this.setCenter(center);
+    }
     setZoom(zoom) { if (zoom !== this.zoom) { this.zoom = zoom; this.emit('zoom_changed'); } this.render(); this.scheduleIdle(); }
     getZoom() { return this.zoom; }
     getProjection() { return { fromLatLngToPoint: p => ({ x:(p.lng()+180)/360*256, y:(90-p.lat())/180*256 }) }; }

@@ -6675,7 +6675,8 @@ html:has(.profile-page) {
   margin-bottom: 24px;
 }
 .explore-page .embedded-picks {
-  height: calc(100dvh - 252px - var(--tabs-height) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  height: auto;
+  min-height: 0;
   margin: 0 -18px 28px;
   padding-top: 0;
 }
@@ -6686,29 +6687,35 @@ html:has(.profile-page) {
   margin: 0;
 }
 .embedded-picks .editorial-picks-browser {
-  grid-template-rows: minmax(0, 2fr) minmax(0, 3fr);
+  grid-template-rows: clamp(360px, 46dvh, 460px) auto;
 }
 .embedded-picks .editorial-place-cards {
   flex-direction: column;
-  overflow-x: hidden;
-  overflow-y: auto;
-  scroll-snap-type: y mandatory;
-  scroll-padding-inline: 0;
-  overscroll-behavior-y: contain;
-}
-.embedded-picks .editorial-place-cards.is-dragging {
+  overflow: visible;
   scroll-snap-type: none;
+  cursor: auto;
 }
 .embedded-picks .editorial-place-card {
   display: flex;
   flex-direction: column;
+  flex: none;
+  height: auto;
   overflow: hidden;
-  overscroll-behavior-y: auto;
-  scroll-snap-stop: always;
+  cursor: pointer;
+}
+.embedded-picks .editorial-photo-placeholder {
+  cursor: pointer;
 }
 .embedded-picks .editorial-place-photo {
-  height: 38%;
+  height: 96px;
   flex-shrink: 0;
+}
+.embedded-picks .editorial-photo-placeholder {
+  padding: 8px;
+}
+.embedded-picks .editorial-photo-placeholder .doodle-art {
+  width: 28px;
+  height: 28px;
 }
 .embedded-picks .editorial-place-copy {
   flex: 1;
@@ -6732,7 +6739,13 @@ html:has(.profile-page) {
   align-items: center;
   gap: 5px;
   min-height: 32px;
-  margin-top: auto;
+  margin-top: 8px;
+}
+.pick-detail-dialog .editorial-place-photo {
+  height: 100%;
+}
+.pick-detail-dialog .editorial-photo-placeholder {
+  cursor: auto;
 }
 .explore-page .route-extras {
   margin: 0;
