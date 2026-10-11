@@ -1,11 +1,30 @@
 import { useState } from 'react';
 import { ActivityIndicator, Linking, StyleSheet, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import type { SydneyEvent } from '@melloway/domain';
 import { Screen } from '../components/Screen';
 import { Button, Notice } from '../components/UI';
 import { eventApiOrigin, fetchEventMap } from '../services/events';
 import EventVenueMap from '../components/EventVenueMap';
 import { colors, common } from '../theme';
+import { eventListingUrl, formatEventDate, formatEventPrices, openEventListing } from '../services/eventDetails';
+
+function EventDetails({ event }: { event: SydneyEvent }) {
+  const [linkError, setLinkError] = useState(false);
+  const url = eventListingUrl(event.url);
+  const openListing = async () => {
+    setLinkError(false);
+    setLinkError(!await openEventListing(url, value => Linking.openURL(value)));
+  };
+  return <View testID={`event-details-${event.id}`} style={styles.details}>
+    <Text style={common.label}>{event.name}</Text>
+    <Text style={common.text}>{formatEventDate(event)}</Text>
+    {event.category?.trim() && <Text style={common.text}>{event.category.trim()}</Text>}
+    <Text style={common.text}>{formatEventPrices(event.priceRanges)}</Text>
+    {url && <Button label="View event / tickets" tone="cream" onPress={() => { void openListing(); }} />}
+    {linkError && <Text accessibilityRole="alert" style={common.error}>The event listing could not be opened. Please try again.</Text>}
+  </View>;
+}
 
 export default function EventMapScreen() {
   const [failedMap, setFailedMap] = useState(false);
@@ -40,13 +59,13 @@ export default function EventMapScreen() {
         {point.address && <Text style={common.text}>{point.address}</Text>}
         <Text selectable style={common.fine}>{point.latitude}, {point.longitude}</Text>
         {data.events.filter(event => point.eventIds.includes(event.id)).map(event =>
-          <Text key={event.id} style={common.text}>{event.name}{'\n'}{event.startDate}{event.startTime ? ` · ${event.startTime}` : ' · Time unconfirmed'}</Text>)}
+          <EventDetails key={event.id} event={event} />)}
         <Button label={`Open venue ${point.label} in Google Maps`} tone="cream"
           onPress={() => { void openVenue(point.latitude, point.longitude); }} />
       </View>)}
       {data.events.filter(event => !data.points.some(point => point.eventIds.includes(event.id))).map(event =>
         <View key={event.id} style={common.card}>
-          <Text style={common.label}>{event.name}</Text>
+          <EventDetails event={event} />
           <Text style={common.text}>{event.venue?.name ?? 'Venue unavailable'} · Cannot pin without coordinates</Text>
         </View>)}
     </>}
@@ -54,6 +73,7 @@ export default function EventMapScreen() {
   </Screen>;
 }
 const styles = StyleSheet.create({
+  details: { gap: 10 },
   loading: { alignItems: 'center', gap: 12, paddingVertical: 24 },
   map: { width: '100%', aspectRatio: 4 / 3, backgroundColor: colors.white },
 });
