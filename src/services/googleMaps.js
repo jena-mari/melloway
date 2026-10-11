@@ -46,11 +46,12 @@ export function loadGoogleMaps() {
           document.head.append(script);
         });
       }
-      const [maps, marker] = await Promise.all([
+      const [maps, marker, core] = await Promise.all([
         window.google.maps.importLibrary("maps"),
         window.google.maps.importLibrary("marker"),
+        window.google.maps.importLibrary("core"),
       ]);
-      return { maps, marker, mapId };
+      return { maps, marker, core, mapId };
     })().catch((error) => { pending = null; throw error; });
   }
   return pending;

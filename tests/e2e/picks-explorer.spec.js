@@ -30,6 +30,10 @@ test("desktop keeps the phone-width frame, stacked map and synced horizontal car
   expect(tabs.width).toBe(shell.width);
   const map = await page.locator(".picks-map").boundingBox(), cards = await page.locator(".editorial-card-panel").boundingBox();
   expect(map.y + map.height).toBeLessThan(cards.y);
+  expect(Math.abs(map.height - cards.height)).toBeLessThan(2);
+  expect(cards.y + cards.height).toBeLessThanOrEqual(tabs.y);
+  await expect(page.getByRole("button", { name: "next pick", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "previous pick", exact: true })).toHaveCount(0);
   const last = editorialPicks.at(-1);
   await page.getByRole("button", { name: `select ${last.name} on map`, exact: true }).click();
   const selected = page.locator(`.editorial-place-card[data-venue-id="${last.id}"]`);
@@ -79,21 +83,20 @@ test("mobile swipe and pin selection keep the card and map in sync", async ({ pa
   await page.screenshot({ path: info.outputPath("picks-mobile.png") });
 });
 
-test("collection filters share Glebe once and browsing preserves local plans", async ({ page }) => {
+test("all ten Melloway picks appear without filters or editorial copy, preserving local plans", async ({ page }) => {
   await mockPicks(page);
   await page.addInitScript(() => {
     localStorage.setItem("melloway.saved", JSON.stringify([{ id: "existing-saved-pick", title: "Keep this" }]));
     localStorage.setItem("melloway.draft", JSON.stringify({ name: "Existing user" }));
   });
-  await page.goto("/picks");
+  await page.goto("/picks?collection=shana");
   const before = await page.evaluate(() => ({ saved: localStorage.getItem("melloway.saved"), draft: localStorage.getItem("melloway.draft"), current: localStorage.getItem("melloway.current") }));
-  await page.getByRole("button", { name: "Shana’s picks", exact: true }).click();
-  await expect(page.locator(".editorial-place-card")).toHaveCount(1);
-  await expect(page.locator(".editorial-place-card")).toHaveAttribute("data-venue-id", "sydney-glebe-markets");
-  await expect(page.locator(".editorial-pick-pin")).toHaveCount(1);
+  await expect(page.getByRole("group", { name: "Pick collections" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Shana’s picks", exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Editorial picks/)).toHaveCount(0);
+  await expect(page.locator(".editorial-place-card")).toHaveCount(10);
+  await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
   await page.reload();
-  await expect(page.getByRole("button", { name: "Shana’s picks", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Melloway’s picks", exact: true }).click();
   await expect(page.locator(".editorial-place-card")).toHaveCount(10);
   await expect(page.locator('[data-venue-id="sydney-glebe-markets"]')).toHaveCount(1);
   const after = await page.evaluate(() => ({ saved: localStorage.getItem("melloway.saved"), draft: localStorage.getItem("melloway.draft"), current: localStorage.getItem("melloway.current") }));
@@ -101,15 +104,15 @@ test("collection filters share Glebe once and browsing preserves local plans", a
   await expect(page.getByRole("link", { name: "view Sydney Matcha Crawl", exact: true })).toBeVisible();
 });
 
-test("details retain event/access conditions, licensing and the chosen filter", async ({ page }) => {
+test("details retain event/access conditions, licensing and the selected card", async ({ page }) => {
   await mockPicks(page);
   await page.goto("/picks/places/pick-birdcage-bank-hotel?collection=melloway");
   await expect(page.getByRole("heading", { name: "Birdcage at The Bank Hotel", exact: true })).toBeVisible();
   await expect(page.locator(".editorial-evidence")).toContainText("Wednesday from 9pm");
   await expect(page.locator(".editorial-evidence")).toContainText("Entry depends on arrival time");
-  await expect(page.getByRole("link", { name: "back to all picks" })).toHaveAttribute("href", /collection=melloway/);
+  await expect(page.getByRole("link", { name: "back to all picks" })).toHaveAttribute("href", "/picks?place=pick-birdcage-bank-hotel");
   await page.getByRole("link", { name: "back to all picks" }).click();
-  await expect(page.getByRole("button", { name: "Melloway’s picks", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".editorial-place-card")).toHaveCount(10);
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", "pick-birdcage-bank-hotel");
   await page.goto("/picks/places/pick-o3-newtown");
   await expect(page.locator(".editorial-evidence")).toContainText("free membership has limited weekly access");
@@ -120,14 +123,36 @@ test("details retain event/access conditions, licensing and the chosen filter", 
   await expect(page.locator(".editorial-evidence")).toContainText("Observatory tours have separate opening times");
 });
 
-test("no map keys or failed photos still leave ten interactive pins and honest cards", async ({ page }) => {
+test("unavailable Google Maps and photos preserve swipe cards without an OpenStreetMap substitute", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockPicks(page, { maps: false, images: false });
   await page.goto("/picks");
-  await expect(page.locator(".picks-street-map")).toBeVisible();
-  await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
-  await page.getByRole("button", { name: "select Glebe Markets on map", exact: true }).click();
+  await expect(page.locator(".picks-map-unavailable")).toContainText("Google Maps couldn’t load.");
+  await expect(page.locator(".leaflet-container")).toHaveCount(0);
+  await expect(page.getByText(/OpenStreetMap/)).toHaveCount(0);
+  await expect(page.locator(".editorial-place-card")).toHaveCount(10);
+  await page.locator(".editorial-place-cards").press("ArrowRight");
+  await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
+  await page.locator(".editorial-place-cards").press("ArrowRight");
   await expect(page.locator('.editorial-place-card[data-venue-id="sydney-glebe-markets"]')).toHaveClass(/is-selected/);
   await expect(page.locator('.editorial-place-card[data-venue-id="sydney-glebe-markets"] .editorial-photo-placeholder')).toBeVisible();
-  await expect(page.getByRole("button", { name: "show all pick pins" })).toBeVisible();
+  await expect(page.locator(".picks-map-unavailable a")).toHaveAttribute("href", /google.com\/maps/);
+  await expect(page.getByRole("button", { name: "show all pick pins" })).toBeHidden();
+});
+
+test("dragging the photo swipes to the next card and updates its Google marker", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockPicks(page);
+  await page.goto("/picks");
+  await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
+  const photo = await page.locator(".editorial-place-photo").first().boundingBox();
+  await page.mouse.move(photo.x + photo.width - 30, photo.y + photo.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(photo.x + 30, photo.y + photo.height / 2, { steps: 15 });
+  await page.mouse.up();
+  await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
+  await expect(page.locator(".picks-carousel-progress")).toContainText("2 / 10");
+  await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
+  await expect(page.locator(".editorial-place-cards")).not.toHaveClass(/is-dragging/);
+  await page.screenshot({ path: info.outputPath("picks-swipe.png") });
 });
