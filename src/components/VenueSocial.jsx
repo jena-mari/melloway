@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { ArrowUpRight, Play, Plus, X } from "lucide-react";
+import { ArrowUpRight, Instagram, Play, Plus, X } from "lucide-react";
 import { discoverSocial, previewSocial } from "../services/social.js";
 import { socialEmbed, socialPost } from "../utils/social.js";
 import { readLocal, writeLocal } from "../services/storage.js";
@@ -281,15 +281,32 @@ export default function VenueSocial({ venue, compact = false }) {
           href={`https://www.tiktok.com/search?q=${search}`}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="find on TikTok"
+          title="find on TikTok"
         >
-          find on TikTok <ArrowUpRight size={14} />
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M14 3h3a6 6 0 0 0 4 5.2v3.2a9 9 0 0 1-4-1.6v7.1a6.1 6.1 0 1 1-7-6v3.3a2.9 2.9 0 1 0 4 2.7V3Z" />
+          </svg>
         </a>
         <a
           href={`https://www.instagram.com/explore/search/keyword/?q=${search}`}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label="find on Instagram"
+          title="find on Instagram"
         >
-          find on Instagram <ArrowUpRight size={14} />
+          <Instagram size={24} strokeWidth={1.75} aria-hidden="true" />
         </a>
       </div>}
       {selected && (

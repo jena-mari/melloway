@@ -85,6 +85,9 @@ test("real-post grid shows both platforms and opens official players, with no bl
       path: `/private/tmp/melloway-social-${width}.png`,
       fullPage: true,
     });
+    await page.locator(".social-search-links").screenshot({
+      path: `/private/tmp/melloway-social-icons-${width}.png`,
+    });
   }
   const trigger = page.getByRole("button", {
     name: "watch TikTok post by garden",
