@@ -1,6 +1,6 @@
 # Mobile contribution guide
 
-Follow the repository-root AGENTS.md. This app uses Expo SDK 57, React Native 0.86 and React 19.2.3. Read the matching SDK docs at https://docs.expo.dev/versions/v57.0.0/ before adding or changing Expo/native APIs; consult https://docs.expo.dev/llms.txt for navigation/configuration guidance. Use the installed library types and Expo Doctor to confirm compatibility rather than assuming older APIs still apply.
+Follow the repository-root AGENTS.md. This app uses Expo SDK 54, React Native 0.81 and React 19.1.0. Read the matching SDK docs at https://docs.expo.dev/versions/v54.0.0/ before adding or changing Expo/native APIs; consult https://docs.expo.dev/llms.txt for navigation/configuration guidance. Use the installed library types and Expo Doctor to confirm compatibility rather than assuming older APIs still apply.
 
 Routes live in `src/app/`; keep them thin. Screens, reusable native controls, styling, hooks, stores and services belong in their separate `src/` directories. Frontend design work should use `theme.ts` and the shared domain interfaces. Keep recommendations, scheduling and scoring in `@melloway/domain`, not in UI. Use Expo Router for navigation, Zustand for device state, TanStack Query for asynchronous service work and AsyncStorage for current device-local persistence.
 

@@ -102,3 +102,57 @@ Still to test on real iOS/Android phones: opening the native share sheet in Expo
 Official references consulted: [React Native 0.86 Share](https://reactnative.dev/docs/0.86/share), [Expo SDK 57](https://docs.expo.dev/versions/v57.0.0/), and the installed Share types/web implementation.
 
 Repository push permission was confirmed. This checkpoint authorizes publishing only `app-usability-v1` and a draft PR targeting `expo-mobile-migration`, containing chunks 1 and 2. Publication outcome is reported with the task; no merge, force-push or deployment is authorized. Discovery and its uncommitted files remain untouched. Stop after this checkpoint.
+
+
+## Phone compatibility follow-up — App Store Expo Go
+
+Status: COMPLETE — implementation and automated checks; real-phone retry pending
+
+The user approved aligning the app with SDK 54 after an immediate iPhone startup error and confirmed App Store Expo Go. The fix stays on the existing `app-usability-v1` branch and worktree, with no additional branch. Expo's [compatibility documentation](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/) states that the physical iPhone App Store runtime supports SDK 54; this checkout previously targeted SDK 57.
+
+The native dependency versions are taken from the official Expo 54 package's `bundledNativeModules.json`. React is kept at one shared version across both apps. SDK 54 uses the platform Google Maps configuration fields rather than newer Maps/StatusBar plugins. There are no new features, paid builds, billing changes, database changes or dependency changes in the discovery checkout.
+
+### Changes
+
+- SDK 54 / React Native 0.81.5 / shared React 19.1.0, matching native package versions and TypeScript 5.9.
+- SDK 54 platform map configuration fields; no unsupported Maps/StatusBar config plugins.
+- Expo's [documented SDK 54](https://expo.dev/changelog/sdk-54) `unstable_transformImportMeta` Babel option for the existing Zustand ESM middleware. No screen, route, store, provider or algorithm changes.
+- Root lockfile regenerated for correct workspace placement; unrelated direct dependencies and Rollup stay at their previous versions.
+
+Files changed: `package.json`, `package-lock.json`, `apps/mobile/package.json`, `apps/mobile/app.config.ts`, `apps/mobile/babel.config.js`, `AGENTS.md`, `apps/mobile/AGENTS.md`, `README.md`, and this progress file.
+
+### Verification
+
+- `npm test`: 125 passed (79 root, 20 mobile, 26 backend/event tests), no failures.
+- `npm run typecheck`: domain and mobile passed.
+- `npm run lint --workspace @melloway/mobile`: passed.
+- `npm run build`: preserved Vite app passed.
+- `CI=1 npx expo install --check --json`: passed, no outdated dependencies; JSON/CI mode cannot apply automatic fixes.
+- `npx expo-doctor`: 18/18 passed.
+- `npm ls expo react-native react --all`: passed, one SDK 54 runtime / React Native 0.81.5 / shared React 19.1.0.
+- `npx expo export --platform all --clear --output-dir /private/tmp/melloway-sdk54-export-cleared`: fresh iOS, Android and web bundles passed.
+- 23 existing browser regressions passed: 11 event-map, 4 sharing, 8 social-link tests. Providers, external listing links and sharing are mocked; nothing was sent or booked.
+- Manual browser flow passed: home → skip introduction → details/vibes → demo generation → itinerary → venue; saving/reloading, regeneration, stop swap, and a zero-budget late-night no-feasible-plan case.
+
+The initial workspace install left a mixed SDK dependency tree; clean lockfile generation corrected it. Browser regressions exposed SDK 54's missing opt-in import.meta transform. The documented Babel option plus a Metro cache reset corrected it; all existing tests were preserved. Interactive install-check commands were rejected by automatic approval review; inspected CLI source confirmed `--json` exits before its fix path, and that read-only command passed.
+
+Browser regression command (uses the separately running, cleared SDK 54 server on port 8084):
+
+```sh
+EXPO_PUBLIC_DATA_MODE=demo EXPO_PUBLIC_API_URL=http://localhost:3001 npm run mobile:web -- --port 8084 --localhost --clear
+PLAYWRIGHT_EXECUTABLE_PATH='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' npx playwright test --config playwright.mobile.config.js tests/mobile-e2e/share-plan.spec.js tests/mobile-e2e/events-map.spec.js tests/mobile-e2e/social-link.spec.js
+```
+
+Phone demo command from this worktree:
+
+```sh
+EXPO_PUBLIC_DATA_MODE=demo npm run mobile -- --port 8085 --lan --clear
+```
+
+Close/reopen App Store Expo Go, then scan this server's QR using the iPhone Camera; phone and Mac must share Wi-Fi. No Expo account, Apple membership or paid build is required for this demo flow. The original SDK 57 server on port 8083 remains separate; scanning its QR will still target SDK 57.
+
+### Limits
+
+Real iPhone/Android startup, native map rendering, native share sheets and actual video provider behavior remain unverified. Full Xcode is unavailable, and no native binary was built. Native bundle exports are compiler checks, not device tests. The phone server uses demo data; event/backend access needs a device-reachable backend address and is not established by this startup fix. No real discovery, paid API or booking requests were made.
+
+The original discovery checkout and all six uncommitted venue-video files remain preserved. This follow-up is kept with usability PR #3 targeting `expo-mobile-migration`; no new branch, merge or deployment.
