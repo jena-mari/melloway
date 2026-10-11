@@ -59,7 +59,7 @@ test("Explore immediately shows ten mapped swipe cards without suggestion API ca
   const last = editorialPicks.at(-1);
   await page.getByRole("button", { name: `select ${last.name} on map`, exact: true }).click();
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", last.id);
-  await expect(page.locator(".picks-carousel-progress")).toHaveText("swipe up or down");
+  await expect(page.locator(".picks-carousel-progress")).toHaveCount(0);
   await expect(page.locator(".picks-carousel-dots")).toHaveCount(0);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
@@ -115,7 +115,7 @@ test.describe("Explore reel swipes", () => {
       await swipe(0.82, 0.12);
       await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
       await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
-      await expect(page.locator(".picks-carousel-progress")).toHaveText("swipe up or down");
+      await expect(page.locator(".picks-carousel-progress")).toHaveCount(0);
       const centered = () => feed.evaluate(list => {
         const card = list.querySelector(".is-selected").getBoundingClientRect();
         const box = list.getBoundingClientRect();

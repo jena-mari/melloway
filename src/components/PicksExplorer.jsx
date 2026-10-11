@@ -170,9 +170,9 @@ export default function PicksExplorer({ embedded = false }) {
             </div>
           </li>)}
         </ul>
-        <div className="picks-carousel-progress">
-          <p>{embedded ? "swipe up or down" : "swipe to explore"}</p>
-        </div>
+        {!embedded && <div className="picks-carousel-progress">
+          <p>swipe to explore</p>
+        </div>}
       </section>
     </div>
   </div>
