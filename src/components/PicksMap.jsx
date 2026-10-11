@@ -7,6 +7,7 @@ import { doodleImageSrc } from "./DoodleBackdrop.jsx";
 const fitPadding = { top: 40, bottom: 20, left: 24, right: 24 };
 const mapStyles = [
   { featureType: "all", elementType: "labels.icon", stylers: [{ visibility: "off" }] },
+  { featureType: "administrative", elementType: "labels", stylers: [{ visibility: "off" }] },
   { featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] },
   { featureType: "transit", stylers: [{ visibility: "off" }] },
   { featureType: "road.highway", elementType: "labels", stylers: [{ visibility: "off" }] },

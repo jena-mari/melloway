@@ -28,6 +28,7 @@ test("Explore applies local map styling without losing pins or changing the onbo
   expect(options.renderingType).toBe("RASTER");
   expect(options.styles).toEqual(expect.arrayContaining([
     expect.objectContaining({ featureType: "all", elementType: "labels.icon", stylers: [{ visibility: "off" }] }),
+    expect.objectContaining({ featureType: "administrative", elementType: "labels", stylers: [{ visibility: "off" }] }),
     expect.objectContaining({ featureType: "poi", elementType: "labels", stylers: [{ visibility: "off" }] }),
     expect.objectContaining({ featureType: "transit", stylers: [{ visibility: "off" }] }),
     expect.objectContaining({ featureType: "road.highway", elementType: "labels", stylers: [{ visibility: "off" }] }),
