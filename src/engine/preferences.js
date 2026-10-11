@@ -1,5 +1,6 @@
 import { interestsFromNotes } from "../utils/interests.js";
 import { diningVibes } from "../data/preferences.js";
+import { findIdea } from "../data/ideas.js";
 
 export const roles = [
   "cafe",
@@ -80,7 +81,8 @@ export function interpretPreferences(prefs) {
   const interests = unique([...(prefs.preferences || []), ...explicit]).filter(
     (t) => !parsed.excluded.includes(t),
   );
-  const atmosphere = [];
+  const vibe = prefs.ideaExplicit ? findIdea(prefs.idea) : null;
+  const atmosphere = [...(vibe?.atmosphere || [])];
   const diningAtmosphere = unique(
     (prefs.diningVibes || []).flatMap((vibe) => diningVibes[vibe] || []),
   );
@@ -126,6 +128,7 @@ export function interpretPreferences(prefs) {
   )
     requiredRoles.push("meal");
   const evening =
+    vibe?.period === "evening" ||
     upscaleMeal ||
     hiddenBars ||
     positive(text, /\b(?:evening|night|dinner)\b/i);
@@ -144,7 +147,7 @@ export function interpretPreferences(prefs) {
     upscaleMeal,
     hiddenBars,
     period: evening ? "evening" : "daytime",
-    pace: positive(text, /\b(?:slow|chill|relax(?:ed|ing)?|not rushed)\b/i)
+    pace: vibe?.pace === "slow" || positive(text, /\b(?:slow|chill|relax(?:ed|ing)?|not rushed)\b/i)
       ? "slow"
       : "balanced",
     allowTravel: positive(

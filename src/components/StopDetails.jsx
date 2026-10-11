@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { MapPin, X, ArrowUpRight } from "lucide-react";
 import { MoodImage } from "./UI";
 import { formatTime } from "../utils/planner";
+import VenueSocial from "./VenueSocial.jsx";
 
 export default function StopDetails({
   stop: s,
@@ -30,7 +31,9 @@ export default function StopDetails({
       ref={dialog}
       className="stop-picker-dialog spot-detail-dialog"
       aria-labelledby="spot-detail-title"
-      onClose={onClose}
+      onClose={(event) => {
+        if (event.target === dialog.current) onClose();
+      }}
       onClick={(e) => {
         if (e.target === dialog.current) dialog.current.close();
       }}
@@ -97,6 +100,7 @@ export default function StopDetails({
                 : `rough estimate, ${s.travelFromPrevious.distance.toFixed(1)} km straight-line`}
             </p>
           )}
+          <VenueSocial key={s.id} venue={s} compact />
           {s.reason && <p>{s.reason}</p>}
           {s.booking && <p>{s.booking}</p>}
           <p>{s.note}</p>

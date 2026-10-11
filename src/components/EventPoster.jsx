@@ -1,6 +1,22 @@
+import { useState } from "react";
 import BrandLogo from "./BrandLogo";
+import { ArrowUpRight } from "lucide-react";
+import { EmbeddedPreview } from "./VenueSocial.jsx";
 
 export default function EventPoster({ event, compact = false }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  if (event.source === "organiser") return <figure className={`organiser-event-poster${compact ? " organiser-event-compact" : ""}`}>
+    {imageFailed ? <div className="organiser-art-fallback"><BrandLogo decorative /></div> :
+      <img src={event.image} alt={event.imageAlt} loading="lazy" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} />}
+    <figcaption>{event.imageCredit}</figcaption>
+  </figure>;
+  if (event.source === "instagram") {
+    const preview = <div className={`instagram-event-preview${compact ? " instagram-event-preview-compact" : ""}`}>
+      <EmbeddedPreview post={event} />
+      {!compact && <span className="instagram-open-label">Instagram <ArrowUpRight size={14} /></span>}
+    </div>;
+    return compact ? preview : <a href={event.url} target="_blank" rel="noopener noreferrer" aria-label={`View ${event.title} on Instagram`}>{preview}</a>;
+  }
   return (
     <div
       className={`event-poster poster-${event.theme} ${compact ? "poster-compact" : ""}`}

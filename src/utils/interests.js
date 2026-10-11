@@ -1,4 +1,4 @@
-import { ideas } from "../data/ideas.js";
+import { findIdea } from "../data/ideas.js";
 const aliases = [
   ["Speakeasies", /\b(?:speakeas(?:y|ies)|hidden (?:cocktail )?bars?)\b/gi],
   ["Cocktail bars", /\b(?:cocktails?|cocktail bars?)\b/gi],
@@ -62,7 +62,7 @@ export function interestsFromNotes(text = "") {
 }
 export function preferencesForPlan(draft) {
   const { included, excluded } = interestsFromNotes(draft.notes || "");
-  const suggestion = ideas.find((idea) => idea.id === draft.idea);
+  const suggestion = findIdea(draft.idea);
   return [
     ...new Set([
       ...(draft.preferences || []),

@@ -16,7 +16,7 @@ import DetailsQuestion from "../components/questions/Details";
 import IdeasQuestion from "../components/questions/Ideas";
 import FoodQuestion from "../components/questions/Food";
 import NotesQuestion from "../components/questions/Notes";
-import { ideas } from "../data/ideas";
+import { currentIdeaId } from "../data/ideas";
 import { Button } from "../components/UI";
 const steps = ["profile", "about", "details", "vibes", "food", "notes"];
 const previousSection = {
@@ -86,7 +86,7 @@ export default function Onboarding() {
       update({ budget: budgetIsValid() ? Number(draft.budget) : 80 });
     if (step === "vibes")
       update({
-        idea: skipped ? "" : draft.idea || ideas[0].id,
+        idea: skipped ? "" : currentIdeaId(draft.idea),
         ideaExplicit: skipped ? false : !!draft.ideaExplicit,
       });
     navigate(

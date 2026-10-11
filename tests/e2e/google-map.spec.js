@@ -71,6 +71,19 @@ test('a rejected map key preserves all stop cards and the Google directions link
   await expect(page.locator('.map-unavailable a')).toHaveAttribute('href', /waypoints=/);
 });
 
+test('Google iframe marker hover previews the exact place and opens its existing posts', async ({ page }) => {
+  await mapFixture(page);
+  await page.goto('/itinerary');
+  const frame = page.frameLocator('.route-map-hero .google-route-map');
+  await frame.getByRole('button', { name: '2. Mock stop 2' }).locator('span').hover();
+  const preview = page.getByRole('complementary', { name: 'Place preview' });
+  await expect(preview).toContainText('Mock stop 2');
+  await expect(preview).toContainText('~$15 each');
+  await preview.getByRole('button', { name: 'see the vibe' }).click();
+  await expect(page.getByRole('dialog')).toContainText('Mock stop 2');
+  await expect(preview).toHaveCount(0);
+});
+
 test('unrelated window messages cannot select a stop or hide the map', async ({ page }) => {
   await mapFixture(page);
   await page.goto('/itinerary');
@@ -78,7 +91,9 @@ test('unrelated window messages cannot select a stop or hide the map', async ({ 
   await page.evaluate(() => {
     window.postMessage({ type: 'melloway-map-stop', index: 2 }, '*');
     window.postMessage({ type: 'melloway-map-error' }, '*');
+    window.postMessage({ type: 'melloway-map-preview', index: 2 }, '*');
   });
   await expect(page.locator('#stop-0 .stop-card')).toHaveClass(/selected-stop/);
   await expect(page.locator('.map-unavailable')).toHaveCount(0);
+  await expect(page.getByRole('complementary', { name: 'Place preview' })).toHaveCount(0);
 });

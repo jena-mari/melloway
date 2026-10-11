@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { ideas } from "../../data/ideas";
+import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { ideas, currentIdeaId } from "../../data/ideas";
 import { categories } from "../../data/preferences";
 import QuestionPrompt from "../QuestionPrompt";
 import { Reveal, gentleEase } from "../Introduction";
@@ -15,7 +15,7 @@ export default function IdeasQuestion({
   const reduced = useReducedMotion();
   const index = Math.max(
     0,
-    ideas.findIndex((idea) => idea.id === d.idea),
+    ideas.findIndex((idea) => idea.id === currentIdeaId(d.idea)),
   );
   const idea = ideas[index];
   function move(direction) {
@@ -74,10 +74,10 @@ export default function IdeasQuestion({
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={idea.id}
-                initial={reduced ? false : { opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={reduced ? { opacity: 1 } : { opacity: 0, x: -10 }}
-                transition={{ duration: reduced ? 0 : 0.18, ease: gentleEase }}
+                initial={reduced ? false : { opacity: 0, x: 32, scale: 0.93 }}
+                animate={{ opacity: 1, x: 0, scale: 1 }}
+                exit={reduced ? { opacity: 1 } : { opacity: 0, x: -32, scale: 0.96 }}
+                transition={{ duration: reduced ? 0 : 0.32, ease: gentleEase }}
                 drag={reduced ? false : "x"}
                 dragConstraints={{ left: 0, right: 0 }}
                 dragElastic={0.12}
@@ -110,7 +110,7 @@ export default function IdeasQuestion({
               key={item.id}
               aria-label={item.title}
               aria-pressed={i === index}
-              onClick={() => update({ idea: item.id })}
+              onClick={() => update({ idea: item.id, ideaExplicit: true })}
             >
               <span className={i === index ? "active" : ""} />
             </button>
@@ -121,7 +121,9 @@ export default function IdeasQuestion({
           className="planning-extra vibe-extra extra-invitation"
           onClick={onExtras}
         >
-          make it more ur vibe <span>places & little adventures</span>
+          <SlidersHorizontal size={15} aria-hidden="true" />
+          make it more ur vibe
+          <ChevronRight size={14} aria-hidden="true" />
         </button>
       </Reveal>
     </>

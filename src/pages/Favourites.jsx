@@ -3,6 +3,8 @@ import { Bookmark, ArrowUpRight, Trash2 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { MoodImage } from "../components/UI";
 import { events } from "../data/events";
+import { sydneyEvents } from "../data/sydneyEvents.js";
+import { savedInstagramEvents } from "../services/instagramEvents.js";
 import EventPoster from "../components/EventPoster";
 import { Doodle } from "../components/DoodleBackdrop";
 export default function Favourites() {
@@ -12,7 +14,7 @@ export default function Favourites() {
   const tab =
     search.get("tab") ||
     (!saved.length && savedEvents.length ? "events" : "routes");
-  const keptEvents = events.filter((event) => savedEvents.includes(event.id));
+  const keptEvents = [...savedInstagramEvents(), ...sydneyEvents, ...events].filter((event) => savedEvents.includes(event.id));
   return (
     <div className="page collection">
       <h1>saved</h1>
@@ -45,11 +47,11 @@ export default function Favourites() {
                   <EventPoster event={event} compact />
                 </Link>
                 <div>
-                  <span className="eyebrow">{event.type} · sample</span>
+                  <span className="eyebrow">{event.type} · {event.source === "instagram" ? "Instagram" : event.source === "organiser" ? "organiser" : "sample"}</span>
                   <h2>
                     <Link to={`/events?event=${event.id}`}>{event.title}</Link>
                   </h2>
-                  <p>{event.area} · date TBA</p>
+                  <p>{event.area} · {event.source === "instagram" || event.source === "organiser" ? event.when : "date TBA"}</p>
                   <button
                     type="button"
                     className="text-button"

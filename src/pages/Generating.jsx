@@ -7,7 +7,7 @@ import { useApp } from "../hooks/useApp";
 import { generate } from "../services/discovery";
 import { preferencesForPlan } from "../utils/interests";
 import { withScheduleDefaults } from "../utils/date";
-import { ideas } from "../data/ideas";
+import { findIdea } from "../data/ideas";
 
 export default function Generating() {
   const { draft, setCurrent } = useApp(),
@@ -31,7 +31,7 @@ export default function Generating() {
           ...new Set([
             ...draft.preferences,
             ...(draft.ideaExplicit
-              ? ideas.find((i) => i.id === draft.idea)?.tags || []
+              ? findIdea(draft.idea)?.tags || []
               : []),
           ]),
         ],

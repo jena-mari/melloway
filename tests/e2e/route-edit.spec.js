@@ -41,6 +41,97 @@ const storedPlan = (page) =>
     () => JSON.parse(localStorage.getItem("melloway.current")).plan,
   );
 
+test("map marker previews show the matching place on hover, keyboard focus and phone taps", async ({ page }, info) => {
+  await page.goto("/itinerary");
+  const before = await storedPlan(page);
+  const map = page.locator(".suggestion-map");
+  await expect(map.locator('[data-map-state="ready"]')).toBeVisible();
+  const pin = map.getByRole("button", { name: "show suggested spot Mapo Newtown", exact: true });
+  await pin.hover();
+  const preview = map.getByRole("complementary", { name: "Place preview" });
+  await expect(preview).toContainText("Mapo Newtown");
+  await expect(preview).toContainText("~$10 each");
+  await preview.hover();
+  await expect(preview.getByRole("button", { name: "see the vibe" })).toBeVisible();
+  await page.screenshot({ path: info.outputPath("map-place-preview-390.png") });
+  await preview.getByRole("button", { name: "close place preview" }).click();
+  await expect(preview).toHaveCount(0);
+  await pin.focus();
+  await expect(preview).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(preview).toHaveCount(0);
+  await pin.tap();
+  await expect(preview).toBeVisible();
+  await page.setViewportSize({ width: 320, height: 740 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await preview.getByRole("button", { name: "see the vibe" }).tap();
+  await expect(page.getByRole("dialog", { name: "Mapo Newtown", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "at this spot" })).toBeVisible();
+  expect((await storedPlan(page)).stops).toEqual(before.stops);
+});
+
+test("swiping suggested spots follows their locations without changing the day", async ({ page }, info) => {
+  await page.goto("/itinerary");
+  const initial = await storedPlan(page);
+  const feed = page.getByRole("list", { name: "Nearby spot suggestions" });
+  await expect(feed).toBeVisible();
+  const cards = feed.locator(":scope > li");
+  expect(await cards.count()).toBeGreaterThan(6);
+  const firstId = await cards.nth(0).getAttribute("data-venue-id");
+  const secondId = await cards.nth(1).getAttribute("data-venue-id");
+  const map = page.locator(".suggestion-map[data-active-venue]");
+  await expect(map).toHaveAttribute("data-active-venue", firstId);
+  await feed.scrollIntoViewIfNeeded();
+  const box = await feed.boundingBox();
+  const session = await page.context().newCDPSession(page);
+  const x = box.x + box.width / 2, y = box.y + box.height * 0.85;
+  await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+  for (let step = 1; step <= 10; step++) {
+    await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: y - step * 24 }] });
+    await page.waitForTimeout(20);
+  }
+  await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(map).toHaveAttribute("data-active-venue", secondId);
+  const venue = curatedVenuesForDate(initial.prefs.date).find((item) => item.id === secondId);
+  await expect(map).toHaveAttribute("data-lat", String(venue.lat));
+  await expect(map).toHaveAttribute("data-lng", String(venue.lng));
+  await expect(cards.nth(1).locator(".suggestion-address")).toHaveText(venue.address);
+  await expect(map.getByRole("region", { name: `Location of ${venue.name}`, exact: true })).toBeVisible();
+  await expect(map.locator(".suggestion-pin.is-selected")).toHaveCount(1);
+  expect((await storedPlan(page)).stops).toEqual(initial.stops);
+  await page.getByRole("button", { name: "Previous suggested spot", exact: true }).tap();
+  await expect(map).toHaveAttribute("data-active-venue", firstId);
+  await feed.focus();
+  await page.keyboard.press("ArrowDown");
+  await expect(map).toHaveAttribute("data-active-venue", secondId);
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator(".route-extras").evaluate((el) => {
+    const header = document.querySelector(".result-chrome").getBoundingClientRect().height;
+    window.scrollTo({ top: scrollY + el.getBoundingClientRect().top - header - 12, behavior: "instant" });
+  });
+  await page.screenshot({ path: info.outputPath("suggested-spots.png") });
+});
+
+test("suggested spots remain browsable when Google Maps cannot load", async ({ page }) => {
+  await page.route("https://maps.googleapis.com/maps/api/js**", route => route.abort());
+  await page.goto("/itinerary");
+  const initial = await storedPlan(page);
+  const feed = page.getByRole("list", { name: "Nearby spot suggestions" });
+  await expect(feed).toBeVisible();
+  await expect(page.locator(".suggestion-map-status")).toHaveText("Google Maps unavailable · address below");
+  await page.getByRole("button", { name: "Next suggested spot", exact: true }).tap();
+  const card = feed.locator('li[aria-current="true"]');
+  const name = await card.locator("h3").innerText();
+  await expect(card.locator(".suggestion-address")).not.toBeEmpty();
+  await card.getByRole("button", { name: `view ${name} details`, exact: true }).tap();
+  await expect(page.getByRole("dialog", { name, exact: true })).toBeVisible();
+  expect((await storedPlan(page)).stops).toEqual(initial.stops);
+});
+
 test("compact route rows lead into the map and suggestion previews remain opt-in", async ({
   page,
 }) => {

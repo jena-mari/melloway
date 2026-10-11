@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ArrowUpRight, Play, Plus, X } from "lucide-react";
 import { discoverSocial, previewSocial } from "../services/social.js";
 import { socialEmbed, socialPost } from "../utils/social.js";
@@ -13,7 +13,7 @@ function savedLinks(key) {
     : [];
 }
 
-function InstagramPreview({ post }) {
+export function EmbeddedPreview({ post }) {
   const frame = useRef(null);
   const [width, setWidth] = useState(160);
   useEffect(() => {
@@ -32,7 +32,7 @@ function InstagramPreview({ post }) {
     >
       <iframe
         src={socialEmbed(post)}
-        title="Instagram preview"
+        title={`${post.platform} preview`}
         loading="lazy"
         tabIndex={-1}
         style={{ transform: `scale(${width / 320})` }}
@@ -86,7 +86,8 @@ function PostPreview({ post, onClose }) {
   );
 }
 
-export default function VenueSocial({ venue }) {
+export default function VenueSocial({ venue, compact = false }) {
+  const titleId = useId(), inputId = useId();
   const [posts, setPosts] = useState([]),
     [filter, setFilter] = useState("all"),
     [state, setState] = useState("loading");
@@ -185,9 +186,9 @@ export default function VenueSocial({ venue }) {
   );
   const search = encodeURIComponent(`${venue.name} Sydney`);
   return (
-    <section className="venue-social" aria-labelledby="venue-social-title">
+    <section className={`venue-social${compact ? " venue-social-compact" : ""}`} aria-labelledby={titleId}>
       <header>
-        <h2 id="venue-social-title">see the vibe</h2>
+        <h2 id={titleId}>{compact ? "at this spot" : "see the vibe"}</h2>
         <button
           onClick={() => {
             setAdding(!adding);
@@ -199,7 +200,7 @@ export default function VenueSocial({ venue }) {
           <Plus size={18} />
         </button>
       </header>
-      <div className="social-platforms" role="group" aria-label="filter posts">
+      {!compact && <div className="social-platforms" role="group" aria-label="filter posts">
         {["all", "TikTok", "Instagram"].map((platform) => (
           <button
             key={platform}
@@ -209,13 +210,13 @@ export default function VenueSocial({ venue }) {
             {platform}
           </button>
         ))}
-      </div>
+      </div>}
       {adding && (
         <form onSubmit={addPost} className="social-link-form">
-          <label htmlFor="venue-social-url">post link</label>
+          <label htmlFor={inputId}>post link</label>
           <div>
             <input
-              id="venue-social-url"
+              id={inputId}
               type="url"
               value={url}
               onChange={(event) => setUrl(event.target.value)}
@@ -230,7 +231,7 @@ export default function VenueSocial({ venue }) {
         </form>
       )}
       {visible.length > 0 && (
-        <div className="venue-social-grid">
+        <div className="venue-social-grid" tabIndex={compact ? 0 : undefined} role={compact ? "region" : undefined} aria-label={compact ? "Posts at this spot" : undefined}>
           {visible.map((post) => (
             <div className="venue-social-item" key={post.url}>
               <button
@@ -240,7 +241,7 @@ export default function VenueSocial({ venue }) {
               >
                 <div className="social-card-media">
                   {post.platform === "Instagram" ? (
-                    <InstagramPreview post={post} />
+                    <EmbeddedPreview post={post} />
                   ) : post.thumbnail ? (
                     <img
                       src={post.thumbnail}
@@ -250,6 +251,8 @@ export default function VenueSocial({ venue }) {
                         event.currentTarget.style.display = "none";
                       }}
                     />
+                  ) : compact ? (
+                    <EmbeddedPreview post={post} />
                   ) : (
                     <span className="social-no-thumbnail">TikTok</span>
                   )}
@@ -292,7 +295,7 @@ export default function VenueSocial({ venue }) {
               : "No public posts found yet."}
         </p>
       )}
-      <div className="social-search-links">
+      {(!compact || !visible.length) && <div className="social-search-links">
         <a
           href={`https://www.tiktok.com/search?q=${search}`}
           target="_blank"
@@ -307,7 +310,7 @@ export default function VenueSocial({ venue }) {
         >
           find on Instagram <ArrowUpRight size={14} />
         </a>
-      </div>
+      </div>}
       {selected && (
         <PostPreview post={selected} onClose={() => setSelected(null)} />
       )}

@@ -2,6 +2,7 @@ import http from "node:http";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createEventsHandler } from "./events.ts";
+import { selectGoogleMapsBrowserKey } from "./googleMapsBrowserKey.ts";
 import { createSocialLinkHandler } from "./socialLinks.ts";
 import { createTikTokPlacesHandler } from "./tiktokPlacesMap.ts";
 import { createItineraryMapHandler } from "./itineraryMap.ts";
@@ -9,6 +10,7 @@ import { validPreferences } from "../src/utils/planner.js";
 import { localLocations } from "../src/utils/location.js";
 import { createGoogleProvider } from "./google.js";
 import { createSocialProvider, validSocialVenue } from "./social.js";
+import { createInstagramEventsProvider, InstagramDiscoveryError } from "./instagramEvents.js";
 import { socialPost } from "../src/utils/social.js";
 import {
   createOpenAIProvider,
@@ -35,6 +37,9 @@ export function createApiServer(options = {}) {
     );
   const socialSearchEnabled =
     Boolean(openaiKey) && env.OPENAI_SOCIAL_SEARCH !== "false";
+  const instagramEvents = options.instagramEventsProvider ?? createInstagramEventsProvider(
+    openaiKey, env.OPENAI_MODEL || defaultRecommendationModel,
+  );
   const rates = new Map();
   const recommendationRates = new Map();
   const allowedOrigins = (env.APP_ORIGINS || "")
@@ -68,6 +73,13 @@ export function createApiServer(options = {}) {
       return res.end();
     }
     try {
+      // This is deliberately a PUBLIC, referrer-restricted browser key.
+      // Private Places/Routes/OpenAI credentials must never be fallbacks here.
+      if (req.method === "GET" && req.url === "/api/maps/config")
+        return reply(200, {
+          apiKey: selectGoogleMapsBrowserKey(env),
+          mapId: env.GOOGLE_MAPS_MAP_ID?.trim() || "DEMO_MAP_ID",
+        });
       if (req.method === "GET" && req.url === "/api/status")
         return reply(200, {
           venues: key ? "google" : "curated",
@@ -81,6 +93,7 @@ export function createApiServer(options = {}) {
       const locationSearch = req.url === "/api/locations/search";
       const locationResolve = req.url === "/api/locations/resolve";
       const socialSearch = req.url === "/api/social/search";
+      const instagramEventsSearch = req.url === "/api/social/events";
       const socialPreview = req.url === "/api/social/preview";
       const photoRequest =
         req.method === "GET" && req.url.startsWith("/api/photo?");
@@ -103,13 +116,14 @@ export function createApiServer(options = {}) {
             "/api/locations/search",
             "/api/locations/resolve",
             "/api/social/search",
+            "/api/social/events",
             "/api/social/preview",
           ].includes(req.url))
       )
         return reply(404, { error: "Endpoint not found" });
       if (recommendationRequest && !openaiKey)
         return reply(503, { error: "OpenAI is not configured" });
-      if (socialSearch && !socialSearchEnabled)
+      if ((socialSearch || instagramEventsSearch) && !socialSearchEnabled)
         return reply(503, { error: "Social search is unavailable" });
       if (
         !key &&
@@ -118,6 +132,7 @@ export function createApiServer(options = {}) {
         !eventsRequest &&
         !eventsMapRequest && !tiktokPlacesRequest && !itineraryMapRequest && !socialLinkRequest &&
         !socialSearch &&
+        !instagramEventsSearch &&
         !socialPreview
       )
         return reply(503, { error: "Google credentials are not configured" });
@@ -131,7 +146,7 @@ export function createApiServer(options = {}) {
       if (++rate.count > 40)
         return reply(429, { error: "Please retry in a minute" });
       if (rates.size > 10000) rates.clear();
-      if (recommendationRequest || socialSearch) {
+      if (recommendationRequest || socialSearch || instagramEventsSearch) {
         let aiRate = recommendationRates.get(ip);
         if (!aiRate || now - aiRate.start > 60000) {
           aiRate = { start: now, count: 0 };
@@ -169,6 +184,12 @@ export function createApiServer(options = {}) {
         body = JSON.parse(raw);
       } catch {
         return reply(400, { error: "Invalid JSON" });
+      }
+      if (instagramEventsSearch) {
+        try { return reply(200, { posts: await instagramEvents.discover() }); }
+        catch (error) {
+          return reply(502, { error: "Instagram discovery unavailable", code: error instanceof InstagramDiscoveryError ? error.code : "provider_unavailable", reason: error instanceof InstagramDiscoveryError ? error.reason : "unknown" });
+        }
       }
       if (socialSearch) {
         if (!validSocialVenue(body?.venue))

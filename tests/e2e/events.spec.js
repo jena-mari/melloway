@@ -123,3 +123,106 @@ test('missing Ticketmaster credentials leave existing sample experience usable',
   await page.getByLabel('search events').fill('live music');
   await expect(page.locator('.event-post')).toHaveCount(1);
 });
+
+test('verified Sydney highlights remain useful without Instagram discovery and survive save, like and expiry', async ({ page }, info) => {
+  await page.route('**/api/events?**', route => route.fulfill({ status: 503, json: { error: 'Mock unavailable' } }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/events');
+  const rail = page.getByRole('region', { name: 'Upcoming Sydney highlights' });
+  await expect(rail.locator('.sydney-event-tile')).toHaveCount(3);
+  await expect(rail.getByRole('link', { name: 'SURPLUS on Instagram' })).toHaveAttribute('href', 'https://www.instagram.com/surplussydney/');
+  await page.getByRole('button', { name: 'Save event SURPLUS 2026', exact: true }).click();
+  await page.screenshot({ path: info.outputPath('sydney-highlights-390.png') });
+  await page.goto('/favourites?tab=events');
+  await expect(page.locator('.saved-event-card')).toContainText('16–18 Oct 2026');
+  await page.getByRole('link', { name: 'SURPLUS 2026', exact: true }).click();
+  const post = page.locator('.event-post');
+  await expect(post).toContainText('organiser');
+  await expect(post).not.toContainText('sample event');
+  await expect(post.getByRole('link', { name: 'event details' })).toHaveAttribute('href', 'https://surplus.sydney/');
+  await post.getByRole('button', { name: 'Like event SURPLUS 2026' }).click();
+  await page.goto('/profile');
+  await page.getByRole('tab', { name: 'Your Likes' }).click();
+  await expect(page.locator('.profile-event-card')).toContainText('SURPLUS 2026');
+  await page.clock.setFixedTime(new Date('2026-11-04T00:00:00Z'));
+  await page.goto('/events');
+  await expect(rail).toHaveCount(0);
+  await page.getByRole('button', { name: 'saved', exact: true }).click();
+  await expect(rail.locator('.sydney-event-tile')).toHaveCount(1);
+  await page.setViewportSize({ width: 320, height: 740 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')))).toBeNull();
+});
+
+test('Instagram announcements show original previews and persist in Saved and Profile without changing the plan', async ({ page }) => {
+  const posts = [
+    { url: 'https://www.instagram.com/p/MockSydneyMarket/', title: 'Mock Sydney Makers Market', host: 'Mock Makers', handle: 'mockmakers', type: 'markets',
+      area: 'Mock Hall, Newtown', startDate: '2026-10-17', endDate: '2026-10-17', text: 'Local makers and food.' },
+    { url: 'https://www.instagram.com/reel/MockSydneyGallery/', title: 'Mock Gallery Night', host: 'Mock Gallery', handle: 'mockgallery', type: 'exhibitions',
+      area: 'Mock Gallery, Sydney CBD', startDate: '2026-10-18', endDate: '2026-10-19', text: 'An evening exhibition.' },
+    { url: 'https://www.instagram.com/p/MockSydneyMusic/', title: 'Mock Live Music', host: 'Mock Music', handle: 'mockmusic', type: 'concerts',
+      area: 'Mock Stage, Surry Hills', startDate: '2026-10-20', endDate: '2026-10-20', text: 'Live music in Sydney.' },
+  ];
+  await page.route('**/api/status', route => route.fulfill({ json: { venues: 'curated', recommendations: 'planner', socialDiscovery: 'openai' } }));
+  await page.route('**/api/events?**', route => route.fulfill({ status: 503, json: { error: 'Mock Ticketmaster unavailable' } }));
+  let searches = 0;
+  await page.route('**/api/social/events', route => {
+    searches++;
+    expect(route.request().postDataJSON()).toEqual({});
+    return route.fulfill({ json: { posts } });
+  });
+  await page.route('https://www.instagram.com/**', route => route.fulfill({ contentType: 'text/html',
+    body: '<html><body style="margin:0;font-family:sans-serif"><p>Mock organiser · Instagram</p><div style="height:360px;background:#edb6c8;display:grid;place-items:center">Sydney event poster fixture</div></body></html>' }));
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/events');
+  const feed = page.getByRole('region', { name: 'Sydney events from Instagram' });
+  await expect(feed.locator('.event-post')).toHaveCount(3);
+  const market = feed.getByRole('article', { name: posts[0].title });
+  await expect(market).toContainText('17 Oct 2026');
+  await expect(market).toContainText('Mock Hall, Newtown');
+  await expect(market.locator('iframe')).toHaveAttribute('src', `${posts[0].url}embed/`);
+  await expect(market.getByRole('link', { name: 'view original post' })).toHaveAttribute('href', posts[0].url);
+  await expect(market).not.toContainText('sample event');
+  await market.getByRole('button', { name: `Save event ${posts[0].title}` }).click();
+  await feed.getByRole('button', { name: `Like event ${posts[1].title}` }).click();
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await market.screenshot({ path: `/private/tmp/melloway-instagram-event-${width}.png` });
+  }
+  await page.getByLabel('search events').fill('Mock Sydney Makers');
+  await expect(feed.locator('.event-post')).toHaveCount(1);
+  await page.getByLabel('search events').fill('');
+  await page.getByRole('button', { name: 'saved', exact: true }).click();
+  await expect(feed.locator('.event-post')).toHaveCount(1);
+  await page.getByRole('button', { name: 'liked', exact: true }).click();
+  await expect(feed.locator('.event-post')).toHaveCount(1);
+  await expect(feed).toContainText(posts[1].title);
+  expect(searches).toBe(1); // Local filters never trigger more paid discovery.
+  await page.route('**/api/social/events', route => route.fulfill({ json: { posts: [] } }));
+  await page.goto('/favourites?tab=events');
+  await expect(page.getByRole('heading', { name: posts[0].title })).toBeVisible();
+  await expect(page.locator('.saved-event-card')).toContainText('Instagram');
+  await page.getByRole('link', { name: `View event ${posts[0].title}`, exact: true }).click();
+  await expect(feed.getByRole('article', { name: posts[0].title })).toBeVisible();
+  await page.goto('/profile?tab=saved');
+  await expect(page.locator('.profile-event-card')).toContainText(posts[0].title);
+  await page.goto('/profile?tab=likes');
+  await expect(page.locator('.profile-event-card')).toContainText(posts[1].title);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')))).toBeNull();
+  expect(errors).toEqual([]);
+});
+
+test('failed Instagram discovery keeps the existing feed and the Sydney search link usable', async ({ page }) => {
+  await page.route('**/api/status', route => route.fulfill({ json: { socialDiscovery: 'openai' } }));
+  await page.route('**/api/social/events', route => route.fulfill({ status: 502, json: { error: 'Mock unavailable' } }));
+  await page.route('**/api/events?**', route => route.fulfill({ status: 503, json: {} }));
+  await page.goto('/events');
+  const feed = page.getByRole('region', { name: 'Sydney events from Instagram' });
+  await expect(feed).toContainText('Instagram posts are unavailable right now.');
+  await expect(feed.getByRole('link', { name: 'browse' })).toHaveAttribute('href', 'https://www.instagram.com/explore/search/keyword/?q=sydney&hl=en');
+  await expect(feed.locator('.event-post')).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'event poster feed' }).locator('.event-post')).toHaveCount(5);
+});
