@@ -630,6 +630,9 @@ test("result search, filters and map selection preserve the full generated day",
   );
   const count = original.stops.length;
   await expect(page.locator(".route-summary-list > li")).toHaveCount(count);
+  await expect(page.getByLabel("search ur stops", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Search stops", exact: true }).tap();
+  await expect(page.getByLabel("search ur stops", { exact: true })).toBeFocused();
   await page
     .getByLabel("search ur stops", { exact: true })
     .fill(original.stops[0].name);
@@ -643,6 +646,9 @@ test("result search, filters and map selection preserve the full generated day",
   ).toBeVisible();
   await page.getByRole("button", { name: "show all stops", exact: true }).tap();
   await expect(page.locator(".route-summary-list > li")).toHaveCount(count);
+  await page.getByRole("button", { name: "Search stops", exact: true }).tap();
+  await expect(page.getByLabel("search ur stops", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Search stops", exact: true }).tap();
   await page.getByRole("button", { name: "filter stops", exact: true }).tap();
   await page
     .getByLabel("show me", { exact: true })

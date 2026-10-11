@@ -122,9 +122,14 @@ test('missing Ticketmaster credentials leave organiser events usable', async ({ 
   await page.goto('/events');
   await expect(page.getByRole('status')).toContainText('server needs its Ticketmaster key');
   await expect(page.locator('.sydney-event-tile')).toHaveCount(3);
-  await page.getByLabel('search events').fill('SURPLUS');
+  await expect(page.getByLabel('search events', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Search events', exact: true }).click();
+  await page.getByLabel('search events', { exact: true }).fill('SURPLUS');
   await expect(page.locator('.sydney-event-tile')).toHaveCount(1);
   await expect(page.locator('.sydney-event-tile')).toContainText('SURPLUS 2026');
+  await page.getByRole('button', { name: 'Search events', exact: true }).click();
+  await expect(page.getByLabel('search events', { exact: true })).toHaveCount(0);
+  await expect(page.locator('.sydney-event-tile')).toHaveCount(3);
 });
 
 test('verified Sydney highlights remain useful without Instagram discovery and survive save, like and expiry', async ({ page }, info) => {
@@ -195,9 +200,10 @@ test('Instagram announcements show original previews and persist in Saved and Pr
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await market.screenshot({ path: `/private/tmp/melloway-instagram-event-${width}.png` });
   }
-  await page.getByLabel('search events').fill('Mock Sydney Makers');
+  await page.getByRole('button', { name: 'Search events', exact: true }).click();
+  await page.getByLabel('search events', { exact: true }).fill('Mock Sydney Makers');
   await expect(feed.locator('.event-post')).toHaveCount(1);
-  await page.getByLabel('search events').fill('');
+  await page.getByLabel('search events', { exact: true }).fill('');
   await page.getByRole('button', { name: 'saved', exact: true }).click();
   await expect(feed.locator('.event-post')).toHaveCount(1);
   await page.getByRole('button', { name: 'liked', exact: true }).click();

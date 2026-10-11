@@ -62,6 +62,7 @@ export default function Itinerary({
     [busy, setBusy] = useState(false),
     [busyStop, setBusyStop] = useState(null),
     [query, setQuery] = useState(""),
+    [showSearch, setShowSearch] = useState(false),
     [category, setCategory] = useState("all"),
     [showFilters, setShowFilters] = useState(false),
     [selectedId, setSelectedId] = useState(initialStopId);
@@ -399,6 +400,11 @@ export default function Itinerary({
                 : `here’s ur ${d.mode === "date" ? "date" : "hangout"}!`}
             </h1>
           </div>
+          <button className="compact-search-toggle" aria-label="Search stops" aria-expanded={showSearch}
+            aria-controls="itinerary-search" onClick={() => {
+              if (showSearch) { clearFilters(); setShowFilters(false); }
+              setShowSearch(!showSearch);
+            }}><Search size={20} /></button>
           <button
             className="result-bookmark"
             aria-label={isSaved ? "sync saved plan" : "save this plan"}
@@ -407,11 +413,12 @@ export default function Itinerary({
             <Bookmark size={22} fill={isSaved ? "currentColor" : "none"} />
           </button>
         </header>
-        <div className="result-searchbar">
+        {showSearch && <div className="result-searchbar" id="itinerary-search">
           <label className="result-search">
             <Search size={20} />
             <span className="sr-only">search ur stops</span>
             <input
+              autoFocus
               type="search"
               value={query}
               placeholder="search stops or cuisine"
@@ -436,7 +443,7 @@ export default function Itinerary({
           >
             <SlidersHorizontal size={21} />
           </button>
-        </div>
+        </div>}
         {showFilters && (
           <div className="result-filters" id="result-filters">
             <label htmlFor="stop-category">show me</label>

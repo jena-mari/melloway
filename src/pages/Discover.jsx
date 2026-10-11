@@ -175,6 +175,7 @@ export function Events() {
   }, [hack48Focused]);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [showSearch, setShowSearch] = useState(false);
   const [likes, setLikes] = useState(() => {
     const data = readLocal("melloway.eventLikes", []);
     return Array.isArray(data) ? data : [];
@@ -247,15 +248,21 @@ export function Events() {
     <div className="page events-page">
       <header className="events-heading">
         <h1>what’s on?</h1>
+        <button className="compact-search-toggle events-search-toggle" aria-label="Search events" aria-expanded={showSearch}
+          aria-controls="events-search-field" onClick={() => {
+            if (showSearch) setQuery("");
+            setShowSearch(!showSearch);
+          }}><Search size={20} /></button>
         <Link to="/favourites?tab=events" aria-label="view saved events">
           <Bookmark size={20} />
           <span>{savedEvents.length || "saved"}</span>
         </Link>
       </header>
-      <label className="community-search events-search" htmlFor="event-search">
+      {showSearch && <label className="community-search events-search" id="events-search-field" htmlFor="event-search">
         <Search size={18} aria-hidden="true" />
         <span className="sr-only">search events</span>
         <input
+          autoFocus
           id="event-search"
           type="search"
           value={query}
@@ -265,7 +272,7 @@ export function Events() {
             if (focused) setSearch({});
           }}
         />
-      </label>
+      </label>}
       <div className="event-feed-filters" role="group" aria-label="event feed">
         {[
           "all",

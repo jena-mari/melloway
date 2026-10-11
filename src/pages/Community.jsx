@@ -219,6 +219,8 @@ export default function Community() {
   const [show, setShow] = useState(params.get("compose") === "1");
   const [photo, setPhoto] = useState("");
   const query = params.get("q") || "";
+  const [showSearch, setShowSearch] = useState(false);
+  const searchOpen = showSearch || Boolean(query);
   function setQuery(value) {
     const next = new URLSearchParams(params);
     if (value) next.set("q", value);
@@ -315,9 +317,18 @@ export default function Community() {
         >
           <UserRound size={23} strokeWidth={2.4} aria-hidden="true" />
         </Link>
-        <label className="community-search" htmlFor="ideas-search">
+        <Link to="/" className="community-home-mark" aria-label="melloway home">
+          <BrandLogo decorative />
+        </Link>
+        <button className="compact-search-toggle" aria-label="Search feed" aria-expanded={searchOpen}
+          aria-controls="ideas-search-field" onClick={() => {
+            if (searchOpen) setQuery("");
+            setShowSearch(!searchOpen);
+          }}><Search size={20} /></button>
+        {searchOpen && <label className="community-search" id="ideas-search-field" htmlFor="ideas-search">
           <span className="sr-only">search posts</span>
           <input
+            autoFocus
             id="ideas-search"
             type="search"
             placeholder="search"
@@ -338,10 +349,7 @@ export default function Community() {
           ) : (
             <Search size={19} aria-hidden="true" />
           )}
-        </label>
-        <Link to="/" className="community-home-mark" aria-label="melloway home">
-          <BrandLogo decorative />
-        </Link>
+        </label>}
       </header>
       {show && (
         <form

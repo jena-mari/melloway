@@ -200,7 +200,7 @@ test("compact community feed supports threads, saves and expanded itineraries", 
     .toBe(true);
   await expect(page.locator(".map-canvas")).toHaveCount(0);
   await expect(page.locator(".app-topbar")).toHaveCount(0);
-  await expect(page.getByLabel("search posts")).toBeVisible();
+  await expect(page.getByLabel("search posts")).toHaveCount(0);
   await expect(
     page.locator(".community-page > .community-filters"),
   ).toHaveCount(0);
@@ -235,6 +235,8 @@ test("compact community feed supports threads, saves and expanded itineraries", 
   await page
     .getByRole("link", { name: "Back to community", exact: true })
     .click();
+  await page.getByRole("button", { name: "Search feed", exact: true }).click();
+  await expect(page.getByLabel("search posts")).toBeFocused();
   await page.getByLabel("search posts").fill("@zoe.takes.it.slow");
   await expect(posts).toHaveCount(1);
   await page.getByLabel("search posts").fill("somewhere that does not exist");
@@ -249,6 +251,10 @@ test("compact community feed supports threads, saves and expanded itineraries", 
   await page.getByRole("button", { name: "clear search", exact: true }).click();
   await expect(page.getByLabel("search posts")).toHaveValue("");
   await expect(page.getByLabel("search posts")).toBeFocused();
+  await expect(posts).toHaveCount(3);
+  await page.getByLabel("search posts").fill("Newtown");
+  await page.getByRole("button", { name: "Search feed", exact: true }).click();
+  await expect(page.getByLabel("search posts")).toHaveCount(0);
   await expect(posts).toHaveCount(3);
   await first
     .getByRole("button", {
@@ -509,10 +515,11 @@ test("organiser posters support likes, saves, details and saved-event navigation
   await page.getByRole("button", { name: "saved", exact: true }).click();
   await expect(tiles).toHaveCount(0);
   await page.getByRole("button", { name: "see all events", exact: true }).click();
-  await page.getByLabel("search events").fill("sculpture");
+  await page.getByRole("button", { name: "Search events", exact: true }).click();
+  await page.getByLabel("search events", { exact: true }).fill("sculpture");
   await expect(tiles).toHaveCount(1);
   await expect(tiles).toContainText("Sculpture by the Sea");
-  await page.getByLabel("search events").fill("");
+  await page.getByLabel("search events", { exact: true }).fill("");
   await page.screenshot({ path: info.outputPath("organiser-event-feed.png"), fullPage: true });
   expect(errors).toEqual([]);
 });

@@ -1764,6 +1764,17 @@ dd {
   border-radius: 10px;
   flex-shrink: 0;
 }
+.compact-search-toggle {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+}
+.compact-search-toggle[aria-expanded="true"] {
+  background: #f3f3f3;
+}
 .result-searchbar {
   display: flex;
   align-items: center;
@@ -3695,6 +3706,12 @@ dd {
     34px "Maple Shore",
     cursive;
 }
+.community-feed-header .community-home-mark {
+  justify-self: center;
+}
+.community-feed-header .community-search {
+  grid-column: 1 / -1;
+}
 .community-feed-header .community-search {
   min-width: 0;
   height: 44px;
@@ -4491,7 +4508,12 @@ dd {
 .events-heading {
   position: relative;
   margin: 8px 0 12px;
-  padding-right: 62px;
+  padding-right: 104px;
+}
+.events-search-toggle {
+  position: absolute;
+  right: 52px;
+  top: 2px;
 }
 .events-heading h1 {
   font-size: 36px;
