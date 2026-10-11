@@ -15,7 +15,7 @@ function isPin(value: unknown): value is ItineraryPin {
 
 /** Display the exact chosen stops, with no search, geocoding or route request. */
 export function itineraryMapPoints(value: unknown): EventMapPoint[] {
-  if (!Array.isArray(value) || value.length < 3 || value.length > 5 || !value.every(isPin)) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 14 || !value.every(isPin)) {
     throw new Error('Invalid itinerary stops.');
   }
   return value.map((pin, index) => ({ label: String(index + 1), name: pin.name,

@@ -50,3 +50,7 @@ npm run typecheck:backend
 ```
 
 These tests need no credentials and make no real Ticketmaster or Google requests. They cover provider parsing/errors, missing optional values/prices, confirmed dates, venue points, caching, browser-key selection, missing configuration and safe JSON errors. They are included in `npm test`. See [the backend integration record](BACKEND_INTEGRATION.md) for final test counts and the preserved frontend baseline.
+
+## Main consolidation
+
+The web JSON contract retains its date, hours, budget and location filtering. The restored `/api/events-map` renders the same cached preference search on Google Maps, displaying the first ten venue locations while the JSON/list retains all results. The Expo event screen shows categories, original listing links, advertised price ranges and the same fit/unknown-price disclosures. Browser maps prefer the dedicated `GOOGLE_MAPS_JS_KEY` and fall back to `GOOGLE_MAPS_DEMO_KEY`; never use the private Places/Routes credential in a map page.

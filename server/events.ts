@@ -3,10 +3,9 @@ import { eventMapPoints, type EventSearchResponse, type EventPreferences } from 
 import { searchSydneyEvents } from './ticketmaster.ts';
 import { readEventPreferences } from './eventPreferences.ts';
 
-/** Select only a browser map key; private provider credentials are never fallbacks. */
-export function selectGoogleMapsBrowserKey(env: { GOOGLE_MAPS_JS_KEY?: string; GOOGLE_MAPS_DEMO_KEY?: string } = process.env): string | null {
-  return env.GOOGLE_MAPS_JS_KEY?.trim() || env.GOOGLE_MAPS_DEMO_KEY?.trim() || null;
-}
+import { selectGoogleMapsBrowserKey } from './googleMapsBrowserKey.ts';
+import { renderVenueMap } from './eventMap.ts';
+export { selectGoogleMapsBrowserKey } from './googleMapsBrowserKey.ts';
 
 export function createEventsHandler(options: { fetcher?: typeof fetch; now?: () => Date } = {}) {
   const fetcher = options.fetcher ?? fetch;
@@ -49,6 +48,12 @@ export function createEventsHandler(options: { fetcher?: typeof fetch; now?: () 
     try {
       const browserKey = selectGoogleMapsBrowserKey();
       const data = { ...await snapshot(preferences), mapAvailable: Boolean(browserKey) };
+      if (req.url?.split('?')[0] === '/api/events-map') {
+        if (!browserKey) return json(503, 'Google Maps is not configured. Set GOOGLE_MAPS_JS_KEY or GOOGLE_MAPS_DEMO_KEY on the server.');
+        if (!data.points.length) return json(404, 'No event venues with coordinates are available.');
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+        return res.end(renderVenueMap(data.points.slice(0, 10), browserKey));
+      }
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify(data));
     } catch {

@@ -31,7 +31,7 @@ test('the map preserves chosen stop order and exact coordinates, including share
 });
 
 test('rejects invalid stop counts, missing fields and out-of-Sydney coordinates', () => {
-  for (const value of [null, {}, [], stops.slice(0, 2), [...stops, ...stops],
+  for (const value of [null, {}, [], Array(15).fill(stops[0]),
     [{ ...stops[0], name: '' }, ...stops.slice(1)],
     [{ ...stops[0], lat: '-33.873' }, ...stops.slice(1)],
     [{ ...stops[0], lat: NaN }, ...stops.slice(1)],
@@ -69,4 +69,15 @@ test('provider names and map keys cannot inject scripts into the map HTML', asyn
   assert.equal(result.status, 200);
   assert.ok(!result.body.includes('</script><script>alert'));
   assert.ok(!result.body.includes('<script>bad'));
+});
+
+
+test('edited web plans with one stop or fourteen stops retain every numbered Google pin', async () => {
+  for (const count of [1, 2, 6, 14]) {
+    const edited = Array.from({ length: count }, (_, i) => ({ ...stops[i % stops.length], name: `Mock edited stop ${i + 1}` }));
+    assert.equal(itineraryMapPoints(edited).length, count);
+    const result = await request(path(edited));
+    assert.equal(result.status, 200);
+    assert.ok(result.body.includes(`"label":"${count}"`));
+  }
 });

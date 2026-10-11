@@ -25,12 +25,14 @@ window.google = { maps: {
   },
   LatLngBounds: class { points = []; extend(position) { this.points.push(position); } }
 } }; window.initVenueMap();`;
-async function events(page, data = fixture, script = mapsScript) {
+const missingMap = 'Google Maps is not configured on the event server. Venue coordinates are still listed below.';
+const failedMap = 'The Google map preview could not load. Check the connection, browser key and allowed website referrers. Venue coordinates are still listed below.';
+async function events(page, data = fixture, script = mapsScript, key = 'mock-js-key') {
   await page.route('https://maps.googleapis.com/**', route => route.fulfill({ contentType: 'text/javascript', body: script }));
   await page.context().route('https://www.google.com/maps/**', route => route.fulfill({ contentType: 'text/html', body: 'Mock external Google Maps' }));
   await page.route(`${origin}/api/events`, route => route.fulfill({ json: data, headers: { 'Access-Control-Allow-Origin': '*' } }));
   await page.route(`${origin}/api/events-map?*`, route => route.fulfill({ contentType: 'text/html',
-    body: data.points.length ? renderVenueMap(data.points, 'mock-demo-key') : '' }));
+    body: data.points.length ? renderVenueMap(data.points, key) : '' }));
 }
 
 test('home opens the venue map, showing real-coordinate pins and events without coordinates', async ({ page }) => {
@@ -72,17 +74,17 @@ test('a failed event request can be retried', async ({ page }) => {
 test('a missing Google key keeps venue coordinates visible', async ({ page }) => {
   await events(page, { ...fixture, mapAvailable: false });
   await page.goto('/events-map');
-  await expect(page.getByText('The Google map preview is unavailable. Venue coordinates are still listed below.')).toBeVisible();
+  await expect(page.getByText(missingMap)).toBeVisible();
   await expect(page.getByTestId('venue-pin-A')).toBeVisible();
   await expect(page.getByTestId('ticketmaster-venue-map')).toHaveCount(0);
 });
 
-test('a rejected Demo Key keeps venue coordinates visible and can be retried', async ({ page }) => {
-  await events(page, fixture, 'window.gm_authFailure();');
+for (const key of ['mock-js-key', 'mock-demo-key']) test(`a rejected browser key (${key}) keeps venues visible and can be retried`, async ({ page }) => {
+  await events(page, fixture, 'window.gm_authFailure();', key);
   await page.goto('/events-map');
-  await expect(page.getByText('The Google map preview is unavailable. Venue coordinates are still listed below.')).toBeVisible();
+  await expect(page.getByText(failedMap)).toBeVisible();
   await expect(page.getByTestId('venue-pin-A')).toBeVisible();
-  await events(page);
+  await events(page, fixture, mapsScript, key);
   await page.getByRole('button', { name: 'Refresh venues', exact: true }).click();
   await expect(page.frameLocator('[data-testid="ticketmaster-venue-map"]').getByRole('button', { name: 'A. Mock venue' })).toBeVisible();
 });
@@ -103,7 +105,7 @@ test('a failed JavaScript loader preserves the venue list', async ({ page }) => 
   await events(page);
   await page.route('https://maps.googleapis.com/**', route => route.abort());
   await page.goto('/events-map');
-  await expect(page.getByText('The Google map preview is unavailable. Venue coordinates are still listed below.')).toBeVisible();
+  await expect(page.getByText(failedMap)).toBeVisible();
   await expect(page.getByTestId('venue-pin-A')).toBeVisible();
 });
 

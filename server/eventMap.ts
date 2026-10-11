@@ -1,14 +1,14 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { eventMapPoints, type EventMapResponse, type EventMapPoint } from '@melloway/domain';
-import { selectGoogleMapsBrowserKey } from './events.ts';
-export { selectGoogleMapsBrowserKey } from './events.ts';
+import { selectGoogleMapsBrowserKey } from './googleMapsBrowserKey.ts';
+export { selectGoogleMapsBrowserKey } from './googleMapsBrowserKey.ts';
 import { fetchSydneyEvents } from './ticketmaster.ts';
 
 /** This page exposes only the dedicated no-billing Demo Key, never server provider keys. */
 export function renderVenueMap(points: EventMapPoint[], browserKey: string, source: 'events' | 'tiktok' | 'itinerary' = 'events'): string {
   if (!browserKey.trim()) throw new Error('Google Maps browser key is not configured.');
   const itinerary = source === 'itinerary';
-  if (!points.length || points.length > (itinerary ? 5 : 10) || points.some(point => !(itinerary ? /^[1-5]$/ : /^[A-J]$/).test(point.label)
+  if (!points.length || points.length > (itinerary ? 14 : 10) || points.some(point => !(itinerary ? /^(?:[1-9]|1[0-4])$/ : /^[A-J]$/).test(point.label)
     || !Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)
     || Math.abs(point.latitude) > 90 || Math.abs(point.longitude) > 180)) throw new Error('Invalid venue pins.');
   // Treat provider names as data, including names containing closing script tags.
@@ -30,24 +30,27 @@ function notifyParent(message) {
   else window.parent.postMessage(message, parentOrigin || '*');
 }
 let selectMarker = () => {};
-window.addEventListener('message', event => {
+if (itinerary) window.addEventListener('message', event => {
   if (!itinerary || event.source !== window.parent || event.origin !== parentOrigin
     || event.data?.type !== 'melloway-map-select') return;
   const index = event.data.index;
   if (Number.isInteger(index) && index >= 0 && index < pins.length) selectMarker(index);
 });
 let complete = false;
-function failMap() {
+function failMap(reason = 'load') {
   if (complete) return;
   complete = true;
+  clearTimeout(timer);
   document.getElementById('map').hidden = true;
   const error = document.getElementById('error');
   error.hidden = false;
-  error.textContent = 'The Google demo map could not load. Check the Demo Key or try again later. Venue coordinates remain listed in Melloway.';
+  error.textContent = reason === 'auth'
+    ? 'Google Maps authentication failed. Check the configured browser key, Maps JavaScript API access and allowed website referrers. Venue coordinates remain listed in Melloway.'
+    : 'The Google map could not load. Check the connection or try again later. Venue coordinates remain listed in Melloway.';
   const message = { type: 'melloway-map-error' };
   notifyParent(message);
 }
-window.gm_authFailure = () => { complete = false; failMap(); };
+window.gm_authFailure = () => { complete = false; failMap('auth'); };
 window.initVenueMap = async () => {
   try {
     const { Map } = await google.maps.importLibrary('maps');
@@ -121,7 +124,7 @@ export function createEventMapHandler(options: { fetcher?: typeof fetch; now?: (
         return res.end(JSON.stringify(data));
       }
       if (!data.points.length) return json(404, 'No event venues with coordinates are available.');
-      if (!data.mapAvailable) return json(503, 'Google Maps is not configured on the server.');
+      if (!data.mapAvailable) return json(503, 'Google Maps is not configured. Set GOOGLE_MAPS_JS_KEY or GOOGLE_MAPS_DEMO_KEY on the server.');
       const html = renderVenueMap(data.points, browserKey!);
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
       res.end(html);

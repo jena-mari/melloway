@@ -64,6 +64,7 @@ export default function EventMapScreen() {
       </View>}
       {(!data.mapAvailable || failedMap) && !!data.points.length && <Notice>The Google map preview is unavailable. Venue coordinates are still listed below.</Notice>}
       {allEvents.length === 0 && <Text style={common.text}>No Ticketmaster events match your selected date, hours, budget and area.</Text>}
+      {data.points.length > 10 && <Notice>The map preview shows the first ten venue locations. All matching events remain listed below.</Notice>}
       {data.truncated && <Notice>This is a limited search; more Ticketmaster events may exist.</Notice>}
       {data.missingCoordinates > 0 && <Notice>{data.missingCoordinates} events have no usable venue coordinates and cannot be pinned.</Notice>}
       {data.points.map(point => <View key={point.label} testID={`venue-pin-${point.label}`} style={common.card}>

@@ -2,7 +2,6 @@ import http from "node:http";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createEventsHandler } from "./events.ts";
-import { createEventMapHandler } from "./eventMap.ts";
 import { createSocialLinkHandler } from "./socialLinks.ts";
 import { createTikTokPlacesHandler } from "./tiktokPlacesMap.ts";
 import { createItineraryMapHandler } from "./itineraryMap.ts";
@@ -44,7 +43,7 @@ export function createApiServer(options = {}) {
     .filter(Boolean);
 
   const eventsHandler = options.eventsHandler ?? createEventsHandler();
-  const eventsMapHandler = options.eventsMapHandler ?? createEventMapHandler();
+  const eventsMapHandler = options.eventsMapHandler ?? eventsHandler;
   const socialLinkHandler = options.socialLinkHandler ?? createSocialLinkHandler();
   const tiktokPlacesHandler = options.tiktokPlacesHandler ?? createTikTokPlacesHandler();
   const itineraryMapHandler = options.itineraryMapHandler ?? createItineraryMapHandler();
