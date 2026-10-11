@@ -1,4 +1,5 @@
 // Open vocabulary: facility phrases do not have to belong to the preference tags.
+import { independentBookshop } from './venueIdentity.js';
 const normalize = (value) => String(value || "").normalize("NFKD")
   .replace(/\p{M}/gu, "").toLowerCase().replace(/skateparks?/g, "skate park")
   .replace(/skateboarding/g, "skate park").replace(/[^a-z0-9]+/g, " ").trim();
@@ -46,7 +47,7 @@ export function extractRequestedActivities(notes = "") {
         .replace(/^(?:(?:a|an|the|some|please|nice|good|great|nearby|local|free|cheap|outdoor|quiet|cozy)\s+)+/i, "")
         .replace(/\s+please$/i, "").trim();
       const normalized = normalize(phrase).replace(/^skate$/, "skate park")
-        .replace(/^(?:indie|independent) bookshops?$/, 'independent bookshop')
+        .replace(/^(?:indie|independent) (?:bookshops?|book ?stores?)$/, 'independent bookshop')
         .replace(/^vintage (?:shopping|shops?|stores?)$/, 'vintage store');
       if (!requesting && !/\b(?:park|skatepark|gym|studio|court|pool|rink|gallery|museum|beach|trail|garden|bookshops?|cafe)\b/.test(normalized)) continue;
       if (!normalized || normalized.length > 80 || normalized.split(" ").length > 6 ||
@@ -66,8 +67,7 @@ export const matchesAnyRequestedActivity = (venue, intent) =>
 export function matchesRequestedActivity(venue, activity) {
   if (!activity) return false;
   if (activity.query === 'independent bookshop')
-    return venue.source === 'curated' && venue.tags?.includes('Bookshops') &&
-      /\bindependent\b/i.test(venue.description || '');
+    return independentBookshop(venue);
   const types = Array.isArray(venue.providerTypes) ? venue.providerTypes : [];
   if (activity.placeType && types.includes(activity.placeType)) return true;
   // A café/shop named after a park is not evidence of the requested facility.

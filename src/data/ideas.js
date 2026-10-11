@@ -12,6 +12,7 @@ export const ideas = [
     title: "indie bookshops and art museums",
     drawing: "libraryart",
     tags: ["Bookshops", "Art galleries", "Museums"],
+    bookshopPreference: "independent",
     atmosphere: ["creative", "quiet"],
     period: "daytime",
   },

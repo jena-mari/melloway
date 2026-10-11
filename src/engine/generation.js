@@ -28,7 +28,16 @@ export function optimiseExperience(
     : prefs.transport === "Walking"
       ? 2.5
       : 4;
-  for (const template of templates) {
+  // Ordinary local outings exhaust feasible café/shop/activity combinations
+  // before optional gallery/walk filler. Explicit outdoor/culture requests and
+  // closest-match searches retain all of their existing templates.
+  const localFirst = !intent.allowAlternatives && !intent.sightseeing &&
+    !intent.requiredRoles.some(role => ['culture', 'walk'].includes(role));
+  const optionalCulture = template => template.some(role => ['culture', 'walk'].includes(role));
+  const preferred = localFirst ? templates.filter(template => !optionalCulture(template)) : templates;
+  const optional = localFirst ? templates.filter(optionalCulture) : [];
+  for (const [templateIndex, template] of [...preferred, ...optional].entries()) {
+    if (best && templateIndex === preferred.length) return best;
     function search(indices) {
       const stops = indices.map((i, stage) => ({
         ...candidates[i],
@@ -56,6 +65,7 @@ export function optimiseExperience(
       if (indices.length === template.length) {
         if (
           signature(stops) === excludeSignature ||
+          (intent.requestedVenueIds || []).some(id => !stops.some(venue => venue.id === id)) ||
           intent.requiredTags.some((tag) => !coversTag(stops, tag))
         )
           return;

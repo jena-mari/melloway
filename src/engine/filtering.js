@@ -104,7 +104,7 @@ export function selectCandidates(
   all,
   prefs,
   intent,
-  { rejectedIds = [], weights, seed = 0 } = {},
+  { rejectedIds = [], weights, seed = 0, recentPlans = [] } = {},
 ) {
   const eligible = all
     .map((v) => ({
@@ -113,7 +113,7 @@ export function selectCandidates(
       estimatedCost: spendAllowance(v, intent),
     }))
     .filter((v) => !venueRejection(v, prefs, intent, rejectedIds))
-    .map((v) => scoreVenue(v, prefs, intent, weights))
+    .map((v) => scoreVenue(v, prefs, intent, weights, recentPlans))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
   // Curated venues are the primary catalogue. In a mixed pool reserve up to half
   // the shortlist for the best eligible curated matches, with requested-role
@@ -123,6 +123,7 @@ export function selectCandidates(
     if (v && chosen.length < 14 && !chosen.some((c) => sameBusiness(c, v)))
       chosen.push(v);
   };
+  eligible.filter(v => v.explicitlyRequested).forEach(add);
   eligible.filter(v => matchesAnyRequestedActivity(v, intent)).slice(0, 3).forEach(add);
   if (eligible.some((v) => v.source === "google")) {
     const curated = eligible.filter((v) => v.source === "curated");
@@ -141,9 +142,25 @@ export function selectCandidates(
       .filter((v) => venueRoles(v).includes(role))
       .slice(0, 3)
       .forEach(add);
+  // Recent recommendations still need relevant alternatives in the shortlist.
+  // Do not let fresh, unrequested gallery/walk filler crowd out local activities.
+  eligible.filter(v => !v.scoreBreakdown.touristLandmark && !v.scoreBreakdown.unsolicitedFiller).forEach(add);
   for (const v of eligible) {
     if (chosen.length >= 14) break;
     add(v);
   }
   return chosen.slice(0, 14);
+}
+
+// Same filtering and scoring as generation; the diagnostic never calls providers.
+export function candidateDiagnostics(all, prefs, intent, options = {}) {
+  const selected = selectCandidates(all, prefs, intent, options);
+  return all.map(venue => {
+    const rejection = venueRejection(venue, prefs, intent, options.rejectedIds);
+    const scored = scoreVenue({ ...venue, cost: spendAllowance(venue, intent) },
+      prefs, intent, options.weights, options.recentPlans);
+    return { id: venue.id, name: venue.name, tags: venue.tags, score: scored.score,
+      scoreBreakdown: scored.scoreBreakdown,
+      rejection, shortlisted: selected.some(candidate => candidate.id === venue.id) };
+  }).sort((a, b) => Number(Boolean(a.rejection)) - Number(Boolean(b.rejection)) || b.score - a.score);
 }

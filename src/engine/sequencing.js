@@ -32,6 +32,7 @@ export const activityTemplates = Object.freeze({
   ],
   casual: [
     ["cafe", "shop", "bookshop"],
+    ["cafe", "shop"],
     ["cafe", "bookshop", "dessert"],
     ["cafe", "activity"],
     ["cafe", "bookshop"],

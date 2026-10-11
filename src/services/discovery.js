@@ -1,4 +1,6 @@
 import { scoreVenue } from '../engine/scoring.js';
+import { createRecommendationHistory, recentPlansWithPrevious } from '../engine/recommendationHistory.js';
+import { bindRequestedVenues } from '../engine/venueIdentity.js';
 import { createSearchCache } from '../utils/searchCache.js';
 import { categories } from '../data/preferences.js';
 import { planningArea } from '../utils/location.js';
@@ -36,6 +38,12 @@ const withApiPhoto = (venue) => ({
 });
 
 const placeSearches = typeof window === 'undefined' ? null : createSearchCache({ storage: () => sessionStorage });
+const recentRecommendations = typeof window === 'undefined' ? null :
+  createRecommendationHistory({ storage: () => window.localStorage, initialPlans: () => {
+    const current = JSON.parse(window.localStorage.getItem('melloway.current') || 'null');
+    const history = JSON.parse(window.localStorage.getItem('melloway.history') || '[]');
+    return [current?.plan, ...(Array.isArray(history) ? history.map(entry => entry?.plan) : [])].filter(Boolean);
+  } });
 async function apiRequest(path, body, signal) {
   const timeout = path === "discovery" ? 40000 : 20000;
   const response = await fetch(apiUrl(path), {
@@ -234,7 +242,7 @@ export async function generate(
   seed = 0,
   onStage = () => {},
   previous = null,
-  { signal } = {},
+  { signal, recommendationHistory = recentRecommendations, offline = false } = {},
 ) {
   if (!validPreferences(prefs))
     throw new Error("Please check your planning details.");
@@ -245,7 +253,7 @@ export async function generate(
   let intent = interpretPreferences(prefs);
   let live = false;
   try {
-    const status = await apiStatus(signal);
+    const status = offline ? { venues: 'curated', recommendations: 'planner' } : await apiStatus(signal);
     aiEnabled = status.recommendations === "openai";
     if (aiEnabled) {
       await stage("understanding ur plans…", onStage, signal);
@@ -285,8 +293,11 @@ export async function generate(
   if (!notice.includes("inferred from your notes")) notice += resolved.notice;
   if (aiEnabled)
     await stage("matching spots to ur preferences…", onStage, signal);
+  intent = bindRequestedVenues(intent, prefs, all, venueRoles);
+  const recentPlans = recentPlansWithPrevious(recommendationHistory?.read() || [], previous);
   const shortlisted = selectCandidates(all, prefs, intent, {
     rejectedIds: previous?.rejectedIds || [],
+    recentPlans,
     seed,
   });
   const ranked = await recommend(
@@ -294,7 +305,7 @@ export async function generate(
     prefs,
     signal,
     aiEnabled,
-    [],
+    intent.requestedVenueIds,
     intent,
   );
   let candidates = ranked.candidates;
@@ -325,6 +336,7 @@ export async function generate(
       { ...intent, allowAlternatives: true },
       {
         rejectedIds: [...(previous?.rejectedIds || []), ...rankingExcludedIds],
+        recentPlans,
         seed,
       },
     );
@@ -342,6 +354,8 @@ export async function generate(
   const unchanged =
     !!plan && !!previous && signature(plan) === signature(previous);
   if (plan) {
+    checkCancelled(signal);
+    recommendationHistory?.record(plan);
     const omitted = intent.interests.filter(
       (t) =>
         !intent.requiredTags.includes(t) &&

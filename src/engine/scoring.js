@@ -6,6 +6,8 @@ import { venueRoles, venueAtmosphere } from "./preferences.js";
 import { budgetCategory } from "../utils/activityBudget.js";
 import { socialFit } from '@melloway/domain';
 import { touristLandmark } from './venueSuitability.js';
+import { independentBookshop, explicitlyRequestedVenue } from './venueIdentity.js';
+import { recentRecommendationCount } from './recommendationHistory.js';
 
 export const recommendationWeights = Object.freeze({
   preference: 26,
@@ -17,7 +19,7 @@ export const recommendationWeights = Object.freeze({
   variety: 8,
   timing: 14,
 });
-export function scoreVenue(v, prefs, intent, weights = recommendationWeights) {
+export function scoreVenue(v, prefs, intent, weights = recommendationWeights, recentPlans = []) {
   const matches = v.tags.filter((t) => intent.interests.includes(t));
   const compatibleRole = venueRoles(v).some((r) =>
     intent.requiredRoles.includes(r),
@@ -51,15 +53,20 @@ export function scoreVenue(v, prefs, intent, weights = recommendationWeights) {
     (v.source === "curated" ? 0.7 : v.source === "google" ? 0.8 : 0.1) +
     (Number.isFinite(v.rating) ? Math.min(0.2, v.rating / 25) : 0);
   const landmark = touristLandmark(v);
+  const namedRequest = explicitlyRequestedVenue(v, prefs.notes);
+  const recentCount = recentRecommendationCount(v, recentPlans);
   const explicitlyWanted = intent.sightseeing || matchesAnyRequestedActivity(v, intent) ||
     (intent.explicitInterests || []).some(tag => v.tags.includes(tag) &&
       ['Art galleries', 'Museums', 'Scenic walks', 'Photo spots', 'Picnics', 'Beaches'].includes(tag)) ||
-    (typeof v.name === 'string' && v.name.length > 0 && (prefs.notes || '').toLowerCase().includes(v.name.toLowerCase()));
+    namedRequest;
   const relevant = compatibleRole || matches.length > 0 ||
     (!intent.requiredRoles.length && venueRoles(v).some(role => !['culture', 'walk'].includes(role)));
   const scoreBreakdown = {
     // Explicit activity fit outranks incidental café ratings and generic tags.
     requestedActivity: matchesAnyRequestedActivity(v, intent) ? 200 : 0,
+    namedVenue: namedRequest ? 200 : 0,
+    independentBookshop: intent.preferIndependentBookshops && independentBookshop(v) ? 80 : 0,
+    recentRecommendation: !namedRequest && recentCount ? -Math.min(84, 36 + recentCount * 12) : 0,
     preference:
       weights.preference * (preference * 0.8 + (compatibleRole ? 0.2 : 0)),
     atmosphere: weights.atmosphere * Math.min(1, atmosphere),
@@ -74,6 +81,8 @@ export function scoreVenue(v, prefs, intent, weights = recommendationWeights) {
   };
   return {
     ...v,
+    recentRecommendationCount: recentCount,
+    explicitlyRequested: namedRequest,
     scoreBreakdown,
     score: Object.values(scoreBreakdown).reduce((a, b) => a + b, 0),
   };

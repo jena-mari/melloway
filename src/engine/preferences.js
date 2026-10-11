@@ -139,6 +139,9 @@ export function interpretPreferences(prefs) {
   return {
     requestedActivities,
     sightseeing,
+    preferIndependentBookshops: !parsed.excluded.includes('Bookshops') &&
+      (vibe?.bookshopPreference === 'independent' ||
+       requestedActivities.some(activity => activity.query === 'independent bookshop')),
     explicitInterests: explicit,
     requestedActivity: requestedActivities[0] || null,
     interests: unique(interests),
