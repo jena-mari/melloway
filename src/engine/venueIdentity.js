@@ -13,7 +13,7 @@ function aliases(venue) {
     for (const locality of localities)
       if (locality && short.endsWith(` ${locality}`)) short = short.slice(0, -locality.length - 1);
   return [...new Set([full, short])].filter(name => name.length >= 4 &&
-    !/^(?:books?|bookshops?|cafes?|coffee|matcha|museums?|galler(?:y|ies)|parks?)$/.test(name));
+    !/^(?:books?|bookshops?|cafes?|coffee|matcha|museums?|galler(?:y|ies)|parks?|records?|vinyl|(?:record|vinyl) (?:store|shop))$/.test(name));
 }
 
 export function explicitlyRequestedVenue(venue, notes = '') {

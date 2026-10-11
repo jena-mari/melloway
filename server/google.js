@@ -124,7 +124,9 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = recommend
       return !reason;
     });
     const curatedMatches = eligibleCurated.filter(v => activities.some(a => matchesRequestedActivity(v, a)));
-    const activity = activities.find(a => !eligibleCurated.some(v => matchesRequestedActivity(v, a)));
+    const unmet = a => !eligibleCurated.some(v => matchesRequestedActivity(v, a));
+    const activity = activities.find(a => intent.requiredActivities.some(required => required.query === a.query) && unmet(a)) || activities.find(unmet);
+    const queryFor = tag => `${tag === 'Photo booths' ? 'walk-in self-service photobooth studio' : tag} near ${area.name || prefs.area}, Sydney Australia`;
     const tasks = leads
       ? leads.slice(0, 6).filter(lead => lead.tags?.length).map(lead => ({ tag: lead.tags[0], lead }))
       : discoveryQueries(prefs.preferences).map(tag => ({ tag }));
@@ -133,18 +135,22 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = recommend
     const debug = { requestedActivity: activity?.query || activities[0]?.query || null, requestedActivities: activities.map(a => a.query), curatedCandidates: catalogue.length,
       eligibleCuratedCandidates: eligibleCurated.length, curatedRejectedReasons, curatedActivityMatches: curatedMatches.length,
       googleResults: 0, googleCandidates: 0, targetedQueries: tasks.filter(t => t.targeted).length,
+      targetedQuery: activity ? queryFor(activity.query) : null, targetedResults: 0, targetedFailedQueries: 0,
       rejectedResults: 0, rejectedReasons: {}, rejections: [], unverifiedSuggestions: 0, failedQueries: 0 };
     const targetedVenues = new WeakSet();
     const pricingConflicts = new WeakSet();
     const reject = (reason, place, targeted) => {
       debug.rejectedResults++;
       debug.rejectedReasons[reason] = (debug.rejectedReasons[reason] || 0) + 1;
-      debug.rejections.push({ id: typeof place?.id === "string" ? place.id : null, reason, targeted: !!targeted });
+      debug.rejections.push({ id: typeof place?.id === "string" ? place.id : null, reason, targeted: !!targeted,
+        requestedActivityMatch: !!activity && matchesRequestedActivity({ source: 'google',
+          name: place?.displayName?.text || place?.name, providerTypes: place?.types || place?.providerTypes,
+          pureServiceAreaBusiness: place?.pureServiceAreaBusiness }, activity) });
     };
     const settled = await Promise.allSettled(tasks.map(async ({ tag, lead, targeted }) => {
       const data = await google("https://places.googleapis.com/v1/places:searchText", {
         textQuery: lead ? `${lead.name}, ${lead.locality}, Sydney Australia`
-          : `${tag === 'Photo booths' ? 'walk-in self-service photobooth studio' : tag} near ${area.name || prefs.area}, Sydney Australia`,
+          : queryFor(tag),
         pageSize: lead ? 2 : 6,
         ...(targeted && activity.placeType ? { includedType: activity.placeType, strictTypeFiltering: true } : {}),
         locationBias: { circle: { center: { latitude: area.lat, longitude: area.lng }, radius: Math.min(30000, area.r * 1000) } },
@@ -153,6 +159,7 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = recommend
       const candidates = [];
       for (const p of data.places || []) {
         debug.googleResults++;
+        if (targeted) debug.targetedResults++;
         const coords = { lat: p?.location?.latitude, lng: p?.location?.longitude };
         const identity = { name: p?.displayName?.text, providerTypes: Array.isArray(p?.types) ? p.types : [], source: "google" };
         const matchedActivity = activities.find(a => matchesRequestedActivity(identity, a));
@@ -165,8 +172,9 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = recommend
           ? "not-operational" : null;
         reason ||= !inSydney(coords) || km(coords, area) > area.r ? "location" : null;
         reason ||= p.pureServiceAreaBusiness === true ? "event-service" : null;
-        reason ||= targeted && !matchesRequestedActivity(identity, activity) ? "activity-mismatch" : null;
         reason ||= unrelatedServiceBusiness({ ...identity, website: p.websiteUri }) ? 'service-business' : null;
+        reason ||= targeted && !matchesRequestedActivity(identity, activity) ? "activity-mismatch" : null;
+        reason ||= intent.excludedActivities.some(a => matchesRequestedActivity(identity, a)) ? 'preference' : null;
         if (reason) { reject(reason, p, targeted); continue; }
         const tags = [...new Set([...(lead ? lead.tags : [tag]).filter(label => providerMatchesTag(identity, label)),
           ...(activityMatch ? [matchedActivity.query] : [])])];
@@ -223,8 +231,12 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = recommend
       return candidates;
     }));
     const merged = new Map();
-    for (const result of settled) {
-      if (result.status === "rejected") { debug.failedQueries++; continue; }
+    for (const [index, result] of settled.entries()) {
+      if (result.status === "rejected") {
+        debug.failedQueries++;
+        if (tasks[index].targeted) debug.targetedFailedQueries++;
+        continue;
+      }
       for (const venue of result.value) {
         const existing = merged.get(venue.id);
         if (existing) {

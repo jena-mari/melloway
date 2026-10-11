@@ -31,8 +31,8 @@ const similarity = (wanted, actual) =>
 export const alternativeIntent = (intent) => ({
   ...intent,
   allowAlternatives: true,
-  requiredRoles: [],
-  requiredTags: [],
+  requiredRoles: [...new Set((intent.requiredActivities || []).map(activity => activity.role))],
+  requiredTags: (intent.requiredActivities || []).map(activity => activity.query),
   upscaleMeal: false,
   hiddenBars: false,
 });

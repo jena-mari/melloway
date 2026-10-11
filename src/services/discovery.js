@@ -1,6 +1,7 @@
 import { scoreVenue } from '../engine/scoring.js';
 import { createRecommendationHistory, recentPlansWithPrevious } from '../engine/recommendationHistory.js';
 import { bindRequestedVenues } from '../engine/venueIdentity.js';
+import { matchesRequestedActivity } from '../engine/requestedActivity.js';
 import { createSearchCache } from '../utils/searchCache.js';
 import { categories } from '../data/preferences.js';
 import { planningArea } from '../utils/location.js';
@@ -171,6 +172,7 @@ async function supplementCatalog(curated, prefs, signal, status) {
   const results = await Promise.allSettled(tasks.map(task => task.request));
   checkCancelled(signal);
   let all = initial, live = false, researchStatus = 'sources';
+  let venueDiscovery = { status: 'unavailable', debug: null };
   const leads = [];
   for (const [index, result] of results.entries()) {
     if (result.status !== 'fulfilled') {
@@ -178,6 +180,7 @@ async function supplementCatalog(curated, prefs, signal, status) {
       continue;
     }
     const found = result.value;
+    if (tasks[index].kind === 'venues') venueDiscovery = { status: 'available', debug: found.debug || null };
     const discovered = Array.isArray(found.venues) ? found.venues.filter(usableDiscoveredVenue).map(withApiPhoto) : [];
     all = mergeDiscoveryPool(all, discovered);
     live ||= discovered.length > 0;
@@ -188,9 +191,33 @@ async function supplementCatalog(curated, prefs, signal, status) {
       leads.push({ name: venue.name, locality: venue.address.match(/,\s*([^,]+?)\s+NSW/)?.[1] || venue.area, evidence: venue.recommendationEvidence });
   }
   all = attachRecommendationEvidence(all, leads).map(venue => ({ ...venue, socialContext: cachedSocialContext(venue) }));
-  return { all, live, researchStatus,
+  return { all, live, researchStatus, venueDiscovery,
     notice: (live ? ' ' + liveNotice : status.venues === 'google' ? ' Discovery unavailable; using sourced Sydney venues.' : '') +
       (researchStatus === 'unavailable' ? ' Web research unavailable; using linked source recommendations.' : '') };
+}
+
+function requiredActivityFailure(all, prefs, intent, discovery, rejectedIds) {
+  const activity = intent.requiredActivities?.[0];
+  if (!activity) return null;
+  const matches = all.filter(venue => matchesRequestedActivity(venue, activity));
+  const reasons = matches.map(venue => venueRejection(venue, prefs, intent, rejectedIds)).filter(Boolean);
+  const debug = discovery.debug;
+  if (debug?.requestedActivity === activity.query)
+    reasons.push(...(debug.rejections || []).filter(entry => entry.requestedActivityMatch).map(entry => entry.reason));
+  const details = [];
+  if (reasons.some(reason => ['hours', 'not-operational'].includes(reason)))
+    details.push('closed or without an opening window that fits');
+  if (reasons.includes('unknown-hours')) details.push('opening hours unverified');
+  if (reasons.includes('budget')) details.push('above the selected budget allowance');
+  if (reasons.some(reason => ['area', 'location'].includes(reason))) details.push('outside the selected area');
+  if (reasons.some(reason => ['access', 'preference', 'rejected'].includes(reason))) details.push('excluded by your preferences or access constraints');
+  if (details.length)
+    return `Your requested record store could not be included: ${details.join('; ')}. Change the date, time, area or budget, or remove this request.`;
+  if (matches.length)
+    return 'No feasible route including your requested record store fits the selected activities, opening hours, budget and travel limits within your available time. Change the details or remove this request.';
+  if (discovery.status !== 'available' || debug?.targetedFailedQueries)
+    return 'No verified record retailer is available in the local catalogue, and the requested place search is unavailable. Try again or change this request.';
+  return 'The place search did not return a verified record retailer in your selected area. Try another area or remove this request.';
 }
 
 async function apiStatus(signal) {
@@ -250,6 +277,7 @@ export async function generate(
   let all = attachRecommendationEvidence(recommendationVenuesForDate(prefs.date)),
     notice = curatedNotice,
     aiEnabled = false, discoverySource = "sources";
+  let venueDiscovery = { status: 'unavailable', debug: null };
   let intent = interpretPreferences(prefs);
   let live = false;
   try {
@@ -282,6 +310,7 @@ export async function generate(
       all = found.all;
       live = found.live;
       discoverySource = found.researchStatus;
+      venueDiscovery = found.venueDiscovery;
       notice += found.notice;
     }
   } catch {
@@ -305,7 +334,8 @@ export async function generate(
     prefs,
     signal,
     aiEnabled,
-    intent.requestedVenueIds,
+    [...intent.requestedVenueIds, ...shortlisted.filter(venue =>
+      intent.requiredActivities.some(activity => matchesRequestedActivity(venue, activity))).map(venue => venue.id)],
     intent,
   );
   let candidates = ranked.candidates;
@@ -388,6 +418,7 @@ export async function generate(
       ? null
       : {
           message:
+            requiredActivityFailure(all, prefs, intent, venueDiscovery, previous?.rejectedIds || []) ||
             "No sourced, open places nearby fit this time and budget. Try another time or area.",
         },
   };

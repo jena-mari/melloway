@@ -1,4 +1,4 @@
-import { extractRequestedActivities, activityDescriptor, matchesRequestedActivity } from "./requestedActivity.js";
+import { extractRequestedActivities, extractExcludedActivities, activityDescriptor, matchesRequestedActivity } from "./requestedActivity.js";
 import { interestsFromNotes } from "../utils/interests.js";
 import { diningVibes } from "../data/preferences.js";
 import { findIdea } from "../data/ideas.js";
@@ -75,7 +75,9 @@ const unique = (values) => [...new Set(values)];
 export function interpretPreferences(prefs) {
   const text = prefs.notes || "";
   const sightseeing = positive(text, /\b(?:sightseeing|iconic(?: landmarks?)?|landmarks?|tourist attractions?)\b/i);
+  const excludedActivities = extractExcludedActivities(text).filter(activity => activity.query === 'record store');
   const requestedActivities = extractRequestedActivities(text).filter(activity =>
+    !excludedActivities.some(excluded => excluded.query === activity.query) &&
     !/^(?:sightseeing|iconic landmarks?|landmarks?|tourist attractions?)$/.test(activity.query));
   const parsed = interestsFromNotes(text);
   const explicit = unique([
@@ -138,6 +140,8 @@ export function interpretPreferences(prefs) {
     positive(text, /\b(?:evening|night|dinner)\b/i);
   return {
     requestedActivities,
+    requiredActivities: requestedActivities.filter(activity => activity.query === 'record store'),
+    excludedActivities,
     sightseeing,
     preferIndependentBookshops: !parsed.excluded.includes('Bookshops') &&
       (vibe?.bookshopPreference === 'independent' ||

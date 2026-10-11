@@ -1,4 +1,4 @@
-import { matchesAnyRequestedActivity } from "./requestedActivity.js";
+import { matchesAnyRequestedActivity, matchesRequestedActivity } from "./requestedActivity.js";
 import { eventServiceOnly } from './recommendationEvidence.js';
 import { unrelatedServiceBusiness } from './venueSuitability.js';
 import { km, schedule, transportAllowance } from "../utils/planner.js";
@@ -27,6 +27,7 @@ export function venueRejection(v, prefs, intent, rejectedIds = []) {
   if (v.minimumAge && (!Number.isFinite(prefs.age) || prefs.age < v.minimumAge)) return "access";
   if (v.kind === 'recurring-event' && v.eventSchedule?.weekday !== new Date(`${prefs.date}T12:00:00Z`).getUTCDay()) return "event-date";
   if (v.source === "demo") return "demo";
+  if (intent.excludedActivities?.some(activity => matchesRequestedActivity(v, activity))) return "preference";
   if (rejectedIds.includes(v.id)) return "rejected";
   if (
     !Number.isFinite(v.lat) ||
@@ -124,6 +125,8 @@ export function selectCandidates(
       chosen.push(v);
   };
   eligible.filter(v => v.explicitlyRequested).forEach(add);
+  for (const activity of intent.requiredActivities || [])
+    eligible.filter(v => matchesRequestedActivity(v, activity)).slice(0, 3).forEach(add);
   eligible.filter(v => matchesAnyRequestedActivity(v, intent)).slice(0, 3).forEach(add);
   if (eligible.some((v) => v.source === "google")) {
     const curated = eligible.filter((v) => v.source === "curated");
