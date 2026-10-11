@@ -13,6 +13,13 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ json: { venues: "curated", recommendations: "planner" } }),
   );
 });
+async function expectStoredAlternative(page, text) {
+  await expect.poll(() => page.evaluate(
+    () => JSON.parse(localStorage.getItem("melloway.current")).plan.matchNotice,
+  )).toContain(text);
+  await expect(page.locator(".plan-match-notice")).toHaveCount(0);
+  await expect(page.getByText("closest match", { exact: true })).toHaveCount(0);
+}
 const cases = [
   {
     name: "romantic evening",
@@ -105,7 +112,7 @@ test("a $20 fine-dining request creates an affordable alternative and retains th
   await page.goto("/plan/notes");
   await page.getByRole("button", { name: "submit", exact: true }).tap();
   await expect(page).toHaveURL(/\/itinerary$/);
-  await expect(page.locator(".plan-match-notice")).toContainText(
+  await expectStoredAlternative(page,
     "instead of Fine dining",
   );
   const plan = await page.evaluate(
@@ -139,18 +146,12 @@ test("closed shops still generate a nearby open browsing stop after submit and r
   await page.goto("/plan/notes");
   await page.getByRole("button", { name: "submit", exact: true }).tap();
   await expect(page).toHaveURL(/\/itinerary$/);
-  await expect(page.locator(".plan-match-notice")).toContainText(
+  await expectStoredAlternative(page,
     "Bookshops instead of Thrifting",
   );
   await expect(page.locator(".route-summary-spot strong")).toHaveText([
     "Better Read Than Dead",
   ]);
-  const matchNotice = page.locator(".plan-match-notice");
-  await expect(matchNotice.locator("p")).not.toBeVisible();
-  await matchNotice.locator("summary").tap();
-  await expect(matchNotice.locator("p")).toBeVisible();
-  await page.keyboard.press("Enter");
-  await expect(matchNotice.locator("p")).not.toBeVisible();
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     expect(
@@ -180,10 +181,11 @@ test("closed shops still generate a nearby open browsing stop after submit and r
   await page.getByRole("button", { name: "save this plan", exact: true }).tap();
   await page.goto("/favourites");
   await page.getByRole("button", { name: "open plan", exact: true }).tap();
-  await expect(page.locator(".plan-match-notice")).toContainText(
+  await expectStoredAlternative(page,
     "Bookshops instead of Thrifting",
   );
   await page.reload();
+  await expectStoredAlternative(page, "Bookshops instead of Thrifting");
   await expect(page.locator(".route-summary-spot strong")).toHaveText([
     "Better Read Than Dead",
   ]);
@@ -193,7 +195,7 @@ test("closed shops still generate a nearby open browsing stop after submit and r
   await expect(
     page.getByRole("button", { name: "try another plan", exact: true }),
   ).toBeEnabled();
-  await expect(page.locator(".plan-match-notice")).toContainText(
+  await expectStoredAlternative(page,
     "Bookshops instead of Thrifting",
   );
   plan = await page.evaluate(
@@ -227,7 +229,7 @@ test("a closed market day keeps the requested matcha and offers an available bro
   await page.goto("/plan/notes");
   await page.getByRole("button", { name: "submit", exact: true }).tap();
   await expect(page).toHaveURL(/\/itinerary$/);
-  await expect(page.locator(".plan-match-notice")).toContainText(
+  await expectStoredAlternative(page,
     "instead of Flea markets",
   );
   const plan = await page.evaluate(

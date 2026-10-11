@@ -463,14 +463,6 @@ export default function Itinerary({
           </div>
         )}
       </div>
-      {plan.matchNotice && (
-        <details className="plan-match-notice">
-          <summary>
-            closest match <ChevronDown size={13} aria-hidden="true" />
-          </summary>
-          <p>{plan.matchNotice.replace(/^Closest match:\s*/i, "")}</p>
-        </details>
-      )}
       {communityPost && (
         <section className="community-expanded-context">
           <p>

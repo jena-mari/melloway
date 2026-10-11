@@ -5379,30 +5379,6 @@ html:has(.profile-page) {
   border-radius: 12px;
   font-size: 13px;
 }
-.plan-match-notice {
-  font-size: 11px;
-  line-height: 1.5;
-  color: #555;
-  margin: 0 18px;
-}
-.plan-match-notice summary {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: fit-content;
-  min-height: 32px;
-  cursor: pointer;
-  list-style: none;
-}
-.plan-match-notice summary::-webkit-details-marker {
-  display: none;
-}
-.plan-match-notice[open] summary svg {
-  transform: rotate(180deg);
-}
-.plan-match-notice p {
-  padding-bottom: 8px;
-}
 @media (max-width: 360px) {
   .result-intro h1 {
     font-size: 22px;
