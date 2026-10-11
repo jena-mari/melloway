@@ -5,6 +5,9 @@ import { mockMapTiles } from "./fixtures.js";
 import { communityExamples } from "../../src/data/community.js";
 
 async function mockPicks(page, { maps = true, images = true } = {}) {
+  // Successful local photos use the real committed assets; failure cases still
+  // exercise the existing placeholder fallback after moving off remote URLs.
+  await page.route("**/images/picks/*.webp", route => images ? route.continue() : route.abort());
   await page.route("https://**", (route) => route.abort());
   await mockMapTiles(page);
   await page.route("**/api/**", (route) => {
@@ -514,4 +517,25 @@ for (const path of ["/explore", "/picks"]) test(`${path} has compact pointed pla
   await page.getByRole("button", { name: "show all pick pins" }).click();
   await expect(pins).toHaveCount(10);
   await expect(camera).toHaveAttribute("aria-pressed", "true");
+});
+
+test("the supplied picks photos load locally with author, license and change credits", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockPicks(page, { maps: false });
+  await page.goto("/picks");
+  for (const id of ["sydney-glebe-markets", "pick-observatory-hill-park"]) {
+    const venue = editorialPicks.find(v => v.id === id);
+    const card = page.locator(`.editorial-place-card[data-venue-id="${id}"]`);
+    await card.scrollIntoViewIfNeeded();
+    const image = card.getByRole("img", { name: venue.photo.caption, exact: true });
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate(node => node.complete && node.naturalWidth)).toBe(1280);
+    const pathname = await image.evaluate(node => new URL(node.currentSrc).pathname);
+    expect(pathname).toBe(venue.image);
+    const credit = card.locator(".editorial-photo-credit");
+    await expect(credit.getByRole("link", { name: venue.photo.author, exact: true })).toHaveAttribute("href", venue.photo.sourceUrl);
+    await expect(credit.getByRole("link", { name: "CC BY-SA 4.0", exact: true })).toHaveAttribute("href", venue.photo.licenseUrl);
+    await expect(credit).toContainText("resized/WebP; display crop");
+    await card.screenshot({ path: info.outputPath(`${id}.png`) });
+  }
 });

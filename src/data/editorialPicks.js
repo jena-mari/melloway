@@ -55,8 +55,8 @@ export const editorialPicks = [
     scheduleLabel: "Saturday only · 10am–4pm",
     website: "https://glebemarkets.com.au/home", sources: [source("https://glebemarkets.com.au/home", ["name", "address", "published hours"])],
     coordinateSource: "https://www.google.com/maps/search/?api=1&query=Glebe+Public+School+46-56+Glebe+Point+Road",
-    image: "https://upload.wikimedia.org/wikipedia/commons/d/de/Glebe_Markets.jpg",
-    photo: { author: "Lacrimosus", license: "Public domain", licenseUrl: "https://commons.wikimedia.org/wiki/File:Glebe_Markets.jpg", sourceUrl: "https://commons.wikimedia.org/wiki/File:Glebe_Markets.jpg", caption: "Glebe Markets · archive, 2005" },
+    image: "/images/picks/glebe-markets.webp",
+    photo: { author: "Nick-D", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", sourceUrl: "https://commons.wikimedia.org/wiki/File:Part_of_Glebe_Markets_April_2026.jpg", caption: "Glebe Markets · archive, Apr 2026 · resized/WebP; display crop" },
   }),
   pick({}, {
     id: "pick-birdcage-bank-hotel", name: "Birdcage at The Bank Hotel",
@@ -137,8 +137,8 @@ export const editorialPicks = [
     scheduleLabel: "Public park · Observatory tours are separate",
     sources: [source("https://www.cityofsydney.nsw.gov.au/parks/observatory-park", ["name", "address", "park access"])],
     coordinateSource: "https://www.google.com/maps?daddr=-33.85897,151.20482",
-    image: "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Observatory_Hill_Sydney.jpg/1280px-Observatory_Hill_Sydney.jpg",
-    photo: { author: "MDRX", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", sourceUrl: "https://commons.wikimedia.org/wiki/File:Observatory_Hill_Sydney.jpg", caption: "Observatory Hill · archive, 2020" },
+    image: "/images/picks/observatory-hill.webp",
+    photo: { author: "MDRX", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0/", sourceUrl: "https://commons.wikimedia.org/wiki/File:Observatory_Hill_Sydney.jpg", caption: "Observatory Hill · archive, 2020 · resized/WebP; display crop" },
   }),
   pick({}, {
     id: "pick-mamuki-glebe", name: "MaMUKI Bake Bar — Glebe",

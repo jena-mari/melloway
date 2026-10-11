@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { editorialPicks } from "../src/data/editorialPicks.js";
@@ -69,7 +70,13 @@ test("photos have explicit reuse licenses and missing photos have no unrelated s
   const photos = editorialPicks.filter((venue) => venue.image);
   assert.equal(photos.length, 2);
   for (const venue of photos) {
-    assert.ok(venue.image.startsWith("https://upload.wikimedia.org/"));
+    assert.match(venue.image, /^\/images\/picks\/(glebe-markets|observatory-hill)\.webp$/);
+    const asset = readFileSync(new URL(`../public${venue.image}`, import.meta.url));
+    assert.equal(asset.subarray(0, 4).toString(), "RIFF");
+    assert.equal(asset.subarray(8, 12).toString(), "WEBP");
+    assert.equal(venue.photo.license, "CC BY-SA 4.0");
+    assert.ok(venue.photo.sourceUrl.startsWith("https://commons.wikimedia.org/wiki/File:"));
+    assert.match(venue.photo.caption, /resized\/WebP; display crop/);
     assert.ok(venue.photo.author && venue.photo.license && venue.photo.sourceUrl && venue.photo.licenseUrl);
     assert.match(venue.photo.caption, /archive/);
   }
