@@ -3,6 +3,7 @@ import { km } from "../utils/planner.js";
 import { planningArea } from "../utils/location.js";
 import { venueRoles, venueAtmosphere } from "./preferences.js";
 import { budgetCategory } from "../utils/activityBudget.js";
+import { socialFit } from '@melloway/domain';
 
 export const recommendationWeights = Object.freeze({
   preference: 26,
@@ -55,6 +56,7 @@ export function scoreVenue(v, prefs, intent, weights = recommendationWeights) {
     budget: weights.budget * budget,
     quality: weights.quality * quality,
     evidence: (weights.evidence ?? 12) * evidenceScore(v, prefs.date),
+    socialContext: socialFit(v, v.socialContext, { ...intent, atmosphere: requestedAtmosphere }),
   };
   return {
     ...v,

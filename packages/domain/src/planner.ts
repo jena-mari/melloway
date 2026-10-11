@@ -1,5 +1,6 @@
 import { areas } from './preferences.ts';
 import type { Candidate, Coordinates, Plan, Preferences, Transport, TravelMatrix, Venue } from './types.ts';
+import { socialFit } from './venueMedia.ts';
 
 export function km(a: Coordinates, b: Coordinates): number {
   const r = (x: number) => x * Math.PI / 180;
@@ -15,7 +16,7 @@ export const formatTime = (m: number): string => { const clock = ((Math.round(m)
 export function selectVenues(venues: Venue[], prefs: Preferences, seed: string | number = 0): Candidate[] {
   const area = areas[prefs.area];
   return venues.filter(v => km(v, area) <= area.r && v.cost <= prefs.budget)
-    .map(v => ({ ...v, score: v.tags.filter(t => prefs.preferences.includes(t)).length * 5 + ((v.id + seed).split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % 100) / 100 }))
+    .map(v => ({ ...v, score: v.tags.filter(t => prefs.preferences.includes(t)).length * 5 + socialFit(v, v.socialContext, { interests: prefs.preferences }) + ((v.id + seed).split('').reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 0) % 100) / 100 }))
     .sort((a, b) => b.score - a.score || km(a, area) - km(b, area))
     .filter((v, i, list) => list.findIndex(x => x.name === v.name) === i).slice(0, 14);
 }

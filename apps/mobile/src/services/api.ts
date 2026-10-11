@@ -1,4 +1,5 @@
 import type { DiscoveryProvider, MatrixRequest, MatrixResponse, Preferences, Venue, VenueRequest, VenueResponse } from '@melloway/domain';
+import { cachedVenueContext } from './venueMedia.ts';
 
 async function post<T>(origin: string, path: string, body: VenueRequest | MatrixRequest): Promise<T> {
   const controller = new AbortController();
@@ -18,7 +19,7 @@ export function createGoogleProvider(origin: string): DiscoveryProvider {
       const data = await post<VenueResponse>(origin, 'venues', { prefs });
       if (!Array.isArray(data.venues)) throw new Error('Invalid venue response');
       return data.venues.map(v => ({
-        ...v, image: v.image ? new URL(v.image, origin).href : undefined,
+        ...v, image: v.image ? new URL(v.image, origin).href : undefined, socialContext: cachedVenueContext(v),
       }));
     },
     async matrix(venues: Venue[], prefs: Preferences) {

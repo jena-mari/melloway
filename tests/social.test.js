@@ -105,8 +105,8 @@ test("search coalesces requests, caches, uses source grounding and only sends pu
           ok: true,
           json: async () =>
             response([
-              { url: tiktok, caption: "Garden Sydney", matchesVenue: true },
-              { url: instagram, matchesVenue: true },
+              { url: tiktok, caption: "Garden Sydney", matchesVenue: true, venueName: venue.name, venueAddress: venue.address, locationEvidence: `${venue.name}, ${venue.address}` },
+              { url: instagram, matchesVenue: true, venueName: venue.name, venueAddress: venue.address, locationEvidence: `${venue.name}, ${venue.address}` },
             ]),
         };
       }
@@ -194,4 +194,15 @@ test("social venue input is bounded to public Sydney places", () => {
     { ...venue, address: "a".repeat(251) },
   ])
     assert.ok(!validSocialVenue(input));
+});
+
+test('official post metadata contradicting the indexed location is excluded', async () => {
+  const provider = createSocialProvider('test', 'gpt-4.1-mini', async target => ({
+    ok: true,
+    json: async () => target.includes('api.openai.com')
+      ? response([{ url: tiktok, matchesVenue: true, venueName: venue.name, venueAddress: venue.address, locationEvidence: `${venue.name}, ${venue.address}` }])
+      : { title: 'Royal Botanic Garden Melbourne', author_name: 'visitor' },
+  }));
+  assert.deepEqual(await provider.discover(venue), []);
+  assert.deepEqual(provider.context(venue).sources, []);
 });

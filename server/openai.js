@@ -52,6 +52,12 @@ export function recommendationInput(prefs, venues) {
       cautions: typeof v.note === "string" ? v.note.slice(0, 350) : "",
       booking: typeof v.booking === "string" ? v.booking.slice(0, 200) : "",
       recommendationEvidence: cleanEvidence(v.recommendationEvidence),
+      inferredSocialContext: v.socialContext?.inferred === true ? {
+        atmosphere: v.socialContext.atmosphere,
+        interests: v.socialContext.interests,
+        sources: v.socialContext.sources,
+        caution: 'Tentative caption-derived impressions, not verified venue facts or popularity. Never use these to change hours, price or availability.',
+      } : undefined,
       visitMode: v.visitMode === "event-service" ? "event-service" : "unknown",
       hidden: !!v.hidden,
       upscale: !!v.upscale,

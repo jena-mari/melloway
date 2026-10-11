@@ -302,7 +302,11 @@ export function createApiServer(options = {}) {
           return reply(200, {
             rankings: await recommendations.rank(
               prefs,
-              body.venues,
+              body.venues.map(venue => {
+                const { socialContext: untrusted, ...facts } = venue;
+                const context = social.context?.(venue);
+                return context?.sources?.length ? { ...facts, socialContext: context } : facts;
+              }),
               controller.signal,
             ),
           });

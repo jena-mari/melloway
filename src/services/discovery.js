@@ -1,4 +1,5 @@
 import { scoreVenue } from '../engine/scoring.js';
+import { cachedSocialContext } from './social.js';
 import { withScheduleDefaults } from '../utils/date.js';
 import { attachRecommendationEvidence, eventServiceOnly } from '../engine/recommendationEvidence.js';
 import { venues } from "../data/venues.js";
@@ -164,7 +165,7 @@ async function supplementCatalog(curated, prefs, signal, status) {
     for (const venue of discovered) if (venue.recommendationEvidence?.length)
       leads.push({ name: venue.name, locality: venue.address.match(/,\s*([^,]+?)\s+NSW/)?.[1] || venue.area, evidence: venue.recommendationEvidence });
   }
-  all = attachRecommendationEvidence(all, leads);
+  all = attachRecommendationEvidence(all, leads).map(venue => ({ ...venue, socialContext: cachedSocialContext(venue) }));
   return { all, live, researchStatus,
     notice: (live ? ' ' + liveNotice : status.venues === 'google' ? ' Discovery unavailable; using sourced Sydney venues.' : '') +
       (researchStatus === 'unavailable' ? ' Web research unavailable; using linked source recommendations.' : '') };

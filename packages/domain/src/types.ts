@@ -37,6 +37,7 @@ export interface Venue extends Coordinates {
   rating?: number;
   attribution?: string;
   mapsUri?: string;
+  socialContext?: import('./venueMedia.ts').SocialContext;
 }
 export interface Candidate extends Venue { score: number }
 export interface TravelEdge {

@@ -1,11 +1,14 @@
 import { socialPost } from "../utils/social.js";
-const base = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+import { createVenueMediaClient, inferSocialContext } from '@melloway/domain';
+const base = (import.meta.env?.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+const media = createVenueMediaClient(base);
+export const cachedSocialContext = venue => inferSocialContext(venue, media.peek(venue));
 async function request(path, body, signal) {
   const response = await fetch(`${base}/api/social/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-    signal: AbortSignal.any([signal, AbortSignal.timeout(40000)]),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(40000)]) : AbortSignal.timeout(40000),
   });
   if (!response.ok) {
     const failure = await response.json().catch(() => ({}));
@@ -24,27 +27,8 @@ function safePost(post) {
   return { ...post, ...canonical };
 }
 export async function discoverSocial(venue, signal) {
-  const response = await fetch(`${base}/api/status`, {
-    signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]),
-  });
-  if (!response.ok || (await response.json()).socialDiscovery !== "openai")
-    return [];
-  const data = await request(
-    "search",
-    {
-      venue: {
-        name: venue.name,
-        address: venue.address || "",
-        lat: venue.lat,
-        lng: venue.lng,
-      },
-    },
-    signal,
-  );
-  return (Array.isArray(data.posts) ? data.posts : [])
-    .map(safePost)
-    .filter(Boolean)
-    .slice(0, 8);
+  if (venue.source === 'demo') return [];
+  return media.discover({ name: venue.name, address: venue.address || '', lat: venue.lat, lng: venue.lng }, signal);
 }
 export async function previewSocial(url, signal) {
   const post = socialPost(url);
@@ -53,7 +37,7 @@ export async function previewSocial(url, signal) {
     const data = await request("preview", { url: post.url }, signal);
     return safePost(data.post) || post;
   } catch (error) {
-    if (signal.aborted) throw error;
+    if (signal?.aborted) throw error;
     return post; // The official embed and original link still work without the API.
   }
 }
