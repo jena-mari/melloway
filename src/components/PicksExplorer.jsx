@@ -107,7 +107,7 @@ export default function PicksExplorer({ embedded = false }) {
     next.set("place", id);
     setParams(next, { replace: true });
     const card = cards.current.get(id), list = carousel.current;
-    if (embedded || !scroll || !card || !list) return;
+    if (!scroll || !card || !list) return;
     const cardBox = card.getBoundingClientRect(), listBox = list.getBoundingClientRect();
     list.scrollTo({
       left: embedded ? 0 : list.scrollLeft + cardBox.left - listBox.left - (list.clientWidth - cardBox.width) / 2,
@@ -116,7 +116,7 @@ export default function PicksExplorer({ embedded = false }) {
     });
   }
   function view(venue) {
-    select(venue.id, false);
+    select(venue.id);
     setDetail(venue);
   }
   function followSwipe() {
@@ -186,16 +186,15 @@ export default function PicksExplorer({ embedded = false }) {
     </header>
     <div className="editorial-picks-browser">
       <PicksMap venues={venues} selectedId={active.id} focusPoint={focused ? active : null}
-        onSelect={embedded ? (id) => view(venues.find((venue) => venue.id === id)) : select}
+        onSelect={select}
         resetView={resetView} onShowAll={() => { setFocused(false); setResetView((old) => old + 1); }} />
       <section className="editorial-card-panel" aria-label="Pick photo cards">
         <ul className={`editorial-place-cards ${dragging ? "is-dragging" : ""}`} ref={carousel}
-          aria-label={embedded ? "Melloway’s Picks" : "Swipe through Melloway’s Picks"}
-          {...(!embedded && { onScroll: followSwipe, tabIndex: 0, onKeyDown: carouselKey,
-            onPointerDown: startDrag, onPointerMove: moveDrag, onPointerUp: endDrag, onPointerCancel: endDrag,
-            onDragStart: (event) => event.preventDefault(),
-            onClickCapture: (event) => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } },
-          })}>
+          aria-label="Swipe through Melloway’s Picks"
+          onScroll={followSwipe} tabIndex={0} onKeyDown={carouselKey}
+          onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}
+          onDragStart={(event) => event.preventDefault()}
+          onClickCapture={(event) => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } }}>
           {venues.map((venue) => <li key={venue.id} ref={(element) => { if (element) cards.current.set(venue.id, element); else cards.current.delete(venue.id); }}
             className={`editorial-place-card ${active.id === venue.id ? "is-selected" : ""}`} data-venue-id={venue.id}
             onClick={embedded ? (event) => { if (!event.target.closest("a, button")) view(venue); } : undefined}>

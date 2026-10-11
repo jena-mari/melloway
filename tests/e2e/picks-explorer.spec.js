@@ -18,7 +18,7 @@ async function mockPicks(page, { maps = true, images = true } = {}) {
     : route.abort());
 }
 
-test("Explore shows ten normal pick cards and opens details without changing the plan", async ({ page }, info) => {
+test("Explore keeps ten vertical picks, pin selection and details without changing the plan", async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await mockPicks(page);
@@ -69,30 +69,37 @@ test("Explore shows ten normal pick cards and opens details without changing the
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
   const last = editorialPicks.at(-1);
   await page.getByRole("button", { name: `select ${last.name} on map`, exact: true }).click();
-  await expect(page.getByRole("dialog", { name: last.name, exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "close pick details", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", last.id);
   await expect(page.locator(".picks-carousel-progress")).toHaveCount(0);
-  await expect(page.getByRole("list", { name: "Swipe through Melloway’s Picks" })).toHaveCount(0);
-  const list = page.getByRole("list", { name: "Melloway’s Picks", exact: true });
+  const list = page.getByRole("list", { name: "Swipe through Melloway’s Picks", exact: true });
+  await list.press("ArrowUp");
+  await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks.at(-2).id);
+  await list.press("ArrowDown");
+  await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", last.id);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     const map = await page.locator(".picks-map").boundingBox();
     const cards = await page.locator(".editorial-card-panel").boundingBox();
     expect(map.y + map.height).toBeLessThan(cards.y);
-    expect(map.height).toBeGreaterThanOrEqual(360);
+    expect(map.height).toBeGreaterThan(cards.height);
+    const tabs = await page.locator(".bottom-tabs").boundingBox();
+    expect(cards.y + cards.height).toBeLessThanOrEqual(tabs.y);
     const selected = page.locator(".editorial-place-card.is-selected");
     const card = await selected.boundingBox();
     const address = await selected.locator(".editorial-place-address").boundingBox();
     const details = await selected.getByRole("button", { name: "the details", exact: true }).boundingBox();
     expect(card.height).toBeLessThan(230);
+    expect(Math.abs(card.y - cards.y)).toBeLessThan(2);
+    expect(Math.abs(card.height - cards.height)).toBeLessThan(2);
     expect(details.y - (address.y + address.height)).toBeLessThanOrEqual(12);
     expect(details.y + details.height).toBeLessThanOrEqual(card.y + card.height);
     expect(await list.evaluate(node => ({ snap: getComputedStyle(node).scrollSnapType,
       scrollHeight: node.scrollHeight, height: node.clientHeight, scrollWidth: node.scrollWidth, width: node.clientWidth })))
-      .toEqual(expect.objectContaining({ snap: "none" }));
-    expect(await list.evaluate(node => node.scrollHeight <= node.clientHeight + 1 && node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      .toEqual(expect.objectContaining({ snap: "y mandatory" }));
+    expect(await list.evaluate(node => node.scrollHeight > node.clientHeight * 9 && node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+    expect(await selected.locator(".editorial-place-copy").evaluate(node => node.scrollHeight <= node.clientHeight + 1)).toBe(true);
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: info.outputPath("explore-ten-spots.png") });
@@ -116,29 +123,22 @@ test("Explore eases the camera, follows the latest pin, and cancels movement on 
   await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
   const surface = page.locator(".picks-map .google-map-surface");
   const overview = await surface.getAttribute("data-map-zoom");
-  async function open(venue) {
+  async function select(venue) {
     await page.getByRole("button", { name: `select ${venue.name} on map`, exact: true }).focus();
     await page.keyboard.press("Enter");
-    await expect(page.getByRole("dialog", { name: venue.name, exact: true })).toBeVisible();
-  }
-  async function close() {
-    await page.getByRole("button", { name: "close pick details", exact: true }).click();
+    await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", venue.id);
     await expect(page.getByRole("dialog")).toHaveCount(0);
   }
-  await open(editorialPicks[0]);
+  await select(editorialPicks[0]);
   await expect(surface).toHaveAttribute("data-map-zoom", "16");
   await expect(surface).toHaveAttribute("data-center-lat", String(editorialPicks[0].lat));
   expect(Number(await surface.getAttribute("data-camera-moves"))).toBeGreaterThan(2);
-  await close();
-  await open(editorialPicks[1]);
-  await close();
-  await open(editorialPicks[2]);
+  await select(editorialPicks[1]);
+  await select(editorialPicks[2]);
   await expect(surface).toHaveAttribute("data-center-lat", String(editorialPicks[2].lat));
   await expect(surface).toHaveAttribute("data-center-lng", String(editorialPicks[2].lng));
   await expect(surface).toHaveAttribute("data-map-zoom", "16");
-  await close();
-  await open(editorialPicks[0]);
-  await close();
+  await select(editorialPicks[0]);
   await page.getByRole("button", { name: "show all pick pins", exact: true }).click();
   await expect(surface).toHaveAttribute("data-map-zoom", overview);
   await page.waitForTimeout(750); // A cancelled 650ms transition must not move the map back.
@@ -146,12 +146,16 @@ test("Explore eases the camera, follows the latest pin, and cancels movement on 
   await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
 });
 
-test.describe("Explore pick taps", () => {
+test.describe("Explore vertical reels", () => {
   test.use({ hasTouch: true, reducedMotion: "reduce" });
   for (const width of [390, 320])
-    test(`horizontal gestures do not switch picks and taps open a bottom sheet at ${width}px`, async ({ page }, info) => {
+    test(`touch swipes move up and down, sync the map and retain details at ${width}px`, async ({ page }, info) => {
       await page.setViewportSize({ width, height: 844 });
       await mockPicks(page);
+      const requests = [];
+      page.on("request", request => {
+        if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/")) requests.push(request.url());
+      });
       await page.goto("/explore");
       await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
       const first = page.locator(".editorial-place-card").first();
@@ -169,6 +173,25 @@ test.describe("Explore pick taps", () => {
       }
       await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[0].id);
       await expect(page.getByRole("dialog")).toHaveCount(0);
+      const list = page.locator(".editorial-place-cards");
+      const reel = await list.boundingBox();
+      const originalScroll = await page.evaluate(() => scrollY);
+      for (const [from, to, index] of [[0.85, 0.15, 1], [0.15, 0.85, 0]]) {
+        await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: reel.x + reel.width / 2, y: reel.y + reel.height * from }] });
+        for (let step = 1; step <= 12; step++) {
+          await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: reel.x + reel.width / 2,
+            y: reel.y + reel.height * (from + (to - from) * step / 12) }] });
+          await page.waitForTimeout(30);
+        }
+        await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+        const venue = editorialPicks[index];
+        await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", venue.id);
+        await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(venue.lat));
+        await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-map-zoom", "16");
+        await expect.poll(() => list.evaluate((node, index) => Math.abs(node.scrollTop - (node.children[0].getBoundingClientRect().height + 12) * index), index)).toBeLessThan(2);
+        await expect(page.getByRole("dialog")).toHaveCount(0);
+        expect(await page.evaluate(() => scrollY)).toBe(originalScroll);
+      }
       await photo.tap();
       const sheet = page.getByRole("dialog", { name: editorialPicks[0].name, exact: true });
       await expect(sheet).toBeVisible();
@@ -184,11 +207,12 @@ test.describe("Explore pick taps", () => {
       const last = page.locator(".editorial-place-card").last();
       await last.getByRole("button", { name: "the details", exact: true }).tap();
       await expect(page.getByRole("dialog", { name: editorialPicks.at(-1).name, exact: true })).toBeVisible();
-      expect(await page.evaluate(() => scrollY)).toBeGreaterThan(0);
+      expect(await page.evaluate(() => scrollY)).toBe(originalScroll);
       await page.keyboard.press("Escape");
       await expect(page.getByRole("dialog")).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       expect(await page.locator(".editorial-place-cards").evaluate(list => list.scrollLeft)).toBe(0);
+      expect(requests).toEqual([]);
       await session.detach();
     });
 });
@@ -403,11 +427,7 @@ for (const path of ["/explore", "/picks"]) test(`${path} show-all fits all ten p
     await page.setViewportSize({ width, height: 844 });
     const place = editorialPicks.at(-1);
     await page.getByRole("button", { name: `select ${place.name} on map`, exact: true }).click();
-    if (path === "/explore") {
-      await expect(page.getByRole("dialog")).toContainText(place.name);
-      await page.getByRole("button", { name: "close pick details", exact: true }).click();
-      await expect(page.getByRole("dialog")).toHaveCount(0);
-    }
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(surface).toHaveAttribute("data-map-zoom", "16");
     const fits = Number(await surface.getAttribute("data-fit-count"));
     const showAll = page.getByRole("button", { name: "show all pick pins" });
