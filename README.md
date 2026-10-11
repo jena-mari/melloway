@@ -125,3 +125,9 @@ Preserved: Outfit, expressive script branding (updated to the supplied Maple Sho
 ### Brand artwork
 
 The app uses the supplied logo and coloured doodles in `public/icons`. Original PNGs stay untouched; `public/icons/optimized` contains smaller copies for phone screens. `BrandLogo` shares the logo across screens and `DoodleBackdrop` maps existing doodle names to these assets, preserving animation and reduced-motion behavior. When replacing an original, regenerate its optimized copy with `sips -Z 256 public/icons/NAME.PNG --out public/icons/optimized/NAME.png` (use 512 for `melloway_logo`).
+
+### Weekly Suggestions
+
+Explore shows a compact weekly highlight after the first community post; it also appears in What's On and the picks index. The initial three activities are Macquarie Ice Rink, Astro's Arcade Bar and The Caterpillar Club. Details link to each official venue and directions. Browsing preserves planning answers; “plan around this” adds the chosen activity/address to notes and relevant interests, keeping the budget, date and current itinerary.
+
+Publish another edition in `src/data/weeklySuggestions.js` with a Monday `weekOf` date and its suggestions. The app selects the latest published edition using Sydney's date, keeps its actual date label if no replacement exists, and retains earlier detail links. These are editorial highlights, not an automatic weekly scrape or live availability promise. Matching interests rank first; known over-budget admission is downranked and unknown prices stay unknown. Venue details were checked against the official sites on 11 October 2026: [Macquarie Ice Rink](https://macquarieicerink.com.au/), [Astro's Arcade Bar](https://www.astrosarcadebar.com/) and [The Caterpillar Club](https://swillhouse.com/venues/the-caterpillar-club/).

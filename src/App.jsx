@@ -11,6 +11,7 @@ import { useLocation } from "react-router-dom";
 const Community = lazy(() => import("./pages/Community"));
 const CommunityRoute = lazy(() => import("./pages/CommunityRoute"));
 const Pick = lazy(() => import("./pages/Pick"));
+const WeeklySuggestion = lazy(() => import("./pages/WeeklySuggestion"));
 const Itinerary = lazy(() => import("./pages/Itinerary"));
 const Favourites = lazy(() => import("./pages/Favourites"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -39,6 +40,7 @@ export default function App() {
               <Route path="/" element={<Landing />} />
               <Route path="/plan/:step" element={<Onboarding />} />
               <Route path="/generating" element={<Generating />} />
+              <Route path="/weekly/:id" element={<Suspense fallback={<div className="page" role="status">opening the suggestion…</div>}><WeeklySuggestion /></Suspense>} />
               <Route
                 path="/profile"
                 element={
