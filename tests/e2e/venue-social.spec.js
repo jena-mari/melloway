@@ -64,7 +64,7 @@ test.beforeEach(async ({ page }) => {
   );
 });
 
-test("real-post grid filters and opens official players, with no blank hero or mobile overflow", async ({
+test("real-post grid shows both platforms and opens official players, with no blank hero or mobile overflow", async ({
   page,
 }) => {
   const errors = [];
@@ -73,6 +73,7 @@ test("real-post grid filters and opens official players, with no blank hero or m
   await expect(page.getByRole("heading", { name: garden.name })).toBeVisible();
   await expect(page.locator(".venue-photo")).toHaveCount(0);
   await expect(page.locator(".venue-social-card")).toHaveCount(2);
+  await expect(page.getByRole("group", { name: "filter posts" })).toHaveCount(0);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     expect(
@@ -85,8 +86,6 @@ test("real-post grid filters and opens official players, with no blank hero or m
       fullPage: true,
     });
   }
-  await page.getByRole("button", { name: "TikTok", exact: true }).click();
-  await expect(page.locator(".venue-social-card")).toHaveCount(1);
   const trigger = page.getByRole("button", {
     name: "watch TikTok post by garden",
   });
@@ -103,7 +102,7 @@ test("real-post grid filters and opens official players, with no blank hero or m
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
-  await page.getByRole("button", { name: "Instagram", exact: true }).click();
+  await expect(page.locator(".venue-social-card")).toHaveCount(2);
   await page
     .getByRole("button", { name: "watch Instagram post", exact: true })
     .click();

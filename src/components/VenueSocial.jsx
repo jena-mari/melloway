@@ -89,7 +89,6 @@ function PostPreview({ post, onClose }) {
 export default function VenueSocial({ venue, compact = false }) {
   const titleId = useId(), inputId = useId();
   const [posts, setPosts] = useState([]),
-    [filter, setFilter] = useState("all"),
     [state, setState] = useState("loading");
   const [selected, setSelected] = useState(null),
     [adding, setAdding] = useState(false),
@@ -103,7 +102,6 @@ export default function VenueSocial({ venue, compact = false }) {
     controller.current = abort;
     setPosts([]);
     setState("loading");
-    setFilter("all");
     setSelected(null);
     setError("");
     setAdding(false);
@@ -159,7 +157,6 @@ export default function VenueSocial({ venue, compact = false }) {
         ...previous.filter((p) => p.url !== post.url),
         { ...preview, shared: true },
       ]);
-      setFilter("all");
       setUrl("");
       setAdding(false);
     } catch (failure) {
@@ -181,9 +178,6 @@ export default function VenueSocial({ venue, compact = false }) {
       setError("Couldn’t update saved links.");
     }
   }
-  const visible = posts.filter(
-    (post) => filter === "all" || post.platform === filter,
-  );
   const search = encodeURIComponent(`${venue.name} Sydney`);
   return (
     <section className={`venue-social${compact ? " venue-social-compact" : ""}`} aria-labelledby={titleId}>
@@ -200,17 +194,6 @@ export default function VenueSocial({ venue, compact = false }) {
           <Plus size={18} />
         </button>
       </header>
-      {!compact && <div className="social-platforms" role="group" aria-label="filter posts">
-        {["all", "TikTok", "Instagram"].map((platform) => (
-          <button
-            key={platform}
-            aria-pressed={filter === platform}
-            onClick={() => setFilter(platform)}
-          >
-            {platform}
-          </button>
-        ))}
-      </div>}
       {adding && (
         <form onSubmit={addPost} className="social-link-form">
           <label htmlFor={inputId}>post link</label>
@@ -230,9 +213,9 @@ export default function VenueSocial({ venue, compact = false }) {
           {error && <p role="alert">{error}</p>}
         </form>
       )}
-      {visible.length > 0 && (
+      {posts.length > 0 && (
         <div className="venue-social-grid" tabIndex={compact ? 0 : undefined} role={compact ? "region" : undefined} aria-label={compact ? "Posts at this spot" : undefined}>
-          {visible.map((post) => (
+          {posts.map((post) => (
             <div className="venue-social-item" key={post.url}>
               <button
                 className="venue-social-card"
@@ -286,16 +269,14 @@ export default function VenueSocial({ venue, compact = false }) {
           finding posts…
         </p>
       )}
-      {state !== "loading" && !visible.length && (
+      {state !== "loading" && !posts.length && (
         <p className="social-status">
-          {posts.length
-            ? `No ${filter} posts yet.`
-            : state === "unavailable"
-              ? "Post search is unavailable right now."
-              : "No public posts found yet."}
+          {state === "unavailable"
+            ? "Post search is unavailable right now."
+            : "No public posts found yet."}
         </p>
       )}
-      {(!compact || !visible.length) && <div className="social-search-links">
+      {(!compact || !posts.length) && <div className="social-search-links">
         <a
           href={`https://www.tiktok.com/search?q=${search}`}
           target="_blank"
