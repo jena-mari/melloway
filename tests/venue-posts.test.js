@@ -23,8 +23,16 @@ test("different branches, distant namesakes and fictional venues do not inherit 
     { ...matchaya, id: "other-branch", address: "20 Steam Mill Lane, Haymarket NSW 2000" },
     { ...matchaya, id: "namesake", lat: -33.92, lng: 151.16 },
     { ...matchaya, source: "demo" },
-    sydneyVenues.find(venue => venue.id !== matchaya.id),
+    sydneyVenues.find(venue => venue.id === "sydney-kinokuniya"),
   ]) assert.deepEqual(venuePostLinks(venue), []);
+});
+
+test("a different venue keeps its own attached reel without inheriting MATCHA-YA's", () => {
+  const glebe = sydneyVenues.find(venue => venue.id === "sydney-glebe-markets");
+  const links = venuePostLinks(glebe);
+  assert.equal(links.length, 1);
+  assert.equal(socialPost(links[0]).platform, "TikTok");
+  assert.ok(links.every(link => !venuePostLinks(matchaya).includes(link)));
 });
 
 test("returned links cannot mutate the association used by a fresh visit", () => {

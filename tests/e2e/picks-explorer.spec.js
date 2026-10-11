@@ -1,12 +1,20 @@
 import { test, expect } from "@playwright/test";
 import { mediaVenueKey } from '../../packages/domain/src/venueMedia.ts';
 import { editorialPicks } from "../../src/data/editorialPicks.js";
+import { venuePostLinks } from "../../src/data/venuePosts.ts";
 import { curatedVenuesForDate } from "../../src/data/sydneyVenues.js";
 import { defaultDraft } from "../../src/data/preferences.js";
 import { demoMatrix, schedule } from "../../src/utils/planner.js";
 import { googleMapsFixture } from "./google-maps-fixture.js";
 import { mockMapTiles } from "./fixtures.js";
 import { communityExamples } from "../../src/data/community.js";
+
+function expectOnlyOpenedReelPreviews(requests, venues) {
+  expect(requests.length).toBeGreaterThan(0);
+  expect([...new Set(requests.map(request => request.path))]).toEqual(["/api/social/preview"]);
+  expect([...new Set(requests.map(request => request.body.url))].sort())
+    .toEqual([...new Set(venues.flatMap(venuePostLinks))].sort());
+}
 
 async function mockPicks(page, { maps = true, images = true } = {}) {
   await page.route("https://**", (route) => route.abort());
@@ -124,7 +132,7 @@ test("Explore keeps ten vertical picks, pin selection and details without changi
   const requests = [];
   page.on("request", request => {
     if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/"))
-      requests.push(request.url());
+      requests.push({ path: new URL(request.url()).pathname, body: request.postDataJSON() });
   });
   await page.addInitScript(plan => {
     if (!localStorage.getItem("melloway.current"))
@@ -210,7 +218,7 @@ test("Explore keeps ten vertical picks, pin selection and details without changi
   await page.reload();
   await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
   await expect(page.locator(".editorial-place-card")).toHaveCount(10);
-  expect(requests).toEqual([]);
+  expectOnlyOpenedReelPreviews(requests, [editorialPicks[1]]);
   expect(await state()).toEqual(before);
 });
 
@@ -253,7 +261,8 @@ test.describe("Explore vertical reels", () => {
       await mockPicks(page);
       const requests = [];
       page.on("request", request => {
-        if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/")) requests.push(request.url());
+        if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/"))
+          requests.push({ path: new URL(request.url()).pathname, body: request.postDataJSON() });
       });
       await page.goto("/explore");
       await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
@@ -291,6 +300,7 @@ test.describe("Explore vertical reels", () => {
         await expect(page.getByRole("dialog")).toHaveCount(0);
         expect(await page.evaluate(() => scrollY)).toBe(originalScroll);
       }
+      expect(requests).toEqual([]);
       await photo.tap();
       const sheet = page.getByRole("dialog", { name: editorialPicks[0].name, exact: true });
       await expect(sheet).toBeVisible();
@@ -311,7 +321,7 @@ test.describe("Explore vertical reels", () => {
       await expect(page.getByRole("dialog")).toHaveCount(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       expect(await page.locator(".editorial-place-cards").evaluate(list => list.scrollLeft)).toBe(0);
-      expect(requests).toEqual([]);
+      expectOnlyOpenedReelPreviews(requests, [editorialPicks[0], editorialPicks.at(-1)]);
       await session.detach();
     });
 });
