@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 const api = spawn(
   process.execPath,
-  ["--watch", "--env-file-if-exists=.env", "server/index.js"],
+  ["--watch", "--experimental-strip-types", "--env-file-if-exists=.env", "server/index.js"],
   { stdio: "inherit" },
 );
 const web = spawn(

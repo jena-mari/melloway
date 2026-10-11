@@ -6,3 +6,10 @@ dist/
 .DS_Store
 test-results/
 playwright-report/
+
+# Private local discovery research, decisions, exports and atomic-write/lock files
+/.local/discovery/
+*.tsbuildinfo
+# Local Supabase CLI state; migration SQL remains tracked
+supabase/.temp/
+supabase/.branches/
