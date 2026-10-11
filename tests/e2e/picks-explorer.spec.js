@@ -269,7 +269,11 @@ test("Explore sheets retain unknown prices, access conditions and licensed photo
     await expect(sheet.getByText("$0 allowance", { exact: true })).toHaveCount(0);
     await expect(sheet.locator(".editorial-photo-placeholder")).toBeVisible();
     if (venue.photo) {
-      await expect(sheet.getByRole("link", { name: venue.photo.license, exact: true }).first()).toHaveAttribute("href", venue.photo.licenseUrl);
+      if (venue.photo.license !== "Reuse unverified") {
+        await expect(sheet.getByRole("link", { name: venue.photo.license, exact: true }).first()).toHaveAttribute("href", venue.photo.licenseUrl);
+      }
+      await expect(sheet.getByText("Reuse unverified", { exact: true })).toHaveCount(0);
+      await expect(sheet.getByRole("link", { name: venue.photo.author, exact: true }).first()).toHaveAttribute("href", venue.photo.sourceUrl);
       await expect(sheet).toContainText(venue.photo.author);
     }
     await sheet.getByRole("button", { name: "close pick details" }).click();
@@ -534,7 +538,10 @@ test("all ten supplied image links render with source credits", async ({ page },
     expect(await image.evaluate(node => node.currentSrc)).toBe(venue.image);
     const credit = card.locator(".editorial-photo-credit");
     await expect(credit.getByRole("link", { name: venue.photo.author, exact: true })).toHaveAttribute("href", venue.photo.sourceUrl);
-    await expect(credit.getByRole("link", { name: venue.photo.license, exact: true })).toHaveAttribute("href", venue.photo.licenseUrl);
+    if (venue.photo.license !== "Reuse unverified") {
+      await expect(credit.getByRole("link", { name: venue.photo.license, exact: true })).toHaveAttribute("href", venue.photo.licenseUrl);
+    }
+    await expect(credit.getByText("Reuse unverified", { exact: true })).toHaveCount(0);
     await expect(credit).toContainText(venue.photo.caption);
     await card.screenshot({ path: info.outputPath(`${id}.png`) });
   }

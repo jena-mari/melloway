@@ -16,7 +16,9 @@ import VenueReviews from "./VenueReviews.jsx";
 function PhotoCredit({ photo }) {
   return <span className="editorial-photo-credit">
     <a href={photo.sourceUrl} target="_blank" rel="noreferrer">{photo.author}</a>
-    {" · "}<a href={photo.licenseUrl} target="_blank" rel="noreferrer">{photo.license}</a>
+    {photo.license && photo.license !== "Reuse unverified" && <>
+      {" · "}<a href={photo.licenseUrl} target="_blank" rel="noreferrer">{photo.license}</a>
+    </>}
     <span>{photo.caption}</span>
   </span>;
 }
