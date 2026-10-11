@@ -1,3 +1,4 @@
+import { matchesAnyRequestedActivity } from "./requestedActivity.js";
 import { evidenceScore } from './recommendationEvidence.js';
 import { km } from "../utils/planner.js";
 import { planningArea } from "../utils/location.js";
@@ -49,6 +50,8 @@ export function scoreVenue(v, prefs, intent, weights = recommendationWeights) {
     (v.source === "curated" ? 0.7 : v.source === "google" ? 0.8 : 0.1) +
     (Number.isFinite(v.rating) ? Math.min(0.2, v.rating / 25) : 0);
   const scoreBreakdown = {
+    // Explicit activity fit outranks incidental café ratings and generic tags.
+    requestedActivity: matchesAnyRequestedActivity(v, intent) ? 200 : 0,
     preference:
       weights.preference * (preference * 0.8 + (compatibleRole ? 0.2 : 0)),
     atmosphere: weights.atmosphere * Math.min(1, atmosphere),

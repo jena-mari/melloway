@@ -90,7 +90,16 @@ export const googleMapsFixture = String.raw`
     set zIndex(z) { this.wrapper.style.zIndex = z; }
   }
   class PinElement { constructor(options) { const pin = document.createElement('span'); pin.textContent = options.glyphText; return pin; } }
-  class Polyline { constructor(options) { this.map = options.map; } setMap(map) { this.map = map; } }
+  class Polyline {
+    constructor(options) {
+      this.node = document.createElement('div');
+      this.node.dataset.routePath = JSON.stringify(options.path);
+      if (options.strokeColor) this.node.dataset.routeColor = options.strokeColor;
+      if (options.icons) this.node.dataset.routeIcons = JSON.stringify(options.icons);
+      this.setMap(options.map);
+    }
+    setMap(map) { this.map = map; this.node.remove(); if (map) map.element.append(this.node); }
+  }
   // Match the real SDK: coordinates belong to core, not the maps library.
   const maps = { Map:FakeMap, Polyline, OverlayView, RenderingType: { RASTER:'RASTER', VECTOR:'VECTOR' } };
   const core = { LatLng, LatLngBounds };

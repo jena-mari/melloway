@@ -2316,6 +2316,10 @@ dd {
   position: relative;
   isolation: isolate;
   height: clamp(230px, 31dvh, 320px);
+  border: 1px solid var(--ink);
+  border-radius: 20px;
+  overflow: hidden;
+  background: #f5f4ed;
 }
 .map-loading {
   display: grid;
@@ -2415,53 +2419,15 @@ dd {
   color: #666;
   line-height: 1.5;
 }
-.route-pin {
-  background: transparent;
-  border: 0;
-  filter: drop-shadow(0 2px 3px #1112);
-}
-.route-pin .pin-content {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 44px;
-  padding: 7px;
-  border: 1.5px solid #111;
-  border-radius: 11px;
-  background: white;
-  color: #111;
-  font:
-    600 13px Outfit,
-    sans-serif;
-}
-.route-pin .pin-content::after {
-  content: "";
-  position: absolute;
-  bottom: -6px;
-  left: calc(50% - 5px);
-  width: 10px;
-  height: 10px;
-  background: inherit;
-  border-right: 1.5px solid #111;
-  border-bottom: 1.5px solid #111;
-  transform: rotate(45deg);
-}
 .route-pin .pin-numbers {
-  font-weight: 800;
-  white-space: nowrap;
-}
-.route-pin .pin-price {
-  font-weight: 500;
-}
-.route-pin.is-selected .pin-content {
-  background: #f5e8aa;
-}
-.route-pin:focus-visible {
-  outline: 2px solid #111;
-  border-radius: 11px;
-  outline-offset: 4px;
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--pin-columns, 1), 1fr);
+  place-items: center;
+  gap: 2px;
+  color: #111;
+  font: 800 13px/1 Outfit, sans-serif;
 }
 .street-map .leaflet-tooltip {
   font-family: Outfit, sans-serif;
@@ -2571,6 +2537,11 @@ dd {
   flex: 1;
   min-height: 180px;
   height: auto;
+  width: auto;
+  margin: 0 18px;
+  border: 1px solid var(--ink);
+  border-radius: 20px;
+  overflow: hidden;
 }
 .expanded-route .street-map .leaflet-control-zoom a {
   width: 44px;
@@ -5470,8 +5441,8 @@ html:has(.profile-page) {
 }
 .generated-route-card .route-map-hero {
   height: clamp(180px, 26dvh, 220px);
-  border: 2px solid #111;
-  border-radius: 12px;
+  border: 1px solid var(--ink);
+  border-radius: 20px;
   overflow: hidden;
 }
 .generated-route-card .map-toolbar {
@@ -5697,12 +5668,6 @@ html:has(.profile-page) {
 .map-preview-copy strong { display: block; font: 700 14px/1.3 Outfit, sans-serif; overflow-wrap: anywhere; }
 .map-preview-copy small { display: block; font: 400 11px/1.5 Outfit, sans-serif; color: #666; margin-top: 5px; }
 .map-preview-copy button { display: flex; align-items: center; gap: 5px; min-height: 36px; font: 600 12px Outfit, sans-serif; text-decoration: underline; text-underline-offset: 3px; }
-.google-map-canvas .route-pin {
-  width: auto;
-  height: auto;
-  padding: 0;
-  background: transparent;
-}
 .google-map-canvas .location-area-pin {
   position: relative;
   width: 44px;
@@ -6616,10 +6581,10 @@ html:has(.profile-page) {
 .picks-map-unavailable p { font-size: 14px; }
 .picks-map-unavailable a { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; text-decoration: underline; }
 .picks-map:has([data-map-state="error"]) .picks-show-all { display: none; }
-.editorial-pick-pin { position: relative; width: 26px; height: 26px; padding: 0; display: grid; place-items: center; border: 1.5px solid #111; border-radius: 50%; background: white; color: #111; filter: drop-shadow(0 2px 3px #1112); }
-.editorial-pick-pin::before { content: ""; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: white; }
-.editorial-pick-pin::after { content: ""; position: absolute; bottom: -3px; left: calc(50% - 3px); width: 6px; height: 6px; background: inherit; border-right: 1.5px solid #111; border-bottom: 1.5px solid #111; transform: rotate(45deg); }
-.editorial-pick-pin img { position: relative; z-index: 1; display: block; width: 20px; height: 20px; object-fit: contain; filter: brightness(0); border-radius: 50%; pointer-events: none; }
+.editorial-pick-pin { position: relative; width: var(--map-pin-size, 26px); height: var(--map-pin-size, 26px); padding: 0; display: grid; place-items: center; border: 1.5px solid #111; border-radius: 50%; background: white; color: #111; filter: drop-shadow(0 2px 3px #1112); }
+.editorial-pick-pin::before { content: ""; position: absolute; z-index: 1; width: calc(var(--map-pin-size, 26px) - 6px); height: calc(var(--map-pin-size, 26px) - 6px); border-radius: 50%; background: white; }
+.editorial-pick-pin::after { content: ""; position: absolute; z-index: 0; bottom: -3px; left: calc(50% - 3px); width: 6px; height: 6px; background: inherit; border-right: 1.5px solid #111; border-bottom: 1.5px solid #111; transform: rotate(45deg); }
+.editorial-pick-pin img { position: relative; z-index: 2; display: block; width: 20px; height: 20px; object-fit: contain; filter: brightness(0); border-radius: 50%; pointer-events: none; }
 .editorial-pick-pin:focus-visible { outline: 2px solid #111; outline-offset: 4px; }
 .editorial-pick-pin.is-selected { background: #111; color: white; transform: scale(1.12); }
 .picks-show-all { position: absolute; top: 12px; left: 12px; z-index: 600; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 1px solid #1113; border-radius: 12px; background: white; box-shadow: 0 3px 10px #1111; }
@@ -6807,10 +6772,10 @@ html:has(.profile-page) {
 .completion-content { padding: 12px 24px calc(24px + env(safe-area-inset-bottom)); }
 
 /* Direct itinerary edits keep the original card and map in place. */
-.route-order-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
-.route-order-controls label { flex: 1 1 100%; }
-.route-order-controls select { width: 100%; min-height: 44px; font: inherit; font-size: 12px; padding: 8px 10px; border: 1px solid #ddd; border-radius: 12px; background: #fafafa; color: var(--ink); }
-.route-order-controls button { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1; border: 1px solid #ddd; border-radius: 12px; font-size: 12px; }
+.route-order-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px; margin: 0 0 10px; }
+.route-order-controls label { min-width: 0; }
+.route-order-controls select { width: 100%; min-width: 0; min-height: 44px; font: inherit; font-size: 12px; padding: 8px 6px; border: 1px solid #ddd; border-radius: 12px; background: #fafafa; color: var(--ink); }
+.route-order-controls button { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 8px 6px; border: 1px solid #ddd; border-radius: 12px; font-size: 12px; white-space: nowrap; }
 .generated-route-card .route-summary-list > li { grid-template-columns: 26px minmax(0, 1fr) 44px 44px; gap: 3px; padding: 8px; }
 .generated-route-card .route-summary-spot { grid-row: span 2; gap: 4px; }
 .route-summary-spot small { font-size: 10px; line-height: 1.4; color: #555; }
@@ -6939,3 +6904,49 @@ html:has(.itinerary-sticky-actions) { scroll-padding-bottom: calc(var(--tabs-hei
 .saved-place-list article { display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid #ddd; border-radius: 16px; }
 .saved-place-list article > a { flex: 1; min-width: 0; text-decoration: none; }
 .saved-place-list span { display: block; color: #666; font-size: 12px; margin-top: 6px; }
+/* Local venue reviews reuse the existing detail sheet and type styles. */
+.venue-reviews { margin: 24px 0; padding: 20px 0; border-top: 1px solid #e6e6e6; border-bottom: 1px solid #e6e6e6; }
+.venue-reviews > header { position: static; z-index: auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 0; }
+.venue-reviews > header h2 { margin: 0; font: 700 18px/1.3 Outfit, sans-serif; }
+.venue-reviews > header > button { width: auto; height: auto; min-height: 40px; padding: 6px 10px; border: 1px solid #ddd; border-radius: 999px; font: 500 13px Outfit, sans-serif; }
+.venue-reviews .venue-review-note, .venue-review-form .venue-review-note { font-size: 12px; line-height: 1.5; color: #666; }
+.venue-review-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0; font-size: 13px; }
+.venue-review-summary strong { font-size: 18px; }
+.venue-review-stars { display: inline-flex; gap: 2px; color: #111; flex-shrink: 0; }
+.venue-review-star { position: relative; display: block; width: 22px; height: 22px; }
+.venue-review-star > svg { display: block; }
+.venue-review-star > span { position: absolute; inset: 0 auto 0 0; overflow: hidden; }
+.venue-review-star > span > svg { display: block; min-width: 22px; }
+.venue-review-list { display: grid; gap: 12px; }
+.venue-review-card { border: 1px solid #e6e6e6; border-radius: 16px; padding: 14px; min-width: 0; }
+.venue-review-byline { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 14px; }
+.venue-review-byline strong { overflow-wrap: anywhere; }
+.venue-review-byline time, .venue-review-card > small { font-size: 11px; color: #666; }
+.venue-review-card-rating { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; }
+.venue-review-comment { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+.venue-review-photos, .venue-review-photo-previews { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+.venue-review-photos img, .venue-review-photo-previews img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 12px; }
+.venue-review-photo-previews figure { margin: 0; min-width: 0; }
+.venue-review-actions { display: flex; gap: 18px; margin-top: 8px; }
+.venue-review-actions .text-button, .venue-review-photo-previews .text-button { min-height: 36px; font-size: 12px; }
+.venue-review-form > label { display: grid; gap: 8px; margin-top: 16px; font-size: 14px; }
+.venue-review-form > label > input:not([type=file]), .venue-review-form textarea { width: 100%; min-width: 0; border: 1px solid #ddd; border-radius: 12px; background: white; padding: 12px; font: inherit; }
+.venue-review-form textarea { resize: vertical; }
+.venue-review-counter { display: block; text-align: right; color: #666; font-size: 11px; margin-top: 4px; }
+.venue-review-rating { border: 0; padding: 0; margin: 20px 0 0; }
+.venue-review-rating legend { font-size: 14px; margin-bottom: 8px; }
+.venue-review-rating-control { position: relative; width: min(100%, 240px); height: 44px; display: grid; align-items: center; border-radius: 6px; }
+.venue-review-rating-control > span, .venue-review-rating-control .venue-review-stars { width: 100%; }
+.venue-review-rating-control .venue-review-stars { justify-content: space-around; gap: 0; }
+.venue-review-rating-control .venue-review-star { width: 36px; height: 36px; }
+.venue-review-rating-control .venue-review-star svg { width: 36px; height: 36px; min-width: 36px; }
+.venue-review-rating-control input { position: absolute; inset: 0; width: 100%; height: 44px; margin: 0; padding: 0; border: 0; opacity: 0; appearance: none; cursor: pointer; touch-action: pan-y; }
+.venue-review-rating-control input::-webkit-slider-thumb { appearance: none; width: 2px; height: 44px; }
+.venue-review-rating-control input::-moz-range-thumb { width: 2px; height: 44px; border: 0; }
+.venue-review-rating-control:focus-within { outline: 2px solid #111; outline-offset: 4px; }
+.venue-review-rating-preview { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; min-height: 40px; font-size: 12px; color: #666; }
+.venue-review-rating-preview .text-button { min-height: 40px; font-size: 12px; }
+.venue-review-file input { max-width: 100%; font-size: 12px; }
+.venue-review-file small { font-size: 11px; color: #666; }
+.venue-review-form [role=alert], .venue-reviews [role=alert] { color: #9a2836; font-size: 13px; }
+.venue-review-form > .button { width: 100%; margin-top: 16px; }

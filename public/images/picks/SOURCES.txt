@@ -1,0 +1,38 @@
+Melloway Picks photo assets
+Verified against Wikimedia Commons file pages on 11 October 2026.
+These individual photo adaptations are distributed under CC BY-SA 4.0.
+License: https://creativecommons.org/licenses/by-sa/4.0/
+The license applies to these photos, not the application code as a whole.
+
+GLEBE MARKETS
+Local asset: glebe-markets.webp
+Title: Part of Glebe Markets April 2026
+Photographer: Nick-D
+Photo date: 4 April 2026
+Source: https://commons.wikimedia.org/wiki/File:Part_of_Glebe_Markets_April_2026.jpg
+Downloaded thumbnail: https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Part_of_Glebe_Markets_April_2026.jpg/1280px-Part_of_Glebe_Markets_April_2026.jpg
+License: CC BY-SA 4.0
+Changes: resized thumbnail (1280 x 960), converted to WebP, metadata omitted.
+The existing card layout may crop the image for display; no content was added.
+
+OBSERVATORY HILL
+Local asset: observatory-hill.webp
+Title: Observatory Hill Sydney
+Photographer: MDRX
+Photo date: 5 September 2020 (archive photo)
+Source: https://commons.wikimedia.org/wiki/File:Observatory_Hill_Sydney.jpg
+Downloaded thumbnail: https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Observatory_Hill_Sydney.jpg/1280px-Observatory_Hill_Sydney.jpg
+License: CC BY-SA 4.0
+Changes: resized thumbnail (1280 x 960), converted to WebP, metadata omitted.
+The existing card layout may crop the image for display; no content was added.
+
+No endorsement is implied. These two local adaptations remain available;
+the picks now use the ten remote image links supplied in the research pack.
+Visible source credits and display-crop notices remain on the existing cards.
+
+The supplied melloway_photo_research_pack.zip has eight further reference-only
+entries without confirmed reuse permissions. At the user’s explicit request,
+their provided remote image URLs are now used without downloading/bundling
+those eight images. Credits retain “Reuse unverified”; contextual/branch
+uncertainty remains in the captions. Existing placeholders handle failed loads.
+No Google Photos requests or new provider integrations have been added.

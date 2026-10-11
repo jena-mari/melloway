@@ -1,3 +1,4 @@
+import { matchesAnyRequestedActivity } from "./requestedActivity.js";
 import { eventServiceOnly } from './recommendationEvidence.js';
 import { km, schedule, transportAllowance } from "../utils/planner.js";
 import { planningArea } from "../utils/location.js";
@@ -29,7 +30,7 @@ export function venueRejection(v, prefs, intent, rejectedIds = []) {
   )
     return "area";
   if (closedOn(v, prefs.date)) return "hours";
-  if (!v.weeklyHours && !v.hours) return "unknown-hours";
+  if (v.hoursStatus === "unverified" || (!v.weeklyHours && !v.hours)) return "unknown-hours";
   const spending = spendAllowance(v, intent);
   const versions = (
     v.activityRole ? [v.activityRole] : rs.length ? rs : [undefined]
@@ -117,6 +118,7 @@ export function selectCandidates(
     if (v && chosen.length < 14 && !chosen.some((c) => sameBusiness(c, v)))
       chosen.push(v);
   };
+  eligible.filter(v => matchesAnyRequestedActivity(v, intent)).slice(0, 3).forEach(add);
   if (eligible.some((v) => v.source === "google")) {
     const curated = eligible.filter((v) => v.source === "curated");
     for (const role of intent.requiredRoles)

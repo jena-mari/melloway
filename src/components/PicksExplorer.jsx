@@ -11,6 +11,7 @@ import MellowayPicks from "./MellowayPicks.jsx";
 import WeeklySuggestions from "./WeeklySuggestions.jsx";
 import VenueSocial from "./VenueSocial.jsx";
 import PlaceActions from './PlaceActions.jsx';
+import VenueReviews from "./VenueReviews.jsx";
 
 function PhotoCredit({ photo }) {
   return <span className="editorial-photo-credit">
@@ -72,6 +73,7 @@ function PickDetails({ venue, onClose }) {
         <p>{venue.description}</p><p>{venue.scheduleLabel}</p>
         <PlaceActions venue={venue} />
         <VenueSocial venue={venue} compact />
+        <VenueReviews key={venue.id} venue={venue} />
         <PickEvidence venue={venue} />
         <a className="button green" target="_blank" rel="noreferrer"
           href={venue.mapsUri || `https://www.google.com/maps/search/?api=1&query=${venue.lat},${venue.lng}`}>

@@ -5,6 +5,7 @@ import { MapPin, X, ArrowUpRight } from "lucide-react";
 import { MoodImage } from "./UI";
 import { formatTime } from "../utils/planner";
 import VenueSocial from "./VenueSocial.jsx";
+import VenueReviews from "./VenueReviews.jsx";
 
 export default function StopDetails({
   stop: s,
@@ -103,6 +104,7 @@ export default function StopDetails({
             </p>
           )}
           <VenueSocial key={s.id} venue={s} compact />
+          <VenueReviews key={s.id} venue={s} />
           {s.reason && <p>{s.reason}</p>}
           {s.booking && <p>{s.booking}</p>}
           <p>{s.note}</p>

@@ -65,16 +65,44 @@ test("time-specific picks retain event, overnight and membership conditions", ()
   assert.match(byId("pick-joji-sydney").conditions, /age-policy/);
 });
 
-test("photos have explicit reuse licenses and missing photos have no unrelated substitutes", () => {
-  const photos = editorialPicks.filter((venue) => venue.image);
-  assert.equal(photos.length, 2);
-  for (const venue of photos) {
-    assert.ok(venue.image.startsWith("https://upload.wikimedia.org/"));
-    assert.ok(venue.photo.author && venue.photo.license && venue.photo.sourceUrl && venue.photo.licenseUrl);
+test("all ten picks use the supplied image links and traceable source credits", () => {
+  const expected = {
+    "pick-matcha-chubby-westfield": "https://img3.restaurantguru.com/c68c-Chubby-Cubby-Cafe-Sydney-tiramisu.jpg",
+    "pick-ace-sydney-photobooth": "https://cdn.sanity.io/images/74hnwp2p/production/753fc0ffc02e5edc68e9bf96e10741ad6cb80e75-2364x1773.jpg?auto=format&w=2200",
+    "sydney-glebe-markets": "https://commons.wikimedia.org/wiki/Special:FilePath/Part_of_Glebe_Markets_April_2026.jpg?width=1280",
+    "pick-birdcage-bank-hotel": "https://images-r2-1.thebrag.com/tmn/uploads/image-1200x630-57-1.jpg",
+    "pick-caterpillar-club": "https://static.martin-audio.com/pressrelease/medium/martin-audio-cdd-brings-out-the-detail-at-vinyl-led-caterpillar-club-5.jpg",
+    "pick-joji-sydney": "https://media.timeout.com/images/106196307/1024/576/image.jpg",
+    "pick-o3-newtown": "https://framerusercontent.com/images/5qYpdbbCYzzgkI7Zlz3Tccpntyc.jpeg?height=4284&scale-down-to=2048&width=5712",
+    "pick-old-school-kafey": "https://images.notquitenigella.com/images/old-school-kafey-sydney/ll.jpg",
+    "pick-observatory-hill-park": "https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Observatory_Hill_Sydney.jpg/1280px-Observatory_Hill_Sydney.jpg",
+    "pick-mamuki-glebe": "https://cdn.broadsheet.com.au/images/2026/03/12/Mamuki_Yusuke_Oba_Feb_2026_Low_2-c5b1fc0e15.webp"
+};
+  assert.equal(editorialPicks.filter(venue => venue.image).length, 10);
+  for (const venue of editorialPicks) {
+    assert.equal(venue.image, expected[venue.id], venue.name);
+    assert.equal(new URL(venue.image).protocol, "https:");
+    assert.ok(venue.photo.author && venue.photo.sourceUrl && venue.photo.licenseUrl);
+    assert.equal(new URL(venue.photo.sourceUrl).protocol, "https:");
+    assert.match(venue.photo.caption, /display crop/);
+    assert.ok(venue.artwork); // Existing error fallback is still available.
+  }
+});
+
+test("photo credits preserve license status, archive dates and contextual uncertainty", () => {
+  const licensed = editorialPicks.filter(venue => venue.photo.license === "CC BY-SA 4.0");
+  assert.deepEqual(licensed.map(venue => venue.id), ["sydney-glebe-markets", "pick-observatory-hill-park"]);
+  for (const venue of licensed) {
+    assert.equal(venue.photo.licenseUrl, "https://creativecommons.org/licenses/by-sa/4.0/");
+    assert.ok(venue.photo.sourceUrl.startsWith("https://commons.wikimedia.org/wiki/File:"));
     assert.match(venue.photo.caption, /archive/);
   }
-  for (const venue of editorialPicks.filter((venue) => !venue.image)) {
-    assert.ok(venue.artwork);
-    assert.equal(venue.photo, undefined);
+  for (const venue of editorialPicks.filter(venue => !licensed.includes(venue))) {
+    assert.equal(venue.photo.license, "Reuse unverified");
+    assert.equal(venue.photo.licenseUrl, venue.photo.sourceUrl);
   }
+  assert.match(byId("pick-ace-sydney-photobooth").photo.caption, /lobby.*photobooth not shown/);
+  assert.match(byId("pick-birdcage-bank-hotel").photo.caption, /Waywards Ballroom.*Birdcage night unverified/);
+  assert.match(byId("pick-o3-newtown").photo.caption, /branch pictured unverified/);
+  assert.match(byId("pick-old-school-kafey").photo.caption, /2019/);
 });

@@ -7,6 +7,7 @@ import { useApp } from "../hooks/useApp";
 import { MoodImage } from "../components/UI";
 import VenueSocial from "../components/VenueSocial";
 import PlaceActions from '../components/PlaceActions.jsx';
+import VenueReviews from "../components/VenueReviews.jsx";
 export default function Venue({ route, backTo = "/itinerary", backLabel = "back to ur day", photoCredit, extraDetails }) {
   const { id } = useParams(),
     { current, savedPlaces } = useApp();
@@ -46,6 +47,7 @@ export default function Venue({ route, backTo = "/itinerary", backLabel = "back 
           <p>{v.address}</p>
           <PlaceActions venue={v} />
           <VenueSocial key={v.id} venue={v} />
+          <VenueReviews key={v.id} venue={v} />
           <div className="chips">
             {v.tags.map((t) => (
               <span className="chip selected" key={t}>

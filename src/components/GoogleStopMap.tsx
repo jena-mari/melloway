@@ -70,6 +70,7 @@ export default function GoogleStopMap({ stops, selectedStopId, onSelectStop, dir
   useEffect(() => {
     if (status === 'ready') frame.current?.contentWindow?.postMessage({
       type: 'melloway-map-route', paths: routePaths || [], transport,
+      routeColor: frame.current ? getComputedStyle(frame.current).getPropertyValue('--pink').trim() : undefined,
     }, origin);
   }, [status, routePaths, transport, origin]);
   useEffect(() => {
