@@ -1,3 +1,4 @@
+import RecommendationEvidence from '../components/RecommendationEvidence.jsx';
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import { venues } from "../data/venues";
@@ -58,6 +59,7 @@ export default function Venue({ route, backTo = "/itinerary", backLabel = "back 
               venue source ↗
             </a>
           )}
+          <RecommendationEvidence venue={v} />
           <dl>
             <div>
               <dt>estimated spend</dt>

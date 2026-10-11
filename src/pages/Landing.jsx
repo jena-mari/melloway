@@ -1,7 +1,9 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { Reveal, gentleEase } from "../components/Introduction";
+import { useApp } from '../hooks/useApp';
 export default function Landing() {
+  const { current, history } = useApp();
   const navigate = useNavigate(),
     reduced = useReducedMotion();
   return (
@@ -26,6 +28,10 @@ export default function Landing() {
           <Link className="landing-picks-link" to="/picks">
             melloway picks ↗
           </Link>
+          {current && <Link className="landing-picks-link landing-resume" to="/itinerary">
+            {current.plan.status === 'in-progress' ? 'continue ur day' : 'ur upcoming day'} ↗
+          </Link>}
+          {history.length > 0 && <Link className="landing-picks-link" to="/history">past dates ↗</Link>}
         </Reveal>
       </div>
     </div>

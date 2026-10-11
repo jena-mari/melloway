@@ -14,7 +14,6 @@ import { createId } from "../utils/id";
 import { normalisePlanNames, normaliseRouteNames } from "../utils/venueNames";
 import { MoodImage } from "../components/UI";
 import { Avatar, timeAgo } from "../components/CommunityIdentity";
-import CommunitySuggestions from "../components/CommunitySuggestions";
 import StopDetails from "../components/StopDetails";
 import Venue from "./Venue";
 const RouteMap = lazy(() => import("../components/RouteMap"));
@@ -85,7 +84,7 @@ function CommunityRouteView() {
         to="/community"
         aria-label="back to community feed"
       >
-        <ArrowLeft size={18} /> explore
+        <ArrowLeft size={18} /> feed
       </Link>
       <article
         className="community-post community-expanded-post"
@@ -191,7 +190,7 @@ function CommunityRouteView() {
             />
           </Suspense>
         </div>
-        <CommunitySuggestions posts={posts} currentId={post.id} />
+        <Link className="itinerary-explore-link" to="/explore">explore more spots <ArrowRight size={16} /></Link>
         <button className="button community-copy-route" onClick={copyRoute}>
           make this my day <ArrowRight size={16} />
         </button>

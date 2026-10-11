@@ -22,6 +22,7 @@ const posts = [
 
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  await mockMapTiles(page);
   await page.route("**/api/status", (route) =>
     route.fulfill({
       json: {
@@ -190,7 +191,6 @@ test("disabled search does not request AI discovery", async ({ page }) => {
 });
 
 test("stop details show three visitor posts inline and return from a post to the same stop", async ({ page }) => {
-  await mockMapTiles(page);
   const venue = sydneyVenues.find(v => v.name === "Uturn Newtown Contemporary");
   const prefs = { ...defaultDraft(), area: "Newtown", date: "2026-10-18" };
   const plan = { ...schedule([venue], prefs, demoMatrix([venue], prefs.transport), [0]), prefs, id: "social-stop-fixture" };

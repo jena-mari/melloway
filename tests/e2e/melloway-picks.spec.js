@@ -51,7 +51,7 @@ test("browse and save a melloway pick without changing the existing route or onb
     .getByRole("link", { name: "view Sydney Matcha Crawl", exact: true })
     .click();
   await page.getByLabel("choose a day").fill("2026-10-12");
-  await expect(page.getByRole("link", { name: "the community", exact: true })).toHaveClass(/active/);
+  await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "explore", exact: true })).toHaveClass(/active/);
   await expect(page.locator(".pick-stop-list strong")).toHaveText(names);
   await expect(page.locator(".pick-stop-time")).toHaveText([
     "10:30 am",
@@ -161,8 +161,8 @@ test("unconfirmed Sunday hours keep the route visible and cannot overwrite the c
   await expect(
     page.getByRole("button", { name: "make this my day", exact: true }),
   ).toBeEnabled();
-  await page.goto("/community");
-  await page.getByLabel("search ideas").fill("Sneaker Laundry");
+  await page.goto("/explore");
+  await page.getByLabel("search suggestions").fill("Sneaker Laundry");
   await expect(
     page.getByRole("link", { name: "view Sydney Matcha Crawl" }),
   ).toBeVisible();

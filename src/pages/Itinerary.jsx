@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
@@ -38,7 +38,6 @@ import {
 } from "../services/discovery";
 import { createId } from "../utils/id";
 import RouteSummary from "../components/RouteSummary";
-import RouteExtras from "../components/RouteExtras";
 import StopPicker from "../components/StopPicker";
 import StopDetails from "../components/StopDetails";
 import BudgetSplit from "../components/BudgetSplit";
@@ -52,17 +51,16 @@ export default function Itinerary({
   initialStopId = "",
 }) {
   const app = useApp();
+  const navigate = useNavigate();
+  const { state: navigationState } = useLocation();
   const { setDraft, startNew, saved, save, setStatus } = app;
   const current = route || app.current;
   const setCurrent = onRouteChange || app.setCurrent;
   const [detailId, setDetailId] = useState(null),
-    [suggestionDetail, setSuggestionDetail] = useState(null),
     [showStopCards, setShowStopCards] = useState(false),
     [showPlanOptions, setShowPlanOptions] = useState(false),
     [picker, setPicker] = useState(null),
     [extraPool, setExtraPool] = useState(null),
-    [extrasLoading, setExtrasLoading] = useState(false),
-    [extrasFailed, setExtrasFailed] = useState(false),
     [busy, setBusy] = useState(false),
     [busyStop, setBusyStop] = useState(null),
     [query, setQuery] = useState(""),
@@ -70,54 +68,14 @@ export default function Itinerary({
     [showFilters, setShowFilters] = useState(false),
     [selectedId, setSelectedId] = useState(initialStopId);
   const mapArea = useRef(null);
-  const reduced = useReducedMotion(),
-    pending = useRef(null),
-    extrasPending = useRef(null),
-    extrasRequest = useRef(null);
-  useEffect(
-    () => () => {
-      pending.current?.abort();
-      extrasPending.current?.abort();
-    },
-    [],
-  );
-  // Load opt-in extras once for this route. Manual edits reuse its checked matrix.
-  useEffect(() => {
-    if (current?.plan) loadExtras();
-  }, []);
+  const reduced = useReducedMotion(), pending = useRef(null);
+  useEffect(() => () => pending.current?.abort(), []);
   function beginRequest(index = null) {
     pending.current?.abort();
     pending.current = new AbortController();
     setBusy(true);
     setBusyStop(index);
     return pending.current.signal;
-  }
-  async function loadExtras(
-    target = current?.plan,
-    pool = current?.candidates || [],
-  ) {
-    if (!target) return null;
-    extrasPending.current?.abort();
-    const controller = new AbortController();
-    extrasPending.current = controller;
-    setExtrasLoading(true);
-    setExtrasFailed(false);
-    const request = prepareAdditions(target, pool, {
-      signal: controller.signal,
-    });
-    extrasRequest.current = request;
-    try {
-      const options = await request;
-      if (controller.signal.aborted) return null;
-      setExtraPool(options);
-      return options;
-    } catch {
-      if (!controller.signal.aborted) setExtrasFailed(true);
-      return null;
-    } finally {
-      if (extrasRequest.current === request) extrasRequest.current = null;
-      if (!controller.signal.aborted) setExtrasLoading(false);
-    }
   }
   if (!current?.plan)
     return (
@@ -148,7 +106,6 @@ export default function Itinerary({
         setCurrent(next);
         setDetailId(null);
         setExtraPool(null);
-        loadExtras(next.plan, next.candidates);
         setSelectedId("");
         setQuery("");
         setCategory("all");
@@ -197,7 +154,6 @@ export default function Itinerary({
         },
       });
       setExtraPool(null);
-      loadExtras({ ...plan, ...next }, options.candidates);
       setStatus("Stop changed.");
     } catch {
       if (!signal.aborted)
@@ -262,7 +218,7 @@ export default function Itinerary({
       ...options,
       plan: { ...plan, ...next, notice: options.notice, id: createId() },
     });
-    setExtraPool(options);
+    setExtraPool(null);
     setQuery("");
     setCategory("all");
     setStatus(message);
@@ -317,13 +273,11 @@ export default function Itinerary({
         return "No route fits those budgets. Increase an allowance or leave it on auto.";
       setCurrent(next);
       setDetailId(null);
-      setSuggestionDetail(null);
       setPicker(null);
       setSelectedId("");
       setQuery("");
       setCategory("all");
       setExtraPool(null);
-      loadExtras(next.plan, next.candidates);
       setStatus("Budget updated.");
     } catch {
       if (!signal.aborted)
@@ -348,8 +302,7 @@ export default function Itinerary({
     try {
       const options =
         extraPool ||
-        (await (extrasRequest.current ||
-          prepareAdditions(plan, candidates, { signal })));
+        (await prepareAdditions(plan, candidates, { signal }));
       if (signal.aborted) return;
       setExtraPool(options);
       setPicker({ index, options });
@@ -403,10 +356,8 @@ export default function Itinerary({
     }
     commitEdit(next, options, index === null ? "Stop added." : "Stop changed.");
     setPicker(null);
-    setSuggestionDetail(null);
   }
   const detailIndex = plan.stops.findIndex((s) => s.id === detailId);
-  const extras = choiceList(extraPool);
   return (
     <div className="page itinerary wireframe-result map-result">
       <div className="result-chrome">
@@ -543,6 +494,7 @@ export default function Itinerary({
           </div>
         )}
         <RouteSummary
+          initialEditing={Boolean(!route && navigationState?.editStops)}
           plan={plan}
           location={location}
           busy={busy}
@@ -595,16 +547,9 @@ export default function Itinerary({
             onApply={applyBudgets}
           />
         </details>
-        <RouteExtras
-          choices={extras}
-          elapsed={plan.elapsed}
-          loading={extrasLoading}
-          failed={extrasFailed}
-          busy={busy}
-          onAdd={chooseAddition}
-          onView={setSuggestionDetail}
-          onRetry={() => loadExtras()}
-        />
+        <Link className="itinerary-explore-link" to="/explore">
+          explore more spots <ArrowRight size={16} aria-hidden="true" />
+        </Link>
       </article>
       <section className="result-sheet" aria-label="Planned stops">
         <button
@@ -726,6 +671,14 @@ export default function Itinerary({
           </section>
         </div>
         <div className="result-next">
+          {!route && <div className="date-lifecycle">
+            <span className="eyebrow">{plan.status === 'in-progress' ? 'in progress' : 'upcoming'}</span>
+            <Button disabled={busy} onClick={() => {
+              if (plan.status === 'in-progress') {
+                if (app.finishRoute()) navigate('/');
+              } else app.startRoute();
+            }}>{plan.status === 'in-progress' ? `finish ${d.mode === 'date' ? 'date' : 'hangout'}` : 'start ur day'} <ArrowRight size={16} /></Button>
+          </div>}
           <div className="result-actions">
             <Button
               className={isSaved ? "green" : "pink"}
@@ -831,21 +784,6 @@ export default function Itinerary({
             chooseAddition(venue, picker.options, picker.index)
           }
           onClose={() => setPicker(null)}
-        />
-      )}
-      {suggestionDetail && (
-        <StopDetails
-          key={suggestionDetail.id}
-          stop={suggestionDetail}
-          index={0}
-          prefs={d}
-          suggestion
-          canAdd={Boolean(
-            extras.find(({ venue }) => venue.id === suggestionDetail.id)?.next,
-          )}
-          busy={busy}
-          onAdd={() => chooseAddition(suggestionDetail)}
-          onClose={() => setSuggestionDetail(null)}
         />
       )}
       {detailIndex >= 0 && (

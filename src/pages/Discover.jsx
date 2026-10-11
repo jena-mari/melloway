@@ -18,8 +18,6 @@ import EventPoster from "../components/EventPoster";
 import Hack48Media from "../components/Hack48Media.jsx";
 import { loadHack48 } from "../services/hack48.js";
 import BrandLogo from "../components/BrandLogo";
-import WeeklySuggestions from "../components/WeeklySuggestions";
-import { weeklyEdition, weeklyMatches } from "../data/weeklySuggestions.js";
 import { readLocal, writeLocal } from "../services/storage";
 import { planningArea } from "../utils/location";
 import { eventQuery, loadEvents, eventPostFromTicketmaster } from "../services/events";
@@ -233,7 +231,8 @@ export function Events() {
           .join(" ")
           .toLowerCase()
           .includes(text.replace(/^@/, "")));
-  const feed = events.filter(visible);
+  // Keep previously saved sample links accessible, but never recommend them.
+  const feed = focused || filter === "saved" || filter === "liked" ? events.filter(visible) : [];
   const highlights = (focused || filter === "saved" || filter === "liked" ? sydneyEvents : upcomingSydneyEvents()).filter(visible);
   const archived = savedInstagramEvents();
   const instagramFeed = (focused || filter === "saved" || filter === "liked"
@@ -241,7 +240,6 @@ export function Events() {
     : instagram.posts.filter(post => post.endDate >= sydneyToday())).filter(visible);
   const matching = (liveData?.events || []).map(eventPostFromTicketmaster).filter(visible);
   const unknown = (liveData?.unknownPriceEvents || []).map(eventPostFromTicketmaster).filter(visible);
-  const weeklyVisible = !focused && filter === "all" && weeklyMatches(weeklyEdition(), draft, query).length > 0;
   const renderPost = event => <EventPost key={event.id} event={event} focused={focused === event.id}
     liked={likes.includes(event.id)} onLike={() => like(event.id)}
     onMediaChange={event => setShared({ event, error: "" })} />;
@@ -305,7 +303,6 @@ export function Events() {
         </p>}
         {!!instagramFeed.length && <p className="events-preview-note">Check the original post for times and tickets.</p>}
       </section>}
-      {weeklyVisible && <WeeklySuggestions query={query} />}
       {focused && (
         <button
           type="button"
@@ -330,11 +327,10 @@ export function Events() {
         </>}
         {liveData.truncated && <p className="events-preview-note">Showing a limited Ticketmaster search; more events may exist.</p>}
       </>}
-      {!hack48Focused && <p className="events-preview-note">sample posters · dates & venues unconfirmed</p>}
-      <section className="event-feed" aria-label="event poster feed">
+      {!!feed.length && <section className="event-feed" aria-label="saved sample events">
         {feed.map(renderPost)}
-      </section>
-      {!feed.length && !highlights.length && !instagramFeed.length && !matching.length && !unknown.length && !weeklyVisible && !sharedFeed.length && (
+      </section>}
+      {!feed.length && !highlights.length && !instagramFeed.length && !matching.length && !unknown.length && !sharedFeed.length && (
         <div className="community-empty">
           <h2>
             {text

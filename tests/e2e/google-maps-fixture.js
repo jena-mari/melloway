@@ -67,9 +67,16 @@ export const googleMapsFixture = String.raw`
   }
   class PinElement { constructor(options) { const pin = document.createElement('span'); pin.textContent = options.glyphText; return pin; } }
   class Polyline { constructor(options) { this.map = options.map; } setMap(map) { this.map = map; } }
-  const maps = { Map:FakeMap, LatLng, LatLngBounds, Polyline };
-  window.google = { maps: { ...maps, marker:{AdvancedMarkerElement,PinElement}, event: { clearInstanceListeners(map) { clearTimeout(map.timer); map.listeners.clear(); } },
-    async importLibrary(name) { return name === 'marker' ? {AdvancedMarkerElement,PinElement} : maps; }
+  // Match the real SDK: coordinates belong to core, not the maps library.
+  const maps = { Map:FakeMap, Polyline };
+  const core = { LatLng, LatLngBounds };
+  window.google = { maps: { ...maps, ...core, marker:{AdvancedMarkerElement,PinElement}, event: { clearInstanceListeners(map) { clearTimeout(map.timer); map.listeners.clear(); } },
+    async importLibrary(name) {
+      if (name === 'maps') return maps;
+      if (name === 'core') return core;
+      if (name === 'marker') return {AdvancedMarkerElement,PinElement};
+      throw new Error('Unexpected Maps library: '+name);
+    }
   }};
   const script = [...document.scripts].find(s => s.src.includes('maps.googleapis.com/maps/api/js'));
   const callback = new URL(script.src).searchParams.get('callback');

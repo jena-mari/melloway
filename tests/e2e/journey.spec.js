@@ -178,11 +178,9 @@ test("community posts, ratings and likes persist; event filters work", async ({
     page.getByRole("button", { name: "Like A lovely day" }),
   ).toHaveAttribute("aria-pressed", "true");
   await page.goto("/events");
-  await page.getByRole("button", { name: "markets", exact: true }).click();
-  await expect(page.locator(".event-post")).toHaveCount(1);
-  await expect(
-    page.getByRole("heading", { name: "a weekend market wander" }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "festivals", exact: true }).click();
+  await expect(page.locator(".sydney-event-tile")).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: "SURPLUS 2026" })).toBeVisible();
 });
 
 test("compact community feed supports threads, saves and expanded itineraries", async ({
@@ -214,7 +212,7 @@ test("compact community feed supports threads, saves and expanded itineraries", 
     .toBe(true);
   await expect(page.locator(".map-canvas")).toHaveCount(0);
   await expect(page.locator(".app-topbar")).toHaveCount(0);
-  await expect(page.getByLabel("search ideas")).toBeVisible();
+  await expect(page.getByLabel("search posts")).toBeVisible();
   await expect(
     page.locator(".community-page > .community-filters"),
   ).toHaveCount(0);
@@ -249,20 +247,20 @@ test("compact community feed supports threads, saves and expanded itineraries", 
   await page
     .getByRole("link", { name: "Back to community", exact: true })
     .click();
-  await page.getByLabel("search ideas").fill("@zoe.takes.it.slow");
+  await page.getByLabel("search posts").fill("@zoe.takes.it.slow");
   await expect(posts).toHaveCount(1);
-  await page.getByLabel("search ideas").fill("somewhere that does not exist");
+  await page.getByLabel("search posts").fill("somewhere that does not exist");
   await expect(page.locator(".community-empty")).toContainText(
     "no posts found",
   );
   await page
-    .getByRole("button", { name: "see all ideas", exact: true })
+    .getByRole("button", { name: "see all posts", exact: true })
     .click();
   await expect(posts).toHaveCount(3);
-  await page.getByLabel("search ideas").fill("Newtown");
+  await page.getByLabel("search posts").fill("Newtown");
   await page.getByRole("button", { name: "clear search", exact: true }).click();
-  await expect(page.getByLabel("search ideas")).toHaveValue("");
-  await expect(page.getByLabel("search ideas")).toBeFocused();
+  await expect(page.getByLabel("search posts")).toHaveValue("");
+  await expect(page.getByLabel("search posts")).toBeFocused();
   await expect(posts).toHaveCount(3);
   await first
     .getByRole("button", {
@@ -435,9 +433,10 @@ test("simple community route opens place details and suggested posts without rep
       exact: true,
     }),
   ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".community-explore-grid")).toHaveCount(0);
+  await page.getByRole("link", { name: "explore more spots", exact: true }).click();
   const grid = page.locator(".community-explore-grid");
-  await expect(grid.locator("a")).toHaveCount(2);
-  await expect(grid.locator("a").first()).toContainText("@kai.outside");
+  await expect(grid.locator("a")).toHaveCount(3);
   await grid
     .getByRole("link", {
       name: "view route harbour views & happy hearts by Kai",
@@ -481,133 +480,52 @@ test("simple community route opens place details and suggested posts without rep
   ).toBeVisible();
 });
 
-test("event posters support likes, saves, details and saved-event navigation", async ({
-  page,
-}, info) => {
+test("organiser posters support likes, saves, details and saved-event navigation", async ({ page }, info) => {
+  await page.clock.setFixedTime(new Date("2026-10-11T01:00:00Z"));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   const errors = [];
-  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("pageerror", error => errors.push(error.message));
   await page.goto("/events");
-  const posts = page.locator(".event-post");
-  await expect(posts).toHaveCount(5);
-  await expect(
-    posts.first().getByRole("img", { name: /slow sunday/ }),
-  ).toBeVisible();
-  await posts
-    .first()
-    .getByRole("button", {
-      name: "Like event a weekend market wander",
-      exact: true,
-    })
-    .click();
-  await posts
-    .first()
-    .getByRole("button", {
-      name: "Save event a weekend market wander",
-      exact: true,
-    })
-    .click();
+  const tiles = page.locator(".sydney-event-tile");
+  await expect(tiles).toHaveCount(3);
+  await tiles.getByRole("link", { name: "View event SURPLUS 2026", exact: true }).click();
+  const post = page.getByRole("article", { name: "SURPLUS 2026" });
+  await expect(post).toContainText("organiser");
+  await expect(post.getByRole("img", { name: "SURPLUS festival collage", exact: true })).toBeVisible();
+  await post.getByRole("button", { name: "Like event SURPLUS 2026", exact: true }).click();
+  await post.getByRole("button", { name: "Save event SURPLUS 2026", exact: true }).click();
   await page.reload();
-  await expect(
-    posts.first().getByRole("button", {
-      name: "Like event a weekend market wander",
-      exact: true,
-    }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await expect(
-    posts.first().getByRole("button", {
-      name: "Unsave event a weekend market wander",
-      exact: true,
-    }),
-  ).toHaveAttribute("aria-pressed", "true");
+  await expect(post.getByRole("button", { name: "Like event SURPLUS 2026" })).toHaveAttribute("aria-pressed", "true");
+  await expect(post.getByRole("button", { name: "Unsave event SURPLUS 2026" })).toHaveAttribute("aria-pressed", "true");
+  await expect(post.locator(".event-more-details")).toHaveAttribute("open", "");
+  await expect(post.locator(".event-facts")).toContainText("16–18 Oct 2026");
+  await expect(post.locator(".event-facts")).toContainText("Darlinghurst");
+  await expect(post.getByRole("link", { name: "event details" })).toHaveAttribute("href", "https://surplus.sydney/");
   await page.getByRole("button", { name: "liked", exact: true }).click();
-  await expect(posts).toHaveCount(1);
-  await posts
-    .first()
-    .getByRole("button", {
-      name: "Like event a weekend market wander",
-      exact: true,
-    })
-    .click();
-  await expect(posts).toHaveCount(0);
+  await expect(tiles).toHaveCount(1);
+  await tiles.getByRole("link", { name: "View event SURPLUS 2026", exact: true }).click();
+  await post.getByRole("button", { name: "Like event SURPLUS 2026", exact: true }).click();
+  await page.getByRole("button", { name: "liked", exact: true }).click();
+  await expect(tiles).toHaveCount(0);
   await page.getByRole("button", { name: "saved", exact: true }).click();
-  await expect(posts).toHaveCount(1);
-  await page
-    .getByRole("link", { name: "view saved events", exact: true })
-    .click();
+  await expect(tiles).toHaveCount(1);
+  await page.getByRole("link", { name: "view saved events", exact: true }).click();
   await expect(page).toHaveURL(/\/favourites\?tab=events$/);
   await expect(page.locator(".saved-event-card")).toHaveCount(1);
-  await page
-    .getByRole("link", {
-      name: "View event a weekend market wander",
-      exact: true,
-    })
-    .click();
-  await expect(page).toHaveURL(/\/events\?event=market-wander$/);
-  await expect(posts).toHaveCount(1);
-  await expect
-    .poll(() =>
-      posts
-        .first()
-        .locator(".event-host")
-        .evaluate((element) => {
-          const box = element.getBoundingClientRect();
-          return element.contains(
-            document.elementFromPoint(
-              box.x + box.width / 2,
-              box.y + box.height / 2,
-            ),
-          );
-        }),
-    )
-    .toBe(true);
-  await expect(posts.first().locator(".event-more-details")).toHaveAttribute(
-    "open",
-    "",
-  );
-  await expect(posts.first().locator(".event-facts")).toContainText(
-    "date & time TBA",
-  );
-  await expect(posts.first().locator(".event-facts")).toContainText(
-    "venue TBA",
-  );
-  await posts
-    .first()
-    .getByRole("button", {
-      name: "Unsave event a weekend market wander",
-      exact: true,
-    })
-    .click();
-  await page
-    .getByRole("button", { name: "back to all events", exact: true })
-    .click();
+  await page.getByRole("link", { name: "SURPLUS 2026", exact: true }).click();
+  await expect(page).toHaveURL(/\/events\?event=sydney:surplus-2026$/);
+  await expect(post).toBeVisible();
+  await post.getByRole("button", { name: "Unsave event SURPLUS 2026", exact: true }).click();
+  await page.getByRole("button", { name: "back to all events", exact: true }).click();
   await page.getByRole("button", { name: "saved", exact: true }).click();
-  await expect(posts).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "see all events", exact: true })
-    .click();
-  await page.getByLabel("search events").fill("live music");
-  await expect(posts).toHaveCount(1);
-  await expect(posts.first()).toContainText("@melloway.live");
+  await expect(tiles).toHaveCount(0);
+  await page.getByRole("button", { name: "see all events", exact: true }).click();
+  await page.getByLabel("search events").fill("sculpture");
+  await expect(tiles).toHaveCount(1);
+  await expect(tiles).toContainText("Sculpture by the Sea");
   await page.getByLabel("search events").fill("");
-  await page.evaluate(() => document.fonts.ready);
-  await page.screenshot({
-    path: info.outputPath("event-poster-feed.png"),
-    fullPage: true,
-  });
-  await posts
-    .first()
-    .getByRole("button", { name: "plan around this vibe", exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/plan\/vibes$/);
-  const draft = await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("melloway.draft")),
-  );
-  expect(draft.area).toBe("Inner West");
-  expect(draft.preferences).toEqual(
-    expect.arrayContaining(["Flea markets", "Vintage stores", "Brunch"]),
-  );
+  await page.screenshot({ path: info.outputPath("organiser-event-feed.png"), fullPage: true });
   expect(errors).toEqual([]);
 });
 

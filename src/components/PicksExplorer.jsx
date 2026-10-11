@@ -103,7 +103,7 @@ export default function PicksExplorer() {
   }
   return <div className="picks-explorer">
     <header className="editorial-picks-header">
-      <Link className="back" to="/community"><ArrowLeft size={16} /> explore</Link>
+      <Link className="back" to="/explore"><ArrowLeft size={16} /> explore</Link>
       <div><h1>Melloway’s Picks</h1><p>a few places worth making time for.</p></div>
       <div className="editorial-collection-filters" role="group" aria-label="Pick collections">
         {pickCollections.map((filter) => <button key={filter.id} type="button" aria-pressed={collection === filter.id}

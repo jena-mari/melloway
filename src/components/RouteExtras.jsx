@@ -33,6 +33,8 @@ export default function RouteExtras({
   onAdd,
   onRetry,
   onView,
+  browse = false,
+  title = "more suggestions",
 }) {
   const reduced = useReducedMotion();
   const feed = useRef(null);
@@ -93,7 +95,7 @@ export default function RouteExtras({
       aria-busy={loading}
     >
       <header className="suggestion-browser-header">
-        <h2 id="route-extras-title">more suggestions</h2>
+        <h2 id="route-extras-title">{title}</h2>
         {!loading && !failed && active && <nav aria-label="Browse suggested spots">
           <button type="button" aria-label="Previous suggested spot" disabled={activeIndex === 0} onClick={() => showSpot(venues[activeIndex - 1].id)}><ChevronUp size={18} /></button>
           <button type="button" aria-label="Next suggested spot" disabled={activeIndex === venues.length - 1} onClick={() => showSpot(venues[activeIndex + 1].id)}><ChevronDown size={18} /></button>
@@ -187,16 +189,16 @@ export default function RouteExtras({
                 <div className="extra-actions">
                   <p>
                     ~${venue.cost}
-                    {next
+                    {browse ? ` · ${venue.mins} min visit` : next
                       ? ` · +${Math.max(0, Math.round(next.elapsed - elapsed))} min`
                       : " · doesn’t fit"}
                   </p>
                   <button
-                    disabled={busy || !next}
-                    aria-label={`add ${venue.name} to route`}
+                    disabled={busy || (!browse && !next)}
+                    aria-label={browse ? `plan around ${venue.name}` : `add ${venue.name} to route`}
                     onClick={() => onAdd(venue)}
                   >
-                    <Plus size={18} aria-hidden="true" />
+                    {browse ? <ArrowUpRight size={18} aria-hidden="true" /> : <Plus size={18} aria-hidden="true" />}
                   </button>
                 </div>
               </div>

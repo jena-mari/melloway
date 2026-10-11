@@ -54,7 +54,7 @@ function PickView({ pick }) {
     return (
       <div className="page">
         <h1>pick not found</h1>
-        <Link to="/community">back to explore</Link>
+        <Link to="/explore">back to explore</Link>
       </div>
     );
   const route = date >= sydneyToday() ? pickRoute(pick, date) : null,
@@ -103,7 +103,7 @@ function PickView({ pick }) {
   }
   return (
     <div className="page pick-page">
-      <Link className="back" to="/community">
+      <Link className="back" to="/explore">
         <ArrowLeft size={18} /> explore
       </Link>
       <header className="pick-header">

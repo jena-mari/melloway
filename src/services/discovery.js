@@ -1,3 +1,6 @@
+import { scoreVenue } from '../engine/scoring.js';
+import { withScheduleDefaults } from '../utils/date.js';
+import { attachRecommendationEvidence, eventServiceOnly } from '../engine/recommendationEvidence.js';
 import { venues } from "../data/venues.js";
 import { localLocations } from "../utils/location.js";
 import { createId } from "../utils/id.js";
@@ -8,7 +11,7 @@ import {
   mergeIntent,
   resolvePlanningTime,
 } from "../engine/preferences.js";
-import { selectCandidates } from "../engine/filtering.js";
+import { selectCandidates, venueRejection } from "../engine/filtering.js";
 import { mergeDiscoveryPool, sameBusiness } from "../engine/discoveryPool.ts";
 import { optimiseExperience } from "../engine/generation.js";
 import { closestExperience } from "../engine/alternatives.js";
@@ -27,13 +30,14 @@ const withApiPhoto = (venue) => ({
 });
 
 async function api(path, body, signal) {
+  const timeout = path === "discovery" ? 40000 : 20000;
   const response = await fetch(apiUrl(path), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(20000)])
-      : AbortSignal.timeout(20000),
+      ? AbortSignal.any([signal, AbortSignal.timeout(timeout)])
+      : AbortSignal.timeout(timeout),
   });
   if (!response.ok) throw new Error("Provider unavailable");
   return response.json();
@@ -47,7 +51,7 @@ const curatedNotice =
 const catalogForPlan = (plan) =>
   plan.stops.every((v) => v.source === "demo")
     ? venues
-    : curatedVenuesForDate(plan.prefs.date);
+    : attachRecommendationEvidence(curatedVenuesForDate(plan.prefs.date));
 const noticeForVenues = (pool) => {
   const notices = [];
   if (pool.some((v) => v.source === "curated")) notices.push(curatedNotice);
@@ -132,26 +136,38 @@ function usableDiscoveredVenue(v) {
   );
 }
 
-async function supplementCatalog(curated, prefs, signal) {
-  try {
-    const found = await api("venues", { prefs }, signal);
-    const discovered = Array.isArray(found.venues)
-      ? found.venues.filter(usableDiscoveredVenue).map(withApiPhoto)
-      : [];
-    if (discovered.length)
-      return {
-        all: mergeDiscoveryPool(curated, discovered),
-        live: true,
-        notice: " " + liveNotice,
-      };
-  } catch {
-    checkCancelled(signal);
+async function supplementCatalog(curated, prefs, signal, status) {
+  if (!status) {
+    try { status = await apiStatus(signal); } catch { checkCancelled(signal); status = {}; }
   }
-  return {
-    all: curated,
-    live: false,
-    notice: " Discovery unavailable; using sourced Sydney venues.",
-  };
+  const initial = attachRecommendationEvidence(curated);
+  const tasks = [];
+  if (status.venues === 'google') tasks.push({ kind: 'venues', request: api('venues', { prefs }, signal) });
+  // Independent research also improves a curated route; no Google key required.
+  if (status.venues === 'google' || status.recommendations === 'openai') tasks.push({ kind: 'research', request: api('discovery', { prefs }, signal) });
+  const results = await Promise.allSettled(tasks.map(task => task.request));
+  checkCancelled(signal);
+  let all = initial, live = false, researchStatus = 'sources';
+  const leads = [];
+  for (const [index, result] of results.entries()) {
+    if (result.status !== 'fulfilled') {
+      if (tasks[index].kind === 'research') researchStatus = 'unavailable';
+      continue;
+    }
+    const found = result.value;
+    const discovered = Array.isArray(found.venues) ? found.venues.filter(usableDiscoveredVenue).map(withApiPhoto) : [];
+    all = mergeDiscoveryPool(all, discovered);
+    live ||= discovered.length > 0;
+    if (Array.isArray(found.leads)) leads.push(...found.leads);
+    if (found.researchStatus) researchStatus = found.researchStatus;
+    // Carry exact-branch evidence even when a duplicate keeps curated facts.
+    for (const venue of discovered) if (venue.recommendationEvidence?.length)
+      leads.push({ name: venue.name, locality: venue.address.match(/,\s*([^,]+?)\s+NSW/)?.[1] || venue.area, evidence: venue.recommendationEvidence });
+  }
+  all = attachRecommendationEvidence(all, leads);
+  return { all, live, researchStatus,
+    notice: (live ? ' ' + liveNotice : status.venues === 'google' ? ' Discovery unavailable; using sourced Sydney venues.' : '') +
+      (researchStatus === 'unavailable' ? ' Web research unavailable; using linked source recommendations.' : '') };
 }
 
 async function apiStatus(signal) {
@@ -208,9 +224,9 @@ export async function generate(
   if (!validPreferences(prefs))
     throw new Error("Please check your planning details.");
   await stage("finding spots that fit ur vibe…", onStage, signal);
-  let all = curatedVenuesForDate(prefs.date),
+  let all = attachRecommendationEvidence(curatedVenuesForDate(prefs.date)),
     notice = curatedNotice,
-    aiEnabled = false;
+    aiEnabled = false, discoverySource = "sources";
   let intent = interpretPreferences(prefs);
   let live = false;
   try {
@@ -232,14 +248,17 @@ export async function generate(
     const resolved = resolvePlanningTime(prefs, intent);
     prefs = resolved.prefs;
     notice += resolved.notice;
-    if (status.venues === "google") {
+    if (status.venues === "google" || aiEnabled) {
+      await stage("checking local guides & community recommendations…", onStage, signal);
       const found = await supplementCatalog(
         all,
         { ...prefs, preferences: intent.interests },
         signal,
+        status,
       );
       all = found.all;
       live = found.live;
+      discoverySource = found.researchStatus;
       notice += found.notice;
     }
   } catch {
@@ -327,6 +346,7 @@ export async function generate(
           createdAt: new Date().toISOString(),
           rejectedIds: previous?.rejectedIds || [],
           recommendationSource,
+          discoverySource,
         }
       : null,
     candidates,
@@ -361,9 +381,9 @@ export async function prepareRouteEdit(plan, { signal } = {}) {
 
 export async function prepareReplacement(plan, { signal } = {}) {
   const live = plan.stops.some((v) => v.source === "google");
-  const found = live
-    ? await supplementCatalog(catalogForPlan(plan), plan.prefs, signal)
-    : { all: catalogForPlan(plan), notice: "" };
+  const found = plan.stops.every(v => v.source === "demo")
+    ? { all: catalogForPlan(plan), notice: "", live: false }
+    : await supplementCatalog(catalogForPlan(plan), plan.prefs, signal);
   const all = found.all;
   const intent = plan.intent || interpretPreferences(plan.prefs);
   const selected = plan.stops.every((v) => v.source === "demo")
@@ -392,14 +412,14 @@ export async function prepareReplacement(plan, { signal } = {}) {
   const { matrix, routeNotice } = await routeMatrix(
     candidates,
     plan.prefs,
-    live,
+    live || Boolean(found.live),
     signal,
   );
   return {
     candidates,
     matrix,
     notice: noticeForPlan({ ...plan, stops: candidates }) +
-      (found.live ? "" : found.notice) + routeNotice + ranked.notice,
+      found.notice + routeNotice + ranked.notice,
   };
 }
 
@@ -409,9 +429,9 @@ export async function prepareAdditions(plan, existing = [], { signal } = {}) {
   const interests = ["Photo booths", "Desserts", "Scenic walks", "Bookshops"];
   const prefs = { ...plan.prefs, preferences: interests };
   const legacyDemo = plan.stops.every((v) => v.source === "demo");
-  const found = live
-    ? await supplementCatalog(catalogForPlan(plan), prefs, signal)
-    : { all: catalogForPlan(plan), notice: "" };
+  const found = legacyDemo
+    ? { all: catalogForPlan(plan), notice: "", live: false }
+    : await supplementCatalog(catalogForPlan(plan), prefs, signal);
   const all = found.all;
   const intent = plan.intent || interpretPreferences(plan.prefs);
   checkCancelled(signal);
@@ -420,7 +440,7 @@ export async function prepareAdditions(plan, existing = [], { signal } = {}) {
     : selectCandidates(
         all,
         plan.prefs,
-        { ...intent, requiredRoles: [] },
+        { ...intent, interests: [...new Set([...intent.interests, ...interests])], requiredRoles: [], requiredTags: [], upscaleMeal: false, hiddenBars: false },
         { rejectedIds: plan.rejectedIds || [] },
       );
   // Give each extra type a chance, rather than filling the pool with cafés.
@@ -439,29 +459,31 @@ export async function prepareAdditions(plan, existing = [], { signal } = {}) {
       plan.rejectedIds?.includes(venue.id)
     )
       continue;
+    if (!legacyDemo && !plan.stops.some(stop => stop.id === venue.id) &&
+      venueRejection(venue, plan.prefs, { ...intent, allowAlternatives: true })) continue;
     if (!candidates.some((v) => sameBusiness(v, venue)))
       candidates.push(venue);
   }
   const ranked = await recommend(
     candidates,
-    plan.prefs,
+    prefs,
     signal,
     undefined,
     plan.stops.map((v) => v.id),
-    intent,
+    { ...intent, interests: [...new Set([...intent.interests, ...interests])], requiredRoles: [], requiredTags: [] },
   );
   candidates = ranked.candidates;
   const { matrix, routeNotice } = await routeMatrix(
     candidates,
     plan.prefs,
-    live,
+    live || Boolean(found.live),
     signal,
   );
   return {
     candidates,
     matrix,
     notice: noticeForPlan({ ...plan, stops: candidates }) +
-      (found.live ? "" : found.notice) + routeNotice + ranked.notice,
+      found.notice + routeNotice + ranked.notice,
   };
 }
 
@@ -476,4 +498,17 @@ export async function searchLocations(query, sessionToken, signal) {
 export async function resolveLocation(placeId, sessionToken, signal) {
   return (await api("locations/resolve", { placeId, sessionToken }, signal))
     .location;
+}
+
+export async function prepareBrowse(prefs, { signal } = {}) {
+  const intent = interpretPreferences(prefs);
+  const resolved = withScheduleDefaults(resolvePlanningTime(prefs, intent).prefs);
+  const found = await supplementCatalog(curatedVenuesForDate(resolved.date), resolved, signal);
+  checkCancelled(signal);
+  // Browse preserves the full catalogue across areas. Rank nearby fits first;
+  // enforce schedule/budget when the user actually builds or adds to a route.
+  const candidates = found.all.filter(venue => !eventServiceOnly(venue))
+    .map(venue => scoreVenue(venue, resolved, intent))
+    .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
+  return { candidates, notice: found.notice };
 }

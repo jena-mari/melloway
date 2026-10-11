@@ -1,3 +1,4 @@
+import RecommendationEvidence from './RecommendationEvidence.jsx';
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, X, ArrowUpRight } from "lucide-react";
@@ -16,6 +17,7 @@ export default function StopDetails({
   canAdd = false,
   busy = false,
   onAdd,
+  actionLabel = "add to route",
 }) {
   const dialog = useRef(null);
   useEffect(() => {
@@ -109,6 +111,7 @@ export default function StopDetails({
               venue source ↗
             </a>
           )}
+          <RecommendationEvidence venue={s} />
           {s.rating && <p>{s.rating}/5 · Google rating</p>}
           {suggestion ? (
             <>
@@ -122,7 +125,7 @@ export default function StopDetails({
                 disabled={busy || !canAdd}
                 onClick={onAdd}
               >
-                add to route
+                {actionLabel}
               </button>
             </>
           ) : (

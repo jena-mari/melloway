@@ -1,8 +1,8 @@
 import { validPreferences } from "../utils/planner";
 import { withScheduleDefaults } from "../utils/date";
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { defaultDraft } from "../data/preferences";
-import { normalisePlanNames, normaliseRouteNames } from "../utils/venueNames";
+import { normalisePlanNames } from "../utils/venueNames";
 import { readProfile } from "../utils/profile";
 import {
   readLocal,
@@ -11,6 +11,7 @@ import {
   loadCloud,
   deleteCloud,
 } from "../services/storage";
+import { validPlan, readJourney, finishJourney, archiveRoute, cleanReview, HISTORY_KEY } from "../utils/routeHistory";
 const Context = createContext(null);
 function readDraft() {
   const stored = readLocal("melloway.draft", {});
@@ -22,54 +23,33 @@ function readDraft() {
   };
   return validPreferences(withScheduleDefaults(draft)) ? draft : defaultDraft();
 }
-function validPlan(plan) {
-  return Boolean(
-    plan?.id &&
-    validPreferences(plan.prefs) &&
-    Array.isArray(plan.stops) &&
-    plan.stops.length >= 1 &&
-    plan.stops.length <= 14 &&
-    plan.stops.every(
-      (s) =>
-        typeof s.id === "string" &&
-        typeof s.name === "string" &&
-        Array.isArray(s.tags) &&
-        Number.isFinite(s.lat) &&
-        Number.isFinite(s.lng) &&
-        Number.isFinite(s.arrival),
-    ),
-  );
-}
 function readSaved() {
   const stored = readLocal("melloway.saved", []);
   return Array.isArray(stored)
     ? stored.filter(validPlan).map(normalisePlanNames)
     : [];
 }
-function readCurrent() {
-  const stored = readLocal("melloway.current", null);
-  return validPlan(stored?.plan)
-    ? {
-        ...normaliseRouteNames(stored),
-        matrix: Array.isArray(stored.matrix) ? stored.matrix : [],
-      }
-    : null;
-}
-
 export function AppProvider({ children }) {
   const [draft, setDraft] = useState(readDraft);
   const [profile, setProfile] = useState(() =>
     readProfile(readLocal("melloway.profile", null)),
   );
   const [saved, setSaved] = useState(readSaved);
-  const [current, setCurrent] = useState(readCurrent);
+  const [journey] = useState(() => readJourney(readLocal, writeLocal));
+  const unpersistedHistory = useRef(Boolean(journey.unpersisted));
+  const [history, setHistory] = useState(journey.history);
+  const [current, storeCurrent] = useState(journey.current);
+  const journeyRef = useRef({ current, history });
+  journeyRef.current = { current, history };
+  const [completionId, setCompletionId] = useState("");
+  const [completionMode, setCompletionMode] = useState("choice");
   const [savedEvents, setSavedEvents] = useState(() => {
     const ids = readLocal("melloway.savedEvents", []);
     return Array.isArray(ids)
       ? [...new Set(ids.filter((id) => typeof id === "string"))]
       : [];
   });
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(journey.warning || "");
   useEffect(() => {
     try {
       writeLocal("melloway.draft", draft);
@@ -102,11 +82,93 @@ export function AppProvider({ children }) {
     }
   }, [saved]);
   useEffect(() => {
+    if (unpersistedHistory.current && !current) return;
     try {
       writeLocal("melloway.current", current);
-    } catch {}
+    } catch {
+      setStatus("Current plan could not be stored. Keep this tab open.");
+    }
   }, [current]);
+  const setCurrent = useCallback((next) => {
+    const { current, history } = journeyRef.current;
+    if (unpersistedHistory.current) {
+      try { writeLocal(HISTORY_KEY, history); unpersistedHistory.current = false; }
+      catch { setStatus("Free some device storage before starting a new plan. Your past date is still safe."); return false; }
+    }
+    const route = typeof next === "function" ? next(current) : next;
+    if (!route) { journeyRef.current = { current: null, history }; storeCurrent(null); return true; }
+    if (route.plan?.status === "completed" || history.some(r => r.id === route.plan?.id)) {
+      setStatus("This date is in Past Dates. Redo it to start a new copy.");
+      return false;
+    }
+    const active = { ...route, plan: { ...route.plan,
+      status: route.plan.status === "in-progress" ? "in-progress" : "upcoming" } };
+    if (current?.plan.id === active.plan.id && current.plan.status === 'in-progress') {
+      active.plan.status = 'in-progress';
+      active.plan.startedAt = current.plan.startedAt;
+    }
+    try { writeLocal("melloway.current", active); }
+    catch { setStatus("Couldn’t store this plan. Device storage may be full."); return false; }
+    journeyRef.current = { current: active, history };
+    storeCurrent(active);
+    return true;
+  }, []);
+  function startRoute() {
+    if (!current) return false;
+    return setCurrent({ ...current, plan: { ...current.plan, status: "in-progress",
+      startedAt: current.plan.startedAt || new Date().toISOString() } });
+  }
+  function finishRoute() {
+    if (!current) return false;
+    try {
+      const result = finishJourney(current, history, writeLocal);
+      unpersistedHistory.current = false;
+      setHistory(result.history);
+      storeCurrent(null);
+      setCompletionMode("choice");
+      setCompletionId(result.entry.id);
+      setStatus("");
+      return true;
+    } catch {
+      setStatus("Couldn’t save your past date. Free some device storage and try again.");
+      return false;
+    }
+  }
+  function saveReview(id, values) {
+    const entry = history.find(r => r.id === id);
+    if (!entry) return false;
+    const next = history.map(r => r.id === id ? { ...r, review: cleanReview(values, r.plan) } : r);
+    try {
+      writeLocal(HISTORY_KEY, next);
+      unpersistedHistory.current = false;
+      setHistory(next);
+      setStatus("Review saved privately on this device.");
+      return true;
+    } catch {
+      setStatus("Couldn’t save your review. Device storage may be full.");
+      return false;
+    }
+  }
+  function openSavedPlan(plan) {
+    if (history.some(r => r.id === plan.id)) return `/history/${encodeURIComponent(plan.id)}`;
+    // A completed cloud bookmark from another device can also be revisited,
+    // without activating it or including any private review in the cloud plan.
+    if (plan.status === 'completed') {
+      try {
+        const entry = archiveRoute({ plan }, plan.completedAt);
+        const next = [entry, ...history];
+        writeLocal(HISTORY_KEY, next);
+        unpersistedHistory.current = false;
+        setHistory(next);
+        return `/history/${encodeURIComponent(plan.id)}`;
+      } catch { setStatus('Couldn’t open this past date. Device storage may be full.'); return null; }
+    }
+    return setCurrent({ plan, candidates: [], matrix: [] }) ? '/itinerary' : null;
+  }
+  const savedPlans = saved.map(plan => history.find(r => r.id === plan.id)?.plan ||
+    (current?.plan.id === plan.id ? current.plan : plan));
   async function save(plan) {
+    plan = history.find(r => r.id === plan.id)?.plan || plan;
     try {
       writeLocal(
         "melloway.saved",
@@ -182,7 +244,16 @@ export function AppProvider({ children }) {
         update,
         startNew,
         setDraft,
-        saved,
+        saved: savedPlans,
+        history,
+        startRoute,
+        finishRoute,
+        saveReview,
+        completionId,
+        completionMode,
+        dismissCompletion: () => setCompletionId(""),
+        openCompletion: (id, mode = "choice") => { setCompletionMode(mode); setCompletionId(id); },
+        openSavedPlan,
         savedEvents,
         toggleEventSave,
         current,

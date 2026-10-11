@@ -4,14 +4,15 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { gentleEase } from "./Introduction";
 import DoodleBackdrop from "./DoodleBackdrop";
 import BrandLogo from "./BrandLogo";
-import { Heart, Compass, Sparkles, Bookmark, MapPin, Map } from "lucide-react";
+import { Heart, Compass, Bookmark, MapPin, Map, MessageCircle } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import useKeyboard from "../hooks/useKeyboard";
 import { Avatar } from "./CommunityIdentity";
+import CompletionSheet from './CompletionSheet';
 const tabs = [
   { to: "/", name: "make a plan", label: "plan", icon: Heart },
-  { to: "/community", name: "the community", label: "explore", icon: Compass },
-  { to: "/events", name: "what’s on", label: "what’s on", icon: Sparkles },
+  { to: "/explore", name: "explore", label: "explore", icon: Compass },
+  { to: "/community", name: "the community", label: "feed", icon: MessageCircle },
   { to: "/favourites", name: "saved", label: "saved", icon: Bookmark },
 ];
 export default function Layout() {
@@ -114,6 +115,8 @@ export default function Layout() {
                 {label}
               </Link>
             ))}
+            <Link to="/events" onClick={() => menu.current.close()}>what’s on</Link>
+            <Link to="/history" onClick={() => menu.current.close()}>past dates</Link>
           </nav>
           <button className="button" onClick={() => menu.current.close()}>
             close
@@ -129,7 +132,7 @@ export default function Layout() {
               end={to === "/"}
               aria-label={name}
               className={({ isActive }) =>
-                `tab ${isActive || (to === "/community" && (pathname.startsWith("/picks") || pathname.startsWith("/weekly/"))) ? "active" : ""}`
+                `tab ${isActive || (to === "/explore" && (pathname.startsWith("/picks") || pathname.startsWith("/weekly/"))) ? "active" : ""}`
               }
             >
               <span className="tab-icon">
@@ -140,6 +143,7 @@ export default function Layout() {
           ))}
         </nav>
       )}
+      <CompletionSheet />
       {status && (
         <div className="toast" role="status">
           {status}

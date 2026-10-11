@@ -42,7 +42,7 @@ const storedPlan = (page) =>
   );
 
 test("map marker previews show the matching place on hover, keyboard focus and phone taps", async ({ page }, info) => {
-  await page.goto("/itinerary");
+  await page.goto("/explore");
   const before = await storedPlan(page);
   const map = page.locator(".suggestion-map");
   await expect(map.locator('[data-map-state="ready"]')).toBeVisible();
@@ -71,7 +71,7 @@ test("map marker previews show the matching place on hover, keyboard focus and p
 });
 
 test("swiping suggested spots follows their locations without changing the day", async ({ page }, info) => {
-  await page.goto("/itinerary");
+  await page.goto("/explore");
   const initial = await storedPlan(page);
   const feed = page.getByRole("list", { name: "Nearby spot suggestions" });
   await expect(feed).toBeVisible();
@@ -81,7 +81,7 @@ test("swiping suggested spots follows their locations without changing the day",
   const secondId = await cards.nth(1).getAttribute("data-venue-id");
   const map = page.locator(".suggestion-map[data-active-venue]");
   await expect(map).toHaveAttribute("data-active-venue", firstId);
-  await feed.scrollIntoViewIfNeeded();
+  await feed.evaluate(el => el.scrollIntoView({ block: "center", behavior: "instant" }));
   const box = await feed.boundingBox();
   const session = await page.context().newCDPSession(page);
   const x = box.x + box.width / 2, y = box.y + box.height * 0.85;
@@ -110,7 +110,7 @@ test("swiping suggested spots follows their locations without changing the day",
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator(".route-extras").evaluate((el) => {
-    const header = document.querySelector(".result-chrome").getBoundingClientRect().height;
+    const header = document.querySelector(".app-topbar").getBoundingClientRect().height;
     window.scrollTo({ top: scrollY + el.getBoundingClientRect().top - header - 12, behavior: "instant" });
   });
   await page.screenshot({ path: info.outputPath("suggested-spots.png") });
@@ -118,7 +118,7 @@ test("swiping suggested spots follows their locations without changing the day",
 
 test("suggested spots remain browsable when Google Maps cannot load", async ({ page }) => {
   await page.route("https://maps.googleapis.com/maps/api/js**", route => route.abort());
-  await page.goto("/itinerary");
+  await page.goto("/explore");
   const initial = await storedPlan(page);
   const feed = page.getByRole("list", { name: "Nearby spot suggestions" });
   await expect(feed).toBeVisible();
@@ -137,10 +137,7 @@ test("compact route rows lead into the map and suggestion previews remain opt-in
 }) => {
   await page.goto("/itinerary");
   const initial = await storedPlan(page);
-  await expect(page.locator(".route-extras")).toHaveAttribute(
-    "aria-busy",
-    "false",
-  );
+  await expect(page.locator(".route-extras")).toHaveCount(0);
   await expect(page.locator(".route-summary-spot span")).toHaveText(
     initial.stops.map((stop) => stop.address),
   );
@@ -164,7 +161,7 @@ test("compact route rows lead into the map and suggestion previews remain opt-in
       .screenshot({ path: `/private/tmp/melloway-plan-actions-${width}.png` });
     const map = await page.locator(".map-preview").boundingBox();
     const rows = await page.locator(".route-summary-list").boundingBox();
-    const suggestions = await page.locator(".route-extras").boundingBox();
+    const suggestions = await page.locator(".itinerary-explore-link").boundingBox();
     expect(rows.y + rows.height).toBeLessThan(map.y);
     expect(map.y + map.height).toBeLessThan(suggestions.y);
     expect(map.y + map.height).toBeLessThan(740);
@@ -205,6 +202,7 @@ test("compact route rows lead into the map and suggestion previews remain opt-in
     .screenshot({ path: "/private/tmp/melloway-plan-options-390.png" });
   await more.tap();
   await expect(page.locator("#result-plan-options")).not.toBeVisible();
+  await page.getByRole("link", { name: "explore more spots", exact: true }).click();
   const preview = page.getByRole("button", {
     name: "preview Mapo Newtown",
     exact: true,
@@ -282,6 +280,7 @@ test("place names replace legacy nicknames across current, saved and shared rout
   expect(current.stops.map((s) => [s.id, s.lat, s.lng, s.arrival])).toEqual(
     oldPlan.stops.map((s) => [s.id, s.lat, s.lng, s.arrival]),
   );
+  await page.goto("/explore");
   await expect(page.locator(".route-extras")).toHaveAttribute(
     "aria-busy",
     "false",
@@ -318,12 +317,7 @@ test("editable summary updates order, totals, map and directions; extras stay op
   await page.goto("/itinerary");
   await expect(page.locator(".route-summary-list li")).toHaveCount(3);
   const initial = await storedPlan(page);
-  await expect(
-    page.getByRole("button", {
-      name: "add Mapo Newtown to route",
-      exact: true,
-    }),
-  ).toBeEnabled();
+  await expect(page.getByRole("button", { name: "add a stop", exact: true })).toBeEnabled();
   expect((await storedPlan(page)).stops.map((s) => s.id)).toEqual(
     initial.stops.map((s) => s.id),
   );
@@ -355,12 +349,9 @@ test("editable summary updates order, totals, map and directions; extras stay op
   const removed = await storedPlan(page);
   expect(removed.cost).toBe(moved.cost - initial.stops[2].cost);
   await page.getByRole("button", { name: "done", exact: true }).tap();
-  await page
-    .getByRole("button", {
-      name: "add Mapo Newtown to route",
-      exact: true,
-    })
-    .tap();
+  await page.getByRole("button", { name: "add a stop", exact: true }).tap();
+  await page.getByLabel("search available spots").fill("Mapo");
+  await page.getByRole("button", { name: "add Mapo Newtown", exact: true }).tap();
   await expect(page.locator(".route-summary-list li")).toHaveCount(3);
   await expect(page.locator(".stop-card")).toHaveCount(3);
   const added = await storedPlan(page);
@@ -499,7 +490,7 @@ test("extras beyond the remaining budget cannot change the route", async ({
     current.plan.prefs.budget = current.plan.cost;
     localStorage.setItem("melloway.current", JSON.stringify(current));
   });
-  await page.reload();
+  await page.goto("/explore");
   const before = await storedPlan(page);
   await expect(page.locator(".route-extras")).not.toHaveAttribute(
     "aria-busy",
@@ -511,6 +502,7 @@ test("extras beyond the remaining budget cannot change the route", async ({
       exact: true,
     }),
   ).toBeDisabled();
+  await page.goto("/itinerary");
   await page.getByRole("button", { name: "edit", exact: true }).tap();
   await page.getByRole("button", { name: "add a stop", exact: true }).tap();
   await page.getByLabel("search available spots").fill("Mapo");

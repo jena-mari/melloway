@@ -82,7 +82,8 @@ test('existing onboarding answers filter Ticketmaster events through the backend
     await expect(unknown.locator('.event-post')).toHaveCount(1);
     await expect(unknown).toContainText('AUD price unknown');
     await expect(matching.getByRole('link', { name: /view tickets/ }).first()).toHaveAttribute('href', 'https://www.ticketmaster.com.au/event/affordable');
-    await expect(page.getByRole('region', { name: 'event poster feed', exact: true }).locator('.event-post')).toHaveCount(5);
+    await expect(page.locator('.event-sample-label').filter({ hasText: 'sample event' })).toHaveCount(0);
+    await expect(page.locator('.sydney-event-tile')).toHaveCount(3);
     expect(Object.fromEntries(backend.requests[0].searchParams)).toEqual({
       date: '2026-10-12', time: '11:00', duration: '3', budget: '30', lat: '-33.8965', lng: '151.1794', radius: '2',
     });
@@ -101,7 +102,7 @@ test('existing onboarding answers filter Ticketmaster events through the backend
   } finally { await backend.close(); }
 });
 
-test('skipped date uses Sydney today and empty live results remain separate from sample events', async ({ page }) => {
+test('skipped date uses Sydney today and empty live results still show sourced organiser events', async ({ page }) => {
   const backend = await mockBackend(page, []);
   try {
     await page.goto('/plan/details?q=5');
@@ -111,17 +112,19 @@ test('skipped date uses Sydney today and empty live results remain separate from
     expect(backend.requests[0].searchParams.has('date')).toBe(false);
     await expect(page.getByText('No Ticketmaster events match these details and feed filters.')).toBeVisible();
     await expect(page.getByRole('region', { name: 'Ticketmaster events within budget', exact: true }).locator('.event-post')).toHaveCount(0);
-    await expect(page.getByRole('region', { name: 'event poster feed', exact: true }).locator('.event-post')).toHaveCount(5);
+    await expect(page.locator('.event-sample-label').filter({ hasText: 'sample event' })).toHaveCount(0);
+    await expect(page.locator('.sydney-event-tile')).toHaveCount(3);
   } finally { await backend.close(); }
 });
 
-test('missing Ticketmaster credentials leave existing sample experience usable', async ({ page }) => {
+test('missing Ticketmaster credentials leave organiser events usable', async ({ page }) => {
   await page.route('**/api/events?**', route => route.fulfill({ status: 503, json: { error: 'Ticketmaster is not configured on the server.' } }));
   await page.goto('/events');
   await expect(page.getByRole('status')).toContainText('server needs its Ticketmaster key');
-  await expect(page.locator('.event-post')).toHaveCount(5);
-  await page.getByLabel('search events').fill('live music');
-  await expect(page.locator('.event-post')).toHaveCount(1);
+  await expect(page.locator('.sydney-event-tile')).toHaveCount(3);
+  await page.getByLabel('search events').fill('SURPLUS');
+  await expect(page.locator('.sydney-event-tile')).toHaveCount(1);
+  await expect(page.locator('.sydney-event-tile')).toContainText('SURPLUS 2026');
 });
 
 test('verified Sydney highlights remain useful without Instagram discovery and survive save, like and expiry', async ({ page }, info) => {
@@ -224,5 +227,6 @@ test('failed Instagram discovery keeps the existing feed and the Sydney search l
   await expect(feed).toContainText('Instagram posts are unavailable right now.');
   await expect(feed.getByRole('link', { name: 'browse' })).toHaveAttribute('href', 'https://www.instagram.com/explore/search/keyword/?q=sydney&hl=en');
   await expect(feed.locator('.event-post')).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'event poster feed' }).locator('.event-post')).toHaveCount(5);
+  await expect(page.locator('.sydney-event-tile')).toHaveCount(3);
+  await expect(page.locator('.event-sample-label').filter({ hasText: 'sample event' })).toHaveCount(0);
 });

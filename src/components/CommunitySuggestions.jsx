@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Layers, ArrowUpRight } from "lucide-react";
 import { MoodImage } from "./UI";
-export default function CommunitySuggestions({ posts, currentId }) {
+export default function CommunitySuggestions({ posts, currentId, title = "more suggestions" }) {
   const suggestions = posts.filter(
     (post) => post.id !== currentId && post.plan?.stops?.length,
   );
@@ -11,9 +11,9 @@ export default function CommunitySuggestions({ posts, currentId }) {
       aria-labelledby="community-suggestions-title"
     >
       <header>
-        <h2 id="community-suggestions-title">more suggestions</h2>
+        <h2 id="community-suggestions-title">{title}</h2>
         <Link to="/community">
-          explore <ArrowUpRight size={15} />
+          feed <ArrowUpRight size={15} />
         </Link>
       </header>
       <div className="community-explore-grid">

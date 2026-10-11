@@ -39,7 +39,7 @@ export default function GoogleMapCanvas({
     closePreview();
     const authFailure = () => { if (!cancelled) setStatus("error"); };
     window.addEventListener("melloway-map-auth-error", authFailure);
-    loadGoogleMaps().then(({ maps, marker, mapId }) => {
+    loadGoogleMaps().then(({ maps, core, marker, mapId }) => {
       if (cancelled) return;
       const valid = points.filter(located);
       if (!valid.length) { setStatus("error"); return; }
@@ -50,7 +50,9 @@ export default function GoogleMapCanvas({
         keyboardShortcuts: interactive, clickableIcons: false,
       });
       let pins = [];
-      const bounds = new maps.LatLngBounds();
+      let drawnZoom;
+      let drawnProjection;
+      const bounds = new core.LatLngBounds();
       valid.forEach((point) => bounds.extend({ lat: point.lat, lng: point.lng }));
       function fit() {
         if (focused.current && located(focused.current)) {
@@ -70,13 +72,20 @@ export default function GoogleMapCanvas({
         });
       }
       function drawPins() {
-        canvas.current.dataset.mapZoom = map.getZoom();
-        pins.forEach(({ pin }) => { pin.map = null; });
+        const zoom = map.getZoom();
+        canvas.current.dataset.mapZoom = zoom;
         const projection = map.getProjection();
-        const scale = 2 ** map.getZoom();
+        // Keep focused buttons and open previews stable across idle events.
+        // Only clustered route pins need regrouping when projection/zoom changes.
+        if (pins.length && (!groupNearby ||
+          (drawnZoom === zoom && drawnProjection === Boolean(projection)))) return;
+        drawnZoom = zoom;
+        drawnProjection = Boolean(projection);
+        pins.forEach(({ pin }) => { pin.map = null; });
+        const scale = 2 ** zoom;
         const groups = [];
         valid.forEach((point) => {
-          const pixel = projection?.fromLatLngToPoint(new maps.LatLng(point.lat, point.lng));
+          const pixel = projection?.fromLatLngToPoint(new core.LatLng(point.lat, point.lng));
           const group = groupNearby && pixel && groups.find((group) =>
             Math.abs(group.pixel.x - pixel.x) * scale < 68 &&
             Math.abs(group.pixel.y - pixel.y) * scale < 50);
