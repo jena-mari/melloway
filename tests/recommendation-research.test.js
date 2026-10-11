@@ -7,6 +7,7 @@ import { recommendationInput } from '../server/openai.js';
 import { attachRecommendationEvidence, cleanEvidence, evidenceScore, eventServiceOnly } from '../src/engine/recommendationEvidence.js';
 import { recommendationSourceUrls } from '../src/data/recommendationSources.js';
 import { curatedVenuesForDate } from '../src/data/sydneyVenues.js';
+import { recommendationVenuesForDate } from '../src/data/recommendationCatalog.js';
 import { defaultDraft } from '../src/data/preferences.js';
 import { scoreVenue } from '../src/engine/scoring.js';
 import { interpretPreferences } from '../src/engine/preferences.js';
@@ -104,7 +105,7 @@ test('source-backed scoring cannot override hours, budget or rental eligibility'
   assert.equal(eventServiceOnly({ name: 'Walk-in Studio', tags: ['Photo booths'], website: 'https://studio.example/the-studio' }), false);
 });
 
-const googlePlace = (name, overrides = {}) => ({ id: name, displayName: { text: name }, formattedAddress: '61 Albion Street, Surry Hills NSW 2010', location: { latitude: reuben.lat, longitude: reuben.lng }, businessStatus: 'OPERATIONAL', regularOpeningHours: { periods: [{ open: { day: 0, hour: 0 } }] }, ...overrides });
+const googlePlace = (name, overrides = {}) => ({ id: name, displayName: { text: name }, formattedAddress: '61 Albion Street, Surry Hills NSW 2010', location: { latitude: reuben.lat, longitude: reuben.lng }, businessStatus: 'OPERATIONAL', types: ['cafe'], regularOpeningHours: { periods: [{ open: { day: 0, hour: 0 } }] }, ...overrides });
 test('Google resolves named source leads, rejects wrong branches/rental services and preserves partial discovery', async () => {
   let calls = 0, request;
   const provider = createGoogleProvider('mock', async (_url, options) => {
@@ -121,7 +122,10 @@ test('Google resolves named source leads, rejects wrong branches/rental services
   const rentals = createGoogleProvider('mock', async () => Response.json({ places: [googlePlace('Fyre Photo Booths', { websiteUri: 'https://fyreevents.com.au/' }), googlePlace('Rental Co', { pureServiceAreaBusiness: true })] }));
   assert.deepEqual(await rentals.discover({ ...prefs, preferences: ['Photo booths'] }), []);
   let partial = 0;
-  const resilient = createGoogleProvider('mock', async () => ++partial === 1 ? Response.json({}, { status: 502 }) : Response.json({ places: [googlePlace('Reuben Hills')] }));
+  const resilient = createGoogleProvider('mock', async (_url, options) => {
+    partial++;
+    return JSON.parse(options.body).textQuery.startsWith('Art galleries') ? Response.json({}, { status: 502 }) : Response.json({ places: [googlePlace('Reuben Hills')] });
+  });
   assert.ok((await resilient.discover({ ...prefs, preferences: ['Coffee shops', 'Art galleries'] })).length);
 });
 
@@ -181,7 +185,7 @@ test('actual generation discovers a new source-backed place BEFORE shortlisting 
 });
 test('Explore and additions research curated routes too, without reintroducing old rental candidates', async t => {
   const requests = mockClient(t, () => Response.json({ leads: [], venues: [], researchStatus: 'sources' }));
-  const browse = await prepareBrowse({ ...prefs, date: "", time: "" }); assert.equal(browse.candidates.length, catalog.length);
+  const browse = await prepareBrowse({ ...prefs, date: "", time: "" }); assert.equal(browse.candidates.length, recommendationVenuesForDate(prefs.date).length);
   assert.ok(browse.candidates.some(v => v.name === "Mapo Newtown"));
   const rental = { ...reuben, id: 'rental', name: 'Photo booth hire', tags: ['Photo booths'] };
   const plan = { stops: [reuben], prefs, intent: interpretPreferences(prefs) };

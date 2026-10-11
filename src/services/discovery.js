@@ -5,11 +5,12 @@ import { planningArea } from '../utils/location.js';
 import { cachedSocialContext } from './social.js';
 import { withScheduleDefaults } from '../utils/date.js';
 import { attachRecommendationEvidence, eventServiceOnly } from '../engine/recommendationEvidence.js';
+import { unrelatedServiceBusiness } from '../engine/venueSuitability.js';
 import { venues } from "../data/venues.js";
 import { localLocations } from "../utils/location.js";
 import { createId } from "../utils/id.js";
 import { applyRecommendations } from "../utils/recommendations.js";
-import { curatedVenuesForDate } from "../data/sydneyVenues.js";
+import { recommendationVenuesForDate } from "../data/recommendationCatalog.js";
 import {
   interpretPreferences,
   mergeIntent,
@@ -64,7 +65,7 @@ const curatedNotice =
 const catalogForPlan = (plan) =>
   plan.stops.every((v) => v.source === "demo")
     ? venues
-    : attachRecommendationEvidence(curatedVenuesForDate(plan.prefs.date));
+    : attachRecommendationEvidence(recommendationVenuesForDate(plan.prefs.date));
 const noticeForVenues = (pool) => {
   const notices = [];
   if (pool.some((v) => v.source === "curated")) notices.push(curatedNotice);
@@ -123,6 +124,7 @@ function usableDiscoveredVenue(v) {
   return (
     v &&
     v.source === "google" &&
+    !unrelatedServiceBusiness(v) && !eventServiceOnly(v) &&
     [v.id, v.name, v.address, v.category, v.area].every(
       (s) => typeof s === "string" && s.length > 0,
     ) &&
@@ -237,7 +239,7 @@ export async function generate(
   if (!validPreferences(prefs))
     throw new Error("Please check your planning details.");
   await stage("finding spots that fit ur vibe…", onStage, signal);
-  let all = attachRecommendationEvidence(curatedVenuesForDate(prefs.date)),
+  let all = attachRecommendationEvidence(recommendationVenuesForDate(prefs.date)),
     notice = curatedNotice,
     aiEnabled = false, discoverySource = "sources";
   let intent = interpretPreferences(prefs);
@@ -283,11 +285,12 @@ export async function generate(
   if (!notice.includes("inferred from your notes")) notice += resolved.notice;
   if (aiEnabled)
     await stage("matching spots to ur preferences…", onStage, signal);
+  const shortlisted = selectCandidates(all, prefs, intent, {
+    rejectedIds: previous?.rejectedIds || [],
+    seed,
+  });
   const ranked = await recommend(
-    selectCandidates(all, prefs, intent, {
-      rejectedIds: previous?.rejectedIds || [],
-      seed,
-    }),
+    shortlisted,
     prefs,
     signal,
     aiEnabled,
@@ -295,6 +298,7 @@ export async function generate(
     intent,
   );
   let candidates = ranked.candidates;
+  const rankingExcludedIds = shortlisted.filter(v => !candidates.some(candidate => candidate.id === v.id)).map(v => v.id);
   notice += ranked.notice;
   await stage("checking budget, hours & distance…", onStage, signal);
   let { matrix, routeNotice } = await routeMatrix(
@@ -320,7 +324,7 @@ export async function generate(
       prefs,
       { ...intent, allowAlternatives: true },
       {
-        rejectedIds: previous?.rejectedIds || [],
+        rejectedIds: [...(previous?.rejectedIds || []), ...rankingExcludedIds],
         seed,
       },
     );
@@ -540,7 +544,7 @@ export async function resolveLocation(placeId, sessionToken, signal) {
 export async function prepareBrowse(prefs, { signal } = {}) {
   const intent = interpretPreferences(prefs);
   const resolved = withScheduleDefaults(resolvePlanningTime(prefs, intent).prefs);
-  const found = await supplementCatalog(curatedVenuesForDate(resolved.date), resolved, signal);
+  const found = await supplementCatalog(recommendationVenuesForDate(resolved.date), resolved, signal);
   checkCancelled(signal);
   // Browse preserves the full catalogue across areas. Rank nearby fits first;
   // enforce schedule/budget when the user actually builds or adds to a route.

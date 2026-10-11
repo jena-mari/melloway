@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { curatedVenuesForDate } from "../src/data/sydneyVenues.js";
+import { recommendationVenuesForDate } from "../src/data/recommendationCatalog.js";
 import { defaultDraft } from "../src/data/preferences.js";
 import { mergeDiscoveryPool, sameBusiness } from "../src/engine/discoveryPool.ts";
 import { selectCandidates, venueRejection } from "../src/engine/filtering.js";
@@ -17,7 +18,7 @@ const byId = (id) => curated.find((v) => v.id === `sydney-${id}`);
 
 // Synthetic provider fixtures only; no Google/OpenAI requests or quoted prices.
 function googleVenue(index, overrides = {}) {
-  const templates = [byId("library-cafe"), byId("art-gallery"), byId("botanic-garden")];
+  const templates = [byId("library-cafe"), byId("art-gallery"), byId("botanic-garden"), byId("kinokuniya")];
   return {
     ...templates[index % templates.length],
     id: `google-test-${index}`,
@@ -129,10 +130,10 @@ test("14-candidate shortlist retains seven eligible curated matches despite a fl
   assert.equal(candidates.filter((v) => v.source === "curated").length, 7);
   assert.equal(candidates.filter((v) => v.source === "google").length, 7);
   for (const candidate of candidates) assert.equal(venueRejection(candidate, prefs, intent), null);
-  // Without source representation the common score ranks only Google in the top 14.
+  // Local curation also improves the shared score, rather than only the quota.
   const ordinaryTop = all.filter((v) => !venueRejection(v, prefs, intent))
     .map((v) => scoreVenue(v, prefs, intent)).sort((a, b) => b.score - a.score).slice(0, 14);
-  assert.ok(ordinaryTop.every((v) => v.source === "google"));
+  assert.ok(ordinaryTop.some((v) => v.source === "curated"));
 });
 
 test("shortlist preserves requested-role coverage while filtering unsuitable curated venues", () => {
@@ -179,7 +180,7 @@ test("generation sends curated and Google candidates through the existing OpenAI
   assert.ok(result.plan.elapsed <= prefs.duration * 60);
   const recommendation = requests.find((r) => r.endpoint === "recommendations").body;
   assert.equal(recommendation.venues.length, 14);
-  assert.equal(recommendation.venues.filter((v) => v.source === "curated").length, 7);
+  assert.ok(recommendation.venues.filter((v) => v.source === "curated").length >= 7);
   assert.ok(recommendation.venues.some((v) => v.source === "google"));
   assert.ok(!recommendation.venues.some((v) => v.id === duplicate.id));
   const routing = requests.find((r) => r.endpoint === "matrix").body;
@@ -188,7 +189,7 @@ test("generation sends curated and Google candidates through the existing OpenAI
   assert.match(result.notice, /linked sources/);
   assert.match(result.notice, /Google Places/);
   for (const candidate of result.candidates.filter((v) => v.source === "curated")) {
-    const record = curated.find((v) => v.id === candidate.id);
+    const record = recommendationVenuesForDate(date).find((v) => v.id === candidate.id);
     for (const key of ["tags", "description", "address", "weeklyHours", "rating", "priceStatus"])
       assert.deepEqual(candidate[key], record[key]);
   }

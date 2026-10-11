@@ -74,7 +74,9 @@ const unique = (values) => [...new Set(values)];
 
 export function interpretPreferences(prefs) {
   const text = prefs.notes || "";
-  const requestedActivities = extractRequestedActivities(text);
+  const sightseeing = positive(text, /\b(?:sightseeing|iconic(?: landmarks?)?|landmarks?|tourist attractions?)\b/i);
+  const requestedActivities = extractRequestedActivities(text).filter(activity =>
+    !/^(?:sightseeing|iconic landmarks?|landmarks?|tourist attractions?)$/.test(activity.query));
   const parsed = interestsFromNotes(text);
   const explicit = unique([
     ...(prefs.selectedPreferences || prefs.preferences || []),
@@ -136,11 +138,13 @@ export function interpretPreferences(prefs) {
     positive(text, /\b(?:evening|night|dinner)\b/i);
   return {
     requestedActivities,
+    sightseeing,
+    explicitInterests: explicit,
     requestedActivity: requestedActivities[0] || null,
     interests: unique(interests),
     atmosphere: unique(atmosphere),
     diningAtmosphere,
-    requiredRoles: unique([...requiredRoles, ...requestedActivities.map(a => a.role)]),
+    requiredRoles: unique([...requiredRoles, ...requestedActivities.map(a => a.role), ...(sightseeing ? ['culture', 'walk'] : [])]),
     requiredTags: unique([...explicit.filter((t) => t !== "Shopping"), ...requestedActivities.map(a => a.query)]),
     excludedTags: parsed.excluded,
     excludedRoles: unique(

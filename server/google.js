@@ -1,7 +1,8 @@
 import { categories } from "../src/data/preferences.js";
 import { inSydney, planningArea, sydneyBounds } from "../src/utils/location.js";
 import { attachRecommendationEvidence, matchesLead, eventServiceOnly } from '../src/engine/recommendationEvidence.js';
-import { curatedVenuesForDate } from "../src/data/sydneyVenues.js";
+import { recommendationVenuesForDate } from "../src/data/recommendationCatalog.js";
+import { providerMatchesTag, unrelatedServiceBusiness } from '../src/engine/venueSuitability.js';
 import { interpretPreferences } from "../src/engine/preferences.js";
 import { venueRejection } from "../src/engine/filtering.js";
 import { extractRequestedActivities, matchesRequestedActivity, outdoorActivityVenue } from "../src/engine/requestedActivity.js";
@@ -55,7 +56,7 @@ export function openingHours(periods) {
 
 export function discoveryQueries(preferences) {
   if (!preferences.length)
-    return ["Coffee shops", "Art galleries", "Scenic walks"];
+    return ["Coffee shops", "Bookshops", "Photo booths"];
   const groups = Object.values(categories).map((options) =>
     preferences.filter((tag) => options.includes(tag)),
   );
@@ -87,7 +88,7 @@ function allowance(tag) {
 const priceAllowances = { PRICE_LEVEL_FREE: 0, PRICE_LEVEL_INEXPENSIVE: 20,
   PRICE_LEVEL_MODERATE: 45, PRICE_LEVEL_EXPENSIVE: 90, PRICE_LEVEL_VERY_EXPENSIVE: 150 };
 
-export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVenuesForDate, admissionEvidence = freeAdmissionEvidence, now = Date.now } = {}) {
+export function createGoogleProvider(key, fetcher = fetch, { curated = recommendationVenuesForDate, admissionEvidence = freeAdmissionEvidence, now = Date.now } = {}) {
   const searches = createSearchCache({ maxEntries: 100, now });
   async function google(url, body, mask) {
     if (url === 'https://places.googleapis.com/v1/places:searchText')
@@ -165,7 +166,11 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVe
         reason ||= !inSydney(coords) || km(coords, area) > area.r ? "location" : null;
         reason ||= p.pureServiceAreaBusiness === true ? "event-service" : null;
         reason ||= targeted && !matchesRequestedActivity(identity, activity) ? "activity-mismatch" : null;
+        reason ||= unrelatedServiceBusiness({ ...identity, website: p.websiteUri }) ? 'service-business' : null;
         if (reason) { reject(reason, p, targeted); continue; }
+        const tags = [...new Set([...(lead ? lead.tags : [tag]).filter(label => providerMatchesTag(identity, label)),
+          ...(activityMatch ? [matchedActivity.query] : [])])];
+        if (!tags.length) { reject('category-mismatch', p, targeted); continue; }
         const weeklyHours = openingHours(p.regularOpeningHours?.periods);
         const knownHours = weeklyHours.some(day => day.length);
         const unverified = !knownHours && outdoor;
@@ -184,8 +189,8 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVe
           area: prefs.area, ...coords, rating: p.rating,
           image: p.photos?.[0] ? "/api/photo?name=" + encodeURIComponent(p.photos[0].name) : undefined,
           attribution: p.photos?.[0]?.authorAttributions?.map(a => a.displayName).join(", "),
-          tags: lead ? lead.tags : [...new Set([tag, ...(activityMatch ? [matchedActivity.query] : [])])],
-          category: activityMatch ? matchedActivity.query : tag, weeklyHours, source: "google", cost,
+          tags,
+          category: activityMatch ? matchedActivity.query : tags[0], weeklyHours, source: "google", cost,
           ...(activityMatch ? { roles: [matchedActivity.role] } : {}),
           hoursStatus: unverified ? "unverified" : "published", priceStatus: free ? 'free' : unknownPrice ? 'unknown' : 'estimate',
           priceLevel: priceLevel || null,

@@ -31,6 +31,10 @@ export const activityTemplates = Object.freeze({
     ["meal", "bar"],
   ],
   casual: [
+    ["cafe", "shop", "bookshop"],
+    ["cafe", "bookshop", "dessert"],
+    ["cafe", "activity"],
+    ["cafe", "bookshop"],
     ["cafe", "culture", "walk"],
     ["cafe", "walk", "meal"],
     ["culture", "walk", "meal"],
@@ -45,6 +49,8 @@ export const activityTemplates = Object.freeze({
 });
 export function templatesForIntent(intent, prefs) {
   const r = intent.requiredRoles;
+  if (intent.sightseeing && !r.length)
+    return [["culture", "walk"], ["cafe", "culture", "walk"], ["walk", "culture"]];
   let key =
     intent.hiddenBars && r.includes("meal")
       ? "evening"

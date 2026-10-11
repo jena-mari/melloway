@@ -22,7 +22,10 @@ export function applyRecommendations(candidates, rankings, keepIds = []) {
     .map((v) => ({
       ...v,
       score: v.scoreBreakdown
-        ? v.score * 0.65 + byId.get(v.id).fit * 10 * 0.35
+        ? v.score * 0.65 + byId.get(v.id).fit * 10 * 0.35 +
+          // Retain the full local/filler policy when blending provider fit.
+          0.35 * ((v.scoreBreakdown.localCuration || 0) +
+            (v.scoreBreakdown.touristLandmark || 0) + (v.scoreBreakdown.unsolicitedFiller || 0))
         : byId.get(v.id).fit * 3,
       ...(byId.get(v.id).reason
         ? { recommendationReason: byId.get(v.id).reason }

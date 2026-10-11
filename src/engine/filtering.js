@@ -1,5 +1,6 @@
 import { matchesAnyRequestedActivity } from "./requestedActivity.js";
 import { eventServiceOnly } from './recommendationEvidence.js';
+import { unrelatedServiceBusiness } from './venueSuitability.js';
 import { km, schedule, transportAllowance } from "../utils/planner.js";
 import { planningArea } from "../utils/location.js";
 import { venueRoles } from "./preferences.js";
@@ -21,6 +22,10 @@ export function venueRejection(v, prefs, intent, rejectedIds = []) {
   const area = planningArea(prefs),
     rs = venueRoles(v);
   if (eventServiceOnly(v)) return "event-service";
+  if (unrelatedServiceBusiness(v)) return "service-business";
+  if (v.membershipRequired || v.accessStatus === 'unverified' || v.accessStatus === 'membership-required') return "access";
+  if (v.minimumAge && (!Number.isFinite(prefs.age) || prefs.age < v.minimumAge)) return "access";
+  if (v.kind === 'recurring-event' && v.eventSchedule?.weekday !== new Date(`${prefs.date}T12:00:00Z`).getUTCDay()) return "event-date";
   if (v.source === "demo") return "demo";
   if (rejectedIds.includes(v.id)) return "rejected";
   if (

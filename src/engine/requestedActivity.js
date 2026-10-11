@@ -22,6 +22,7 @@ export function activityDescriptor(phrase) {
     : /\b(?:dining|dinner|food|restaurant)\b/.test(query) ? "meal"
     : /\b(?:speakeasy|bar|music|jazz)\b/.test(query) ? "bar"
     : /\b(?:bookshop|book store)\b/.test(query) ? "bookshop"
+    : /\b(?:vintage|thrift|shopping)\b/.test(query) ? "shop"
     : /\b(?:gallery|museum)\b/.test(query) ? "culture"
     : /\b(?:dessert)\b/.test(query) ? "dessert" : "activity";
   return { query, role: known?.[2] || role, ...(known ? { placeType: known[1] } : {}),
@@ -35,7 +36,7 @@ export function extractRequestedActivities(notes = "") {
   // prefix carries across "and"; negation remains local to each clause.
   for (const sentence of notes.slice(0, 1200).split(/[.!?;\n]|\b(?:but|however|then)\b/i)) {
     let requesting = false;
-    for (const clause of sentence.split(/\band\b/i)) {
+    for (const clause of sentence.split(/\band\b|,|\+/i)) {
       if (/^\s*include\b/i.test(clause)) continue;
       const request = clause.match(/\b(?:want|would like|[’']d like|looking for|find|visit|go to)\s+(.+)/i);
       requesting ||= !!request;
@@ -44,8 +45,10 @@ export function extractRequestedActivities(notes = "") {
         .replace(/^to\s+(?:(?:go(?: to)?|visit|try|do)\s+)?/i, "")
         .replace(/^(?:(?:a|an|the|some|please|nice|good|great|nearby|local|free|cheap|outdoor|quiet|cozy)\s+)+/i, "")
         .replace(/\s+please$/i, "").trim();
-      const normalized = normalize(phrase).replace(/^skate$/, "skate park");
-      if (!requesting && !/\b(?:park|skatepark|gym|studio|court|pool|rink|gallery|museum|beach|trail|garden|bookshop|cafe)\b/.test(normalized)) continue;
+      const normalized = normalize(phrase).replace(/^skate$/, "skate park")
+        .replace(/^(?:indie|independent) bookshops?$/, 'independent bookshop')
+        .replace(/^vintage (?:shopping|shops?|stores?)$/, 'vintage store');
+      if (!requesting && !/\b(?:park|skatepark|gym|studio|court|pool|rink|gallery|museum|beach|trail|garden|bookshops?|cafe)\b/.test(normalized)) continue;
       if (!normalized || normalized.length > 80 || normalized.split(" ").length > 6 ||
         /\b(?:something|anything|somewhere|outing|date|day|night|fun|chill|relax|romantic|travel)\b/.test(normalized)) continue;
       const activity = activityDescriptor(normalized);
@@ -62,6 +65,9 @@ export const matchesAnyRequestedActivity = (venue, intent) =>
 
 export function matchesRequestedActivity(venue, activity) {
   if (!activity) return false;
+  if (activity.query === 'independent bookshop')
+    return venue.source === 'curated' && venue.tags?.includes('Bookshops') &&
+      /\bindependent\b/i.test(venue.description || '');
   const types = Array.isArray(venue.providerTypes) ? venue.providerTypes : [];
   if (activity.placeType && types.includes(activity.placeType)) return true;
   // A café/shop named after a park is not evidence of the requested facility.

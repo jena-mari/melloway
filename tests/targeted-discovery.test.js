@@ -68,7 +68,8 @@ test("one additional targeted query preserves normal category searches and ignor
   assert.equal(debug.targetedQueries, 1);
   assert.equal(debug.curatedCandidates, 1);
   assert.equal(debug.googleCandidates, 2);
-  assert.equal(debug.rejectedReasons.duplicate, 3);
+  assert.equal(debug.rejectedReasons['category-mismatch'], 3);
+  assert.equal(debug.rejectedReasons.duplicate, undefined);
 });
 
 test("an eligible curated activity satisfies the request, including categories outside existing tags", async () => {

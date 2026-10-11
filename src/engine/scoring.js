@@ -5,6 +5,7 @@ import { planningArea } from "../utils/location.js";
 import { venueRoles, venueAtmosphere } from "./preferences.js";
 import { budgetCategory } from "../utils/activityBudget.js";
 import { socialFit } from '@melloway/domain';
+import { touristLandmark } from './venueSuitability.js';
 
 export const recommendationWeights = Object.freeze({
   preference: 26,
@@ -49,6 +50,13 @@ export function scoreVenue(v, prefs, intent, weights = recommendationWeights) {
   const quality =
     (v.source === "curated" ? 0.7 : v.source === "google" ? 0.8 : 0.1) +
     (Number.isFinite(v.rating) ? Math.min(0.2, v.rating / 25) : 0);
+  const landmark = touristLandmark(v);
+  const explicitlyWanted = intent.sightseeing || matchesAnyRequestedActivity(v, intent) ||
+    (intent.explicitInterests || []).some(tag => v.tags.includes(tag) &&
+      ['Art galleries', 'Museums', 'Scenic walks', 'Photo spots', 'Picnics', 'Beaches'].includes(tag)) ||
+    (typeof v.name === 'string' && v.name.length > 0 && (prefs.notes || '').toLowerCase().includes(v.name.toLowerCase()));
+  const relevant = compatibleRole || matches.length > 0 ||
+    (!intent.requiredRoles.length && venueRoles(v).some(role => !['culture', 'walk'].includes(role)));
   const scoreBreakdown = {
     // Explicit activity fit outranks incidental café ratings and generic tags.
     requestedActivity: matchesAnyRequestedActivity(v, intent) ? 200 : 0,
@@ -59,6 +67,9 @@ export function scoreVenue(v, prefs, intent, weights = recommendationWeights) {
     budget: weights.budget * budget,
     quality: weights.quality * quality,
     evidence: (weights.evidence ?? 12) * evidenceScore(v, prefs.date),
+    localCuration: v.source === 'curated' && relevant && !landmark ? (v.editorialPick ? 12 : 8) : 0,
+    touristLandmark: landmark && !explicitlyWanted ? -24 : 0,
+    unsolicitedFiller: !explicitlyWanted && !matches.length && venueRoles(v).every(role => ['culture', 'walk'].includes(role)) ? -12 : 0,
     socialContext: socialFit(v, v.socialContext, { ...intent, atmosphere: requestedAtmosphere }),
   };
   return {
