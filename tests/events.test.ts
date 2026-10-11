@@ -183,6 +183,30 @@ test('different selected dates search different windows, return different matche
   assert.equal(searches[1].searchParams.get('startDateTime'), '2026-10-13T00:00:00Z');
 });
 
+test('filtered event maps share the JSON snapshot and include only matching venue coordinates', async () => {
+  let calls = 0;
+  const handler = createEventsHandler({ now: () => now, fetcher: async () => {
+    calls++;
+    const outsideWindow = timedEvent('outside', '2026-10-13');
+    outsideWindow._embedded.venues[0].location = { latitude: '-33.9', longitude: '151.3' };
+    return Response.json({ _embedded: { events: [timedEvent('matching'), outsideWindow] } });
+  } });
+  const list = JSON.parse(String((await request(handler, preferences)).body));
+  const map = await request(handler, preferences.replace('/api/events?', '/api/events-map?'));
+  assert.deepEqual(list.events.map((e: SydneyEvent) => e.id), ['matching']);
+  assert.equal(calls, 1);
+  assert.equal(map.status, 200);
+  assert.match(map.headers['Content-Type']!, /^text\/html/);
+  assert.match(String(map.body), /-33\.86/);
+  assert.ok(!String(map.body).includes('-33.9'));
+  for (const secret of ['mock-ticketmaster-secret', 'mock-places-routes-secret']) {
+    assert.ok(!String(map.body).includes(secret));
+  }
+  delete process.env.GOOGLE_MAPS_DEMO_KEY;
+  assert.equal((await request(handler, preferences.replace('/api/events?', '/api/events-map?'))).status, 503);
+  assert.equal(calls, 1);
+});
+
 test('$30 uses the minimum advertised AUD price; missing, max-only and foreign prices remain separate', async () => {
   const data = await dataFor([
     timedEvent('cheap', undefined, undefined, [{ min: 25, max: 100, currency: 'AUD' }]),

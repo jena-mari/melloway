@@ -498,7 +498,10 @@ test("local Maple Shore and Outfit fonts finish loading", async ({ page }) => {
   expect(await page.evaluate(() => document.fonts.check('16px "Outfit"'))).toBe(
     true,
   );
-  await expect(page.locator(".intro-logo .brand-logo")).toHaveAttribute("src", "/icons/optimized/melloway_logo.png");
+  await expect(page.locator(".intro-logo")).toHaveCSS(
+    "font-family",
+    '"Maple Shore", cursive',
+  );
   await expect(page.locator("body")).toHaveCSS(
     "font-family",
     "Outfit, sans-serif",

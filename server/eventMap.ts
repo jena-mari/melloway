@@ -4,7 +4,7 @@ import { selectGoogleMapsBrowserKey } from './googleMapsBrowserKey.ts';
 export { selectGoogleMapsBrowserKey } from './googleMapsBrowserKey.ts';
 import { fetchSydneyEvents } from './ticketmaster.ts';
 
-/** This page exposes only the dedicated no-billing Demo Key, never server provider keys. */
+/** This page exposes only a selected browser Maps key, never server provider keys. */
 export function renderVenueMap(points: EventMapPoint[], browserKey: string, source: 'events' | 'tiktok' | 'itinerary' = 'events'): string {
   if (!browserKey.trim()) throw new Error('Google Maps browser key is not configured.');
   const itinerary = source === 'itinerary';

@@ -9,12 +9,17 @@ const stops = [0, 1, 2].map(index => ({
   lat: -33.873 - index * .001, lng: 151.208 - index * .001,
   tags: ['Coffee shops'], category: 'Coffee shops', address: 'Mock Sydney address',
   arrival: 660 + index * 60, mins: 45, cost: 15,
+  travelFromPrevious: index ? { minutes: 15, distance: .2, source: 'google' } : null,
 }));
 const current = { plan: { id: 'mock-google-plan', prefs: defaultDraft(), stops,
   cost: 45, elapsed: 165, transportAllowance: 0, notice: 'Mock test plan' }, candidates: [], matrix: [] };
 const mapsScript = `window.google = { maps: {
   importLibrary: async name => name === 'maps' ? { Map: class {
-    constructor(element) { this.element = element; }
+    constructor(element) {
+      this.element = element;
+      // Mock pins occupy the map centre, like fitted real markers, clear of its toolbar.
+      Object.assign(element.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px' });
+    }
     fitBounds(bounds) { this.element.dataset.bounds = JSON.stringify(bounds.points); }
   } } : {
     PinElement: class { constructor(options) { const pin = document.createElement('span'); pin.textContent = options.glyphText; return pin; } },
@@ -28,6 +33,7 @@ const mapsScript = `window.google = { maps: {
 } }; window.initVenueMap();`;
 
 async function mapFixture(page, script = mapsScript) {
+  await page.route('**/api/status', route => route.fulfill({ json: { venues: 'curated', recommendations: 'planner' } }));
   await page.addInitScript(value => localStorage.setItem('melloway.current', JSON.stringify(value)), current);
   await page.route('https://maps.googleapis.com/**', route => route.fulfill({ contentType: 'text/javascript', body: script }));
   await page.route('**/api/itinerary-map?*', route => {
@@ -47,11 +53,13 @@ test('Google stops get numbered pins; selecting a pin selects its existing stop 
   await expect(page.locator('.leaflet-container')).toHaveCount(0);
   await frame.getByRole('button', { name: '2. Mock stop 2' }).click();
   await expect(page.locator('#stop-1 .stop-card')).toHaveClass(/selected-stop/);
+  await expect(page.getByRole('dialog')).toContainText('Mock stop 2');
+  await page.getByRole('button', { name: 'close spot details', exact: true }).click();
   await expect(page.locator('.stop-body h2')).toHaveText(stops.map(stop => stop.name));
   await page.getByRole('button', { name: 'expand map', exact: true }).click();
   await expect(page.frameLocator('dialog .google-route-map').getByRole('button', { name: '3. Mock stop 3' })).toBeVisible();
   await page.frameLocator('dialog .google-route-map').getByRole('button', { name: '3. Mock stop 3' }).click();
-  await expect(page.getByRole('dialog')).not.toBeVisible();
+  await expect(page.getByRole('dialog')).toContainText('Mock stop 3');
   await expect(page.locator('#stop-2 .stop-card')).toHaveClass(/selected-stop/);
 });
 

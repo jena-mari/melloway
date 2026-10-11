@@ -46,7 +46,7 @@ test("edit profile, create a post, and retain identity after reload", async ({
     mimeType: "image/png",
     buffer: png,
   });
-  await expect(dialog.locator(".profile-cover-preview img")).toBeVisible();
+  await expect(dialog.locator(".profile-cover-preview .profile-cover-image")).toBeVisible();
   await dialog.getByRole("button", { name: "save", exact: true }).click();
   await expect(dialog).not.toBeVisible();
   await expect(
@@ -181,7 +181,7 @@ test("rounded profile cards retain routes on small phones and cover changes pers
   await dialog
     .getByLabel("Cover photo")
     .setInputFiles("public/images/community/sydney.jpg");
-  await expect(dialog.locator(".profile-cover-preview img")).toBeVisible();
+  await expect(dialog.locator(".profile-cover-preview .profile-cover-image")).toBeVisible();
   await dialog.getByRole("button", { name: "save", exact: true }).click();
   await page.reload();
   await expect(
@@ -199,10 +199,10 @@ test("rounded profile cards retain routes on small phones and cover changes pers
     buffer: Buffer.from("<svg/>"),
   });
   await expect(dialog.getByRole("alert")).toContainText("JPEG, PNG or WebP");
-  await expect(dialog.locator(".profile-cover-preview img")).toBeVisible();
+  await expect(dialog.locator(".profile-cover-preview .profile-cover-image")).toBeVisible();
   await dialog.getByRole("button", { name: "Photo options" }).click();
   await dialog.getByRole("button", { name: "peach cover" }).click();
-  await expect(dialog.locator(".profile-cover-preview img")).toHaveCount(0);
+  await expect(dialog.locator(".profile-cover-preview .profile-cover-image")).toHaveCount(0);
   await dialog.getByRole("button", { name: "save", exact: true }).click();
   await page.reload();
   await expect(page.locator(".profile-cover .profile-cover-image")).toHaveCount(
@@ -387,7 +387,7 @@ test("editor saves optional details, cancels changes and validates social links"
   await dialog
     .getByLabel("Cover photo")
     .setInputFiles("public/images/community/sydney.jpg");
-  await expect(dialog.locator(".profile-cover-preview img")).toBeVisible();
+  await expect(dialog.locator(".profile-cover-preview .profile-cover-image")).toBeVisible();
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     expect(

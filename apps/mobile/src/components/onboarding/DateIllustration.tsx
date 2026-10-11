@@ -1,5 +1,6 @@
 // Original code-drawn illustrations; no artwork from the reference brands.
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
+import { Platform } from 'react-native';
 import { type ideas } from '../../services/onboarding';
 
 export default function DateIllustration({ kind }: { kind: typeof ideas[number]['drawing'] }) {
@@ -7,7 +8,8 @@ export default function DateIllustration({ kind }: { kind: typeof ideas[number][
     <Svg width="100%" height={220}
       viewBox="0 0 300 220"
 
-      accessible={false}
+      accessible={Platform.OS === 'web' ? undefined : false}
+      aria-hidden={Platform.OS === 'web' ? true : undefined}
       fill="none"
       stroke="#24231f"
       strokeWidth="1.5"
