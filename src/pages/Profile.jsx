@@ -520,14 +520,14 @@ export default function Profile() {
             <article key={plan.id} className="profile-saved-route">
               <button
                 className="profile-route-open"
-                aria-label={`Open saved route ${plan.prefs.area}`}
+                aria-label={`Open saved route ${plan.title || plan.prefs.area}`}
                 onClick={() => {
                   const destination = openSavedPlan(plan);
                   if (destination) navigate(destination);
                 }}
               >
                 <span>
-                  <strong>{plan.prefs.area}</strong>
+                  <strong>{plan.title || plan.prefs.area}</strong>
                   <small>
                     {plan.stops.length} stops · ~${plan.cost} each
                     {plan.stops[0].source === "demo" ? " · sample" : ""}
@@ -542,7 +542,7 @@ export default function Profile() {
               </button>
               <button
                 className="icon-button"
-                aria-label={`Unsave route ${plan.prefs.area}`}
+                aria-label={`Unsave route ${plan.title || plan.prefs.area}`}
                 onClick={() => remove(plan.id)}
               >
                 <Bookmark size={21} fill="currentColor" />

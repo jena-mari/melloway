@@ -3,6 +3,7 @@ import { withScheduleDefaults } from "../utils/date";
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from "react";
 import { defaultDraft } from "../data/preferences";
 import { normalisePlanNames } from "../utils/venueNames";
+import { cleanPlanTitle, MAX_PLAN_TITLE_LENGTH, mergeSavedPlans } from "../utils/planTitles.js";
 import { readProfile } from "../utils/profile";
 import {
   readLocal,
@@ -80,11 +81,7 @@ export function AppProvider({ children }) {
       .then((plans) => {
         plans = plans.filter(validPlan).map(normalisePlanNames);
         if (plans.length)
-          setSaved((old) =>
-            Array.from(
-              new Map([...old, ...plans].map((p) => [p.id, p])).values(),
-            ),
-          );
+          setSaved((old) => mergeSavedPlans(old, plans));
       })
       .catch(() =>
         setStatus("Cloud sync unavailable. Local favourites are still here."),
@@ -183,15 +180,45 @@ export function AppProvider({ children }) {
   }
   const savedPlans = saved.map(plan => history.find(r => r.id === plan.id)?.plan ||
     (current?.plan.id === plan.id ? current.plan : plan));
+  function renameCurrentPlan(value, id) {
+    const title = cleanPlanTitle(value);
+    const { current, history } = journeyRef.current;
+    if (!title || title.length > MAX_PLAN_TITLE_LENGTH || !current?.plan || current.plan.id !== id ||
+      current.plan.status === 'completed' || history.some(entry => entry.id === id)) return false;
+    const name = { title, titleUpdatedAt: new Date().toISOString() };
+    const next = { ...current, plan: { ...current.plan, ...name } };
+    const bookmark = saved.find(plan => plan.id === id);
+    const nextSaved = saved.map(plan => plan.id === id ? { ...plan, ...name } : plan);
+    let wroteSaved = false;
+    try {
+      if (bookmark) { writeLocal('melloway.saved', nextSaved); wroteSaved = true; }
+      writeLocal('melloway.current', next);
+    } catch {
+      if (wroteSaved) {
+        try { writeLocal('melloway.saved', saved); } catch { /* Keep the stored name recoverable. */ }
+      }
+      setStatus('Couldn’t rename this date. Device storage may be full.');
+      return false;
+    }
+    journeyRef.current = { current: next, history };
+    storeCurrent(next);
+    setStatus('Name saved on this device.');
+    if (bookmark) {
+      setSaved(nextSaved);
+      saveCloud({ ...bookmark, ...name }).catch(() =>
+        setStatus('Name saved on this device. Cloud sync failed; try saving again later.'));
+    }
+    return true;
+  }
   async function save(plan) {
     plan = history.find(r => r.id === plan.id)?.plan || plan;
     try {
       writeLocal(
         "melloway.saved",
-        saved.some((p) => p.id === plan.id) ? saved : [plan, ...saved],
+        saved.some((p) => p.id === plan.id) ? saved.map(p => p.id === plan.id ? plan : p) : [plan, ...saved],
       );
       setSaved((old) =>
-        old.some((p) => p.id === plan.id) ? old : [plan, ...old],
+        old.some((p) => p.id === plan.id) ? old.map(p => p.id === plan.id ? plan : p) : [plan, ...old],
       );
       setStatus("Saved on this device.");
       try {
@@ -276,6 +303,7 @@ export function AppProvider({ children }) {
         toggleEventSave,
         current,
         setCurrent,
+        renameCurrentPlan,
         save,
         remove,
         status,

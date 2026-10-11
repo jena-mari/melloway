@@ -1887,6 +1887,16 @@ dd {
   border-radius: 13px;
   font-size: 12px;
 }
+.route-rename {
+  min-height: 44px;
+  padding: 4px 0;
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.plan-name-dialog { max-width: 460px; }
+.plan-name-actions { display: flex; gap: 10px; margin-top: 20px; }
+.plan-name-actions .button { flex: 1; min-width: 0; }
 .route-edit-toggle[aria-pressed="true"] {
   background: #111;
   color: white;

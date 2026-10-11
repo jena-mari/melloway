@@ -40,6 +40,7 @@ import BudgetSplit from "../components/BudgetSplit";
 import { replacementBudget } from "../utils/activityBudget";
 import { reorderRoute } from '../engine/routeEditing.js';
 import StopTimeframe from '../components/StopTimeframe.jsx';
+import PlanNameDialog from '../components/PlanNameDialog.jsx';
 const RouteMap = lazy(() => import("../components/RouteMap"));
 export default function Itinerary({
   route,
@@ -55,6 +56,7 @@ export default function Itinerary({
   const current = route || app.current;
   const setCurrent = onRouteChange || app.setCurrent;
   const [detailId, setDetailId] = useState(null),
+    [showRename, setShowRename] = useState(false),
     [timeframeIndex, setTimeframeIndex] = useState(null),
     [showPlanOptions, setShowPlanOptions] = useState(false),
     [picker, setPicker] = useState(null),
@@ -102,7 +104,7 @@ export default function Itinerary({
           "This is the best plan that fits. Try changing the details for more options.",
         );
       else if (next.plan) {
-        setCurrent(next);
+        setCurrent({ ...next, plan: { ...next.plan, ...(plan.title ? { title: plan.title, titleUpdatedAt: plan.titleUpdatedAt } : {}) } });
         setDetailId(null);
         setExtraPool(null);
         setSelectedId("");
@@ -535,6 +537,7 @@ export default function Itinerary({
             venueState={communityPost ? { route: current } : undefined}
           />}
           location={location}
+          onRename={!route ? () => setShowRename(true) : undefined}
           busy={busy}
           visibleStops={shownStops}
           onReset={clearFilters}
@@ -703,6 +706,8 @@ export default function Itinerary({
           )}
         </div>
       </section>
+      {showRename && !route && <PlanNameDialog key={plan.id} plan={plan}
+        onApply={app.renameCurrentPlan} onClose={() => setShowRename(false)} />}
       {picker && (
         <StopPicker
           choices={choiceList(picker.options, picker.index)}

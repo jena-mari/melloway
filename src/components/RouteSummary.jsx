@@ -25,6 +25,7 @@ export default function RouteSummary({
   visibleStops,
   onReset,
   onEdit,
+  onRename,
   readOnly = false,
   initialEditing = false,
   onSchedule,
@@ -45,7 +46,11 @@ export default function RouteSummary({
     >
       <div className="route-summary-heading">
         <div>
-          <h2>{location}</h2>
+          <h2>{plan.title || location}</h2>
+          {onRename && <button type="button" className="route-rename" disabled={busy}
+            aria-haspopup="dialog" onClick={onRename}>
+            rename {plan.prefs.mode === 'date' ? 'date' : 'hangout'}
+          </button>}
           <div className="route-day-schedule" aria-label="Your day timing">
             <p><time dateTime={plan.prefs.date}>{formatRouteDate(plan.prefs.date)}</time> · {formatTime(minutes(plan.prefs.time))} start · Sydney time</p>
             <p><strong>~{formatRouteDuration(plan.elapsed)} / {formatRouteDuration(Number(plan.prefs.duration) * 60)} available</strong> · estimated, including travel and waiting</p>
