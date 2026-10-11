@@ -4,6 +4,8 @@ import { renderVenueMap } from "../../server/eventMap.ts";
 import { itineraryMapPoints } from "../../server/itineraryMap.ts";
 // Keep the shared fixture entry point while moving maps to the offline Google SDK.
 export async function mockMapTiles(page) {
+  await page.route("**/api/shared-events/**", route => route.fulfill({ status: 503,
+    json: { error: "Shared event unavailable in this fixture." } }));
   for (const host of ["surplus.sydney", "atparramatta.com", "sculpturebythesea.com"]) {
     await page.route(`https://${host}/**`, route => route.fulfill({ contentType: "image/svg+xml",
       body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="500"><rect width="400" height="500" fill="#d9dfcb"/><text x="24" y="240" font-size="28">Mock organiser artwork</text></svg>' }));

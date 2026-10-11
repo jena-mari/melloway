@@ -6640,3 +6640,16 @@ html:has(.profile-page) {
   .editorial-collection-filters { gap: 5px; }
   .editorial-collection-filters button { padding: 9px 10px; font-size: 11px; }
 }
+
+/* Hack48 attachments use the existing event card and form style. */
+.hack48-cover { padding: 24px; text-align: center; align-content: center; gap: 16px; }
+.hack48-cover strong { font-size: clamp(44px, 12vw, 76px); }
+.hack48-media { margin-top: 24px; }
+.hack48-gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; }
+.hack48-gallery img { display: block; width: 100%; max-height: 340px; object-fit: contain; border-radius: 12px; }
+.hack48-reel { min-width: 0; }
+.hack48-reel .social-instagram-preview { height: auto; aspect-ratio: 4 / 5; overflow: hidden; border-radius: 12px; background: #f7f7f4; }
+.hack48-media summary { scroll-margin-block: 100px; }
+.hack48-media label { display: block; margin-top: 16px; }
+.hack48-media input { display: block; width: 100%; min-width: 0; margin-top: 6px; }
+.hack48-media form button { margin-top: 12px; }

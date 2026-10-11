@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createHack48Handler } from "./hack48.js";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createEventsHandler } from "./events.ts";
@@ -20,6 +21,9 @@ import {
 /** Provider injection keeps API-contract regression tests offline. */
 export function createApiServer(options = {}) {
   const env = options.env ?? process.env;
+  const hack48Handler = options.hack48Handler ?? createHack48Handler({
+    directory: env.SHARED_EVENTS_DIRECTORY || undefined, editCode: env.HACK48_EDIT_CODE,
+  });
   const key = env.GOOGLE_MAPS_API_KEY,
     provider = options.googleProvider ?? createGoogleProvider(key);
   const openaiKey = env.OPENAI_API_KEY;
@@ -64,7 +68,7 @@ export function createApiServer(options = {}) {
       res.setHeader("Access-Control-Allow-Origin", origin);
       res.setHeader("Vary", "Origin");
       res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
     }
     if (req.method === "OPTIONS") {
       if (!origin || !allowedOrigins.includes(origin))
@@ -80,6 +84,8 @@ export function createApiServer(options = {}) {
           apiKey: selectGoogleMapsBrowserKey(env),
           mapId: env.GOOGLE_MAPS_MAP_ID?.trim() || "DEMO_MAP_ID",
         });
+      if (req.url.split("?")[0].startsWith("/api/shared-events/"))
+        return await hack48Handler(req, res);
       if (req.method === "GET" && req.url === "/api/status")
         return reply(200, {
           venues: key ? "google" : "curated",

@@ -15,6 +15,8 @@ import { events } from "../data/events";
 import { sydneyEvents, upcomingSydneyEvents } from "../data/sydneyEvents.js";
 import SydneyEventHighlights from "../components/SydneyEventHighlights.jsx";
 import EventPoster from "../components/EventPoster";
+import Hack48Media from "../components/Hack48Media.jsx";
+import { loadHack48 } from "../services/hack48.js";
 import BrandLogo from "../components/BrandLogo";
 import WeeklySuggestions from "../components/WeeklySuggestions";
 import { weeklyEdition, weeklyMatches } from "../data/weeklySuggestions.js";
@@ -24,7 +26,7 @@ import { eventQuery, loadEvents, eventPostFromTicketmaster } from "../services/e
 import { loadInstagramEvents, savedInstagramEvents } from "../services/instagramEvents.js";
 import { sydneyToday } from "../utils/date.js";
 
-function EventPost({ event, liked, onLike, focused }) {
+function EventPost({ event, liked, onLike, focused, onMediaChange }) {
   const { savedEvents, toggleEventSave, draft, update } = useApp();
   const navigate = useNavigate();
   const article = useRef(null);
@@ -32,7 +34,8 @@ function EventPost({ event, liked, onLike, focused }) {
   const instagram = event.source === "instagram";
   const ticketmaster = event.source === "ticketmaster";
   const organiser = event.source === "organiser";
-  const real = ticketmaster || instagram || organiser;
+  const shared = event.source === "shared";
+  const real = ticketmaster || instagram || organiser || shared;
   useEffect(() => {
     if (!focused) return;
     const frame = requestAnimationFrame(() =>
@@ -58,10 +61,10 @@ function EventPost({ event, liked, onLike, focused }) {
           <strong>{event.host}</strong>
           {event.handle && <span>@{event.handle}</span>}
         </div>
-        <span className="event-sample-label">{instagram ? "Instagram" : ticketmaster ? "Ticketmaster" : organiser ? "organiser" : "sample event"}</span>
+        <span className="event-sample-label">{instagram ? "Instagram" : ticketmaster ? "Ticketmaster" : organiser ? "organiser" : shared ? "user-added event" : "sample event"}</span>
       </header>
       <EventPoster event={event} />
-      {!ticketmaster && <div className="event-social-actions">
+      {!ticketmaster && !shared && <div className="event-social-actions">
         <button
           type="button"
           aria-label={`Like event ${event.title}`}
@@ -98,7 +101,7 @@ function EventPost({ event, liked, onLike, focused }) {
               <MapPin size={15} aria-hidden="true" />
               where
             </dt>
-            <dd>{real ? event.area : `${event.area}, Sydney · venue TBA`}</dd>
+            <dd>{shared ? event.address : real ? event.area : `${event.area}, Sydney · venue TBA`}</dd>
           </div>
           {!instagram && <div>
             <dt>
@@ -116,7 +119,7 @@ function EventPost({ event, liked, onLike, focused }) {
             confirmed event listing.
           </p>}
         </details>}
-        {organiser ? <div className="organiser-event-links">
+        {shared ? <Hack48Media event={event} onChange={onMediaChange} /> : organiser ? <div className="organiser-event-links">
           <a className="text-button" href={event.url} target="_blank" rel="noopener noreferrer">event details <ArrowUpRight size={16} /></a>
           <a className="text-button" href={event.instagramUrl} target="_blank" rel="noopener noreferrer"><Instagram size={16} /> Instagram <ArrowUpRight size={16} /></a>
         </div> : instagram ? <a className="text-button event-plan-vibe" href={event.url} target="_blank" rel="noopener noreferrer">
@@ -143,10 +146,14 @@ function EventPost({ event, liked, onLike, focused }) {
   );
 }
 export function Events() {
+  const [search, setSearch] = useSearchParams();
+  const focused = search.get("event");
+  const hack48Focused = focused === "hack48-2026";
   const { savedEvents, setStatus, draft } = useApp();
   const requestQuery = eventQuery({ ...draft, location: planningArea(draft) });
   const [live, setLive] = useState({ query: "", loading: true, error: "", data: null });
   useEffect(() => {
+    if (hack48Focused) return;
     const controller = new AbortController();
     setLive({ query: requestQuery, loading: true, error: "", data: null });
     loadEvents(requestQuery, controller.signal).then(data => {
@@ -155,10 +162,11 @@ export function Events() {
       if (!controller.signal.aborted) setLive({ query: requestQuery, loading: false, error: error.message, data: null });
     });
     return () => controller.abort();
-  }, [requestQuery]);
+  }, [requestQuery, hack48Focused]);
   const liveData = live.query === requestQuery ? live.data : null;
   const [instagram, setInstagram] = useState({ loading: true, posts: [], error: "", available: true });
   useEffect(() => {
+    if (hack48Focused) return;
     const controller = new AbortController();
     loadInstagramEvents(controller.signal).then(result => {
       if (!controller.signal.aborted) setInstagram({ ...result, loading: false, error: "" });
@@ -166,15 +174,28 @@ export function Events() {
       if (!controller.signal.aborted) setInstagram({ loading: false, posts: [], available: true, error: error.message || "Instagram posts are unavailable right now." });
     });
     return () => controller.abort();
-  }, []);
-  const [search, setSearch] = useSearchParams();
+  }, [hack48Focused]);
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const [likes, setLikes] = useState(() => {
     const data = readLocal("melloway.eventLikes", []);
     return Array.isArray(data) ? data : [];
   });
-  const focused = search.get("event");
+  const [shared, setShared] = useState({ event: null, error: "" });
+  useEffect(() => {
+    const controller = new AbortController();
+    loadHack48(controller.signal).then(event => {
+      if (!controller.signal.aborted) setShared({ event, error: "" });
+    }).catch(error => {
+      if (!controller.signal.aborted) setShared({ event: null, error: error.message });
+    });
+    return () => controller.abort();
+  }, []);
+  const sharedFeed = shared.event && visibleShared(shared.event) ? [shared.event] : [];
+  function visibleShared(event) {
+    return (!focused || focused === event.id) && (focused || filter === "all" || filter === event.type)
+      && (!query.trim() || [event.title, event.area, event.address, event.text].join(" ").toLowerCase().includes(query.trim().toLowerCase()));
+  }
   function like(id) {
     const next = likes.includes(id)
       ? likes.filter((item) => item !== id)
@@ -222,7 +243,8 @@ export function Events() {
   const unknown = (liveData?.unknownPriceEvents || []).map(eventPostFromTicketmaster).filter(visible);
   const weeklyVisible = !focused && filter === "all" && weeklyMatches(weeklyEdition(), draft, query).length > 0;
   const renderPost = event => <EventPost key={event.id} event={event} focused={focused === event.id}
-    liked={likes.includes(event.id)} onLike={() => like(event.id)} />;
+    liked={likes.includes(event.id)} onLike={() => like(event.id)}
+    onMediaChange={event => setShared({ event, error: "" })} />;
   return (
     <div className="page events-page">
       <header className="events-heading">
@@ -267,6 +289,10 @@ export function Events() {
           </button>
         ))}
       </div>
+      {(sharedFeed.length > 0 || shared.error && (!focused || focused === "hack48-2026")) && <section className="event-feed" aria-label="Shared Hack48 event">
+        {sharedFeed.map(renderPost)}
+        {shared.error && <p role="alert">{shared.error}</p>}
+      </section>}
       {focused ? highlights.map(renderPost) : <SydneyEventHighlights events={highlights} />}
       {(!focused || focused.startsWith("instagram:")) && <section className="instagram-events" aria-label="Sydney events from Instagram">
         <div className="instagram-events-heading">
@@ -289,11 +315,11 @@ export function Events() {
           back to all events
         </button>
       )}
-      <p className="events-preview-note" role="status">
+      {!hack48Focused && <p className="events-preview-note" role="status">
         {live.loading ? "Loading Ticketmaster events for your planning details…" : live.error ||
           `Ticketmaster · ${liveData?.preferences.date} · ${liveData?.preferences.time} Sydney time · ${liveData?.preferences.duration} hours · up to $${liveData?.preferences.budget} AUD each`}
-      </p>
-      {liveData && <>
+      </p>}
+      {!hack48Focused && liveData && <>
         <h2>events within your advertised budget</h2>
         {!matching.length && <p className="events-preview-note">No Ticketmaster events match these details and feed filters.</p>}
         <section className="event-feed" aria-label="Ticketmaster events within budget">{matching.map(renderPost)}</section>
@@ -304,11 +330,11 @@ export function Events() {
         </>}
         {liveData.truncated && <p className="events-preview-note">Showing a limited Ticketmaster search; more events may exist.</p>}
       </>}
-      <p className="events-preview-note">sample posters · dates & venues unconfirmed</p>
+      {!hack48Focused && <p className="events-preview-note">sample posters · dates & venues unconfirmed</p>}
       <section className="event-feed" aria-label="event poster feed">
         {feed.map(renderPost)}
       </section>
-      {!feed.length && !highlights.length && !instagramFeed.length && !matching.length && !unknown.length && !weeklyVisible && (
+      {!feed.length && !highlights.length && !instagramFeed.length && !matching.length && !unknown.length && !weeklyVisible && !sharedFeed.length && (
         <div className="community-empty">
           <h2>
             {text

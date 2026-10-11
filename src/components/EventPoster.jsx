@@ -1,10 +1,19 @@
 import { useState } from "react";
 import BrandLogo from "./BrandLogo";
+import { sharedMediaUrl } from "../services/hack48.js";
 import { ArrowUpRight } from "lucide-react";
 import { EmbeddedPreview } from "./VenueSocial.jsx";
 
 export default function EventPoster({ event, compact = false }) {
   const [imageFailed, setImageFailed] = useState(false);
+  if (event.source === "shared") {
+    const image = event.attachments.find(item => item.kind === "image");
+    return <figure className={`organiser-event-poster${compact ? " organiser-event-compact" : ""}`}>
+      {image && !imageFailed ? <img src={sharedMediaUrl(image.url)} alt="Hack48 event image" onError={() => setImageFailed(true)} />
+        : <div className="organiser-art-fallback hack48-cover"><strong>{event.title}</strong><span>{event.posterSubtitle}</span></div>}
+      {!compact && <figcaption>{image ? "Image uploaded for this event" : "Add an event image below"}</figcaption>}
+    </figure>;
+  }
   if (event.source === "organiser") return <figure className={`organiser-event-poster${compact ? " organiser-event-compact" : ""}`}>
     {imageFailed ? <div className="organiser-art-fallback"><BrandLogo decorative /></div> :
       <img src={event.image} alt={event.imageAlt} loading="lazy" referrerPolicy="no-referrer" onError={() => setImageFailed(true)} />}

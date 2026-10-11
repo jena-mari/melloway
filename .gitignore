@@ -34,3 +34,6 @@ yarn-error.*
 *.key
 *.mobileprovision
 credentials.json
+
+# Shared Wi-Fi event images, private edit code and JSON data
+/.local/shared-events/
