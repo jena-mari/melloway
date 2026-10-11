@@ -38,6 +38,7 @@ export default function RouteSummary({
 }) {
   const [editing, setEditing] = useState(initialEditing && !readOnly);
   const reduced = useReducedMotion();
+  const rows = editing || !visibleStops ? plan.stops.map((stop, index) => ({ stop, index })) : visibleStops;
   return (
     <section
       className="route-summary"
@@ -52,8 +53,8 @@ export default function RouteSummary({
             rename {plan.prefs.mode === 'date' ? 'date' : 'hangout'}
           </button>}
           <div className="route-day-schedule" aria-label="Your day timing">
-            <p><time dateTime={plan.prefs.date}>{formatRouteDate(plan.prefs.date)}</time> · {formatTime(minutes(plan.prefs.time))} start · Sydney time</p>
-            <p><strong>~{formatRouteDuration(plan.elapsed)} / {formatRouteDuration(Number(plan.prefs.duration) * 60)} available</strong> · estimated, including travel and waiting</p>
+            <p><time dateTime={plan.prefs.date}>{formatRouteDate(plan.prefs.date)}</time> · {formatTime(minutes(plan.prefs.time))} start</p>
+            <p><strong>~{formatRouteDuration(plan.elapsed)} / {formatRouteDuration(Number(plan.prefs.duration) * 60)} available</strong></p>
           </div>
         </div>
         {!readOnly && <button
@@ -82,11 +83,9 @@ export default function RouteSummary({
         <button type="button" disabled={busy || plan.stops.length < 2} onClick={() => onOrder('shuffle')} aria-label="shuffle route"><Shuffle size={16} /><span>shuffle</span></button>
       </div>}
       <ol className={`route-summary-list ${editing ? "editing" : ""}`}>
-        {(editing || !visibleStops
-          ? plan.stops.map((stop, index) => ({ stop, index }))
-          : visibleStops
-        ).map(({ stop, index: i }) => (
+        {rows.map(({ stop, index: i }, rowIndex) => (
           <li key={stop.id} className={selectedStopId === stop.id ? 'selected-route-stop' : undefined} data-stop-id={stop.id}>
+            <div className="route-stop-box">
             <span className="route-letter" aria-hidden="true">
               {String.fromCharCode(65 + i)}
             </span>
@@ -102,7 +101,6 @@ export default function RouteSummary({
               <strong>{stop.name}</strong>
               <span>{stop.address}</span>
               <small>{formatTime(stop.arrival)}–{formatTime(stop.arrival + stop.mins)}</small>
-              {i > 0 && <small className="route-leg-timing">{betweenStopsLabel(plan.stops[i - 1], stop, plan.prefs.transport)}</small>}
             </button>
             {!readOnly && onSchedule && <button className="route-time-edit" disabled={busy} aria-label={`edit ${stop.name} timeframe`} onClick={() => onSchedule(i)}>time</button>}
             {!editing && !readOnly && onSwap && <button className="route-row-shuffle" disabled={busy} aria-label={`regenerate ${stop.name}`} onClick={() => onSwap(i)}><Shuffle size={17} /></button>}
@@ -166,6 +164,12 @@ export default function RouteSummary({
                 transition={{ duration: reduced ? 0 : 0.2, ease: [0.22, 1, 0.36, 1] }}
               >{renderDetails(stop, i)}</motion.div>}
             </AnimatePresence>}
+            </div>
+            {rows[rowIndex + 1]?.index === i + 1 && <div className="route-leg-timing" role="group"
+              aria-label={`Travel from ${stop.name} to ${rows[rowIndex + 1].stop.name}`}>
+              <span aria-hidden="true">{String.fromCharCode(65 + i)} → {String.fromCharCode(66 + i)} · </span>
+              <span>{betweenStopsLabel(stop, rows[rowIndex + 1].stop, plan.prefs.transport)}</span>
+            </div>}
           </li>
         ))}
       </ol>

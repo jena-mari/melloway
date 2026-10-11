@@ -33,16 +33,26 @@ test('selected date, visit times, incoming travel and used / available hours sta
   await seed(page, bundle);
   await expect(overview(page)).toContainText('Sun, 18 Oct 2026');
   await expect(overview(page).locator('time')).toHaveAttribute('datetime', '2026-10-18');
-  await expect(overview(page)).toContainText('2:00 pm start · Sydney time');
+  await expect(overview(page)).toContainText('2:00 pm start');
+  await expect(overview(page)).not.toContainText('Sydney time');
   await expect(overview(page)).toContainText('~3h 20m / 5h available');
-  await expect(overview(page)).toContainText('including travel and waiting');
+  await expect(overview(page)).not.toContainText('estimated, including travel and waiting');
   await expect(page.locator('.route-summary-spot small').first()).toHaveText('2:00 pm–2:30 pm');
-  await expect(page.locator('.route-leg-timing')).toHaveText(['~15m walk', '~20m walk · 1h 15m wait']);
+  await expect(page.locator('.route-leg-timing')).toHaveText(['A → B · ~15m walk', 'B → C · ~20m walk · 1h 15m wait']);
+  await expect(page.locator('.route-stop-box .route-leg-timing')).toHaveCount(0);
   await expect(page.locator('.inline-stop-expansion')).toHaveCount(0);
   expect((await storedPlan(page)).stops).toEqual(bundle.plan.stops);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    for (let index = 0; index < 2; index++) {
+      const previous = await page.locator('.route-stop-box').nth(index).boundingBox();
+      const travel = await page.locator('.route-leg-timing').nth(index).boundingBox();
+      const next = await page.locator('.route-stop-box').nth(index + 1).boundingBox();
+      expect(travel.y).toBeGreaterThanOrEqual(previous.y + previous.height);
+      expect(travel.y + travel.height).toBeLessThanOrEqual(next.y);
+      expect(travel.x).toBe(previous.x);
+    }
     await page.locator('.route-summary').screenshot({ path: info.outputPath(`day-timing-${width}.png`) });
   }
   await page.getByRole('button', { name: 'lock this in', exact: true }).click();
@@ -63,21 +73,40 @@ test('editing a timeframe updates visible times and duration without changing th
   await expect(overview(page)).toContainText('~3h 35m / 5h available');
   await expect(overview(page)).toContainText('Sun, 18 Oct 2026');
   await expect(page.locator('.route-summary-spot').first()).toContainText('3:00 pm–4:00 pm');
-  await expect(page.locator('.route-leg-timing')).toHaveText(['~15m walk', '~20m walk']);
+  await expect(page.locator('.route-leg-timing')).toHaveText(['A → B · ~15m walk', 'B → C · ~20m walk']);
 });
 
 test('unset modes remain travel buffers and missing legs do not become zero-minute travel', async ({ page }) => {
   const bundle = fixture({ transport: 'Not selected' });
   delete bundle.plan.stops[1].travelFromPrevious;
   await seed(page, bundle);
-  await expect(page.locator('.route-leg-timing')).toHaveText(['15m between stops · travel estimate unavailable', '~20m travel buffer · 1h 15m wait']);
+  await expect(page.locator('.route-leg-timing')).toHaveText(['A → B · 15m between stops · travel estimate unavailable', 'B → C · ~20m travel buffer · 1h 15m wait']);
 });
 
 test('late outings keep the chosen calendar date and mark stop times after midnight', async ({ page }) => {
   await seed(page, fixture({ date: '2026-07-12', time: '23:30' }, true));
   await expect(overview(page)).toContainText('Sun, 12 July 2026');
-  await expect(overview(page)).toContainText('11:30 pm start · Sydney time');
+  await expect(overview(page)).toContainText('11:30 pm start');
   await expect(overview(page)).toContainText('~2h 5m / 5h available');
   await expect(page.locator('.route-summary-spot').first()).toContainText('11:30 pm–12:00 am (+1 day)');
   await expect(page.locator('.route-summary-spot').nth(1)).toContainText('12:15 am (+1 day)');
+});
+
+test('travel labels follow reordered places and do not join stops hidden by search', async ({ page }) => {
+  const bundle = fixture();
+  await seed(page, bundle);
+  await page.getByRole('button', { name: 'shuffle route', exact: true }).click();
+  await expect.poll(async () => (await storedPlan(page)).stops.map(stop => stop.id)).not.toEqual(bundle.plan.stops.map(stop => stop.id));
+  const changed = await storedPlan(page);
+  for (let index = 0; index < changed.stops.length - 1; index++) {
+    const label = page.getByRole('group', { name: `Travel from ${changed.stops[index].name} to ${changed.stops[index + 1].name}`, exact: true });
+    await expect(label).toContainText(`${String.fromCharCode(65 + index)} → ${String.fromCharCode(66 + index)}`);
+  }
+  await page.getByRole('button', { name: 'Search stops', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'search ur stops', exact: true }).fill('Test spot b');
+  await expect(page.locator('.route-stop-box')).toHaveCount(1);
+  await expect(page.locator('.route-leg-timing')).toHaveCount(0);
+  await page.getByRole('button', { name: 'clear search', exact: true }).click();
+  await expect(page.locator('.route-stop-box')).toHaveCount(3);
+  await expect(page.locator('.route-leg-timing')).toHaveCount(2);
 });
