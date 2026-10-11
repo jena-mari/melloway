@@ -368,7 +368,7 @@ test("editable summary updates order, totals, map and directions; extras stay op
   ).toEqual(removed.stops.map((s) => s.id));
   expect(added.elapsed).toBeLessThanOrEqual(added.prefs.duration * 60);
   await expect(page.locator(".route-summary-total")).toContainText(
-    `~$${added.cost} each`,
+    `~$${added.cost} / $${added.prefs.budget} each`,
   );
   await page.getByRole("button", { name: "expand map", exact: true }).tap();
   await expect(page.locator(".expanded-route-footer ol li")).toHaveText(
@@ -516,6 +516,6 @@ test("extras beyond the remaining budget cannot change the route", async ({
   await page.keyboard.press("Escape");
   expect((await storedPlan(page)).stops).toEqual(before.stops);
   await expect(page.locator(".route-summary-total")).toContainText(
-    `~$${before.cost} each`,
+    `~$${before.cost} / $${before.prefs.budget} each`,
   );
 });

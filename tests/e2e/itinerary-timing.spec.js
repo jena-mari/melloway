@@ -71,8 +71,14 @@ test('selected date, visit times, incoming travel and used / available hours sta
 
 test('editing a timeframe updates visible times and duration without changing the selected date or hours', async ({ page }) => {
   await seed(page, fixture());
-  await page.getByRole('button', { name: 'edit Test spot a timeframe', exact: true }).click();
+  const time = page.getByRole('button', { name: 'edit Test spot a timeframe', exact: true });
+  await expect(time).toHaveText('2:00 pm–2:30 pm');
+  await expect(time).toHaveCSS('text-decoration-line', 'underline');
+  await time.focus();
+  await time.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'Test spot a', exact: true });
+  await expect(dialog).toBeVisible();
+  await expect(page.locator('.inline-stop-expansion')).toHaveCount(0);
   await dialog.getByLabel('arrive at', { exact: true }).fill('15:00');
   await dialog.getByLabel('visit length in minutes', { exact: true }).fill('60');
   await dialog.getByRole('button', { name: 'save timeframe', exact: true }).click();

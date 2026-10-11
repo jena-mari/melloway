@@ -6792,7 +6792,7 @@ html:has(.profile-page) {
 .route-row-arrow, .route-row-shuffle { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
 .route-row-shuffle { grid-row: 1; grid-column: 3; }
 .route-row-arrow { grid-row: 1; grid-column: 4; }
-.generated-route-card .route-summary-list.editing > li > .route-stop-box { grid-template-columns: 26px minmax(0, 1fr) 44px; }
+.generated-route-card .route-summary-list.editing > li > .route-stop-box { grid-template-columns: 26px minmax(0, 1fr); }
 .generated-route-card .route-row-tools { grid-column: 2 / -1; grid-row: 3; }
 .generated-route-card .route-summary-list > li > .route-stop-box:has(.route-summary-spot):not(:has(.route-time-edit)) { grid-template-columns: 26px minmax(0, 1fr) 44px; }
 .generated-route-card .route-summary-list > li > .route-stop-box:not(:has(.route-time-edit)) .route-row-arrow { grid-column: 3; }
