@@ -1,12 +1,20 @@
 import { useMemo } from "react";
 import { ArrowUpRight, MapPin, Maximize2 } from "lucide-react";
 import GoogleMapCanvas from "./GoogleMapCanvas.jsx";
+import { doodleImageSrc } from "./DoodleBackdrop.jsx";
 
-// Fit the ten places closely while leaving room for the numbered markers.
+// Fit the ten places closely while leaving room for the place markers.
 const fitPadding = { top: 40, bottom: 20, left: 24, right: 24 };
 
 function markerContent(element, [point]) {
-  element.textContent = String(point.number);
+  const icon = document.createElement("img");
+  icon.src = doodleImageSrc(point.artwork);
+  icon.alt = "";
+  icon.setAttribute("aria-hidden", "true");
+  icon.width = 20;
+  icon.height = 20;
+  icon.draggable = false;
+  element.append(icon);
 }
 
 export default function PicksMap({ venues, selectedId, focusPoint, onSelect, onShowAll, resetView }) {
