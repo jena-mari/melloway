@@ -83,6 +83,11 @@ and does not automatically retry. A working browser session alone does not prove
 this unofficial search endpoint will return usable videos. Repeatedly pasting
 cookies or rerunning the command is not a confirmed fix.
 
+For results that already load in your normal browser, use the separate
+[browser capture/import workflow](TIKTOK_BROWSER.md). It reads displayed links
+and captions and imports them offline; it does not replay this failing endpoint
+or imply that automatic TikTokApi search has been fixed.
+
 If the optional environment was installed elsewhere, set `TIKTOK_PYTHON` in the
 root `.env` to that virtual environment's Python executable. The browser still
 belongs in `.local/discovery/playwright` for this checkout.

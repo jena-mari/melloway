@@ -7,12 +7,13 @@ import { createLocalReviewQueue } from '../server/discoveryReviewQueue.ts';
 import { exportApprovedVideos } from '../server/discoveryExport.ts';
 import { discoverTikTokCafeVideos, type TikTokCollector } from '../server/tiktokDiscovery.ts';
 import { createLookupHistory } from '../server/discoveryLookupHistory.ts';
+import { discoverBrowserCafeVideos, readBrowserCapture } from '../server/browserDiscovery.ts';
 import type { SocialSearchSource } from '@melloway/domain';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const privateDirectory = resolve(root, '.local/discovery');
 const notice = 'Private local curation tool, not secure multi-user moderation. Matches remain tentative.';
-const usage = 'Usage: discovery:review -- [--queue path] mock <venue-id> "<exact name>" "<Sydney suburb>" <mock-sources.json> | live <venue-id> "<exact name>" "<Sydney suburb>" | tiktok <venue-id> "<exact name>" "<Sydney suburb>" | list | lookups | approve <id> | reject <id> | export <new-output.json>';
+const usage = 'Usage: discovery:review -- [--queue path] mock <venue-id> "<exact name>" "<Sydney suburb>" <mock-sources.json> | browser <venue-id> "<exact name>" "<Sydney suburb>" <browser-capture.json> | live <venue-id> "<exact name>" "<Sydney suburb>" | tiktok <venue-id> "<exact name>" "<Sydney suburb>" | list | lookups | approve <id> | reject <id> | export <new-output.json>';
 const inside = (parent: string, child: string) => {
   const rel = relative(parent, child);
   return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
@@ -62,6 +63,12 @@ export async function runReviewCommand(input: string[], options: { fetcher?: typ
       mode: 'mock', mockProvider: { mode: 'mock', async search() { return sources; } },
     });
     return { notice, mode: 'mock', fixture: fixture.description, ...await queue.importPending(candidates) };
+  } else if (command === 'browser' && values.length === 4) {
+    const [venueId, name, suburb, captureFile] = values;
+    await queue.list();
+    const result = await discoverBrowserCafeVideos({ venueId, name, suburb }, await readBrowserCapture(captureFile));
+    return { notice, mode: 'browser-local', searchUrl: result.searchUrl, capturedAt: result.capturedAt,
+      received: result.received, matching: result.candidates.length, ...await queue.importPending(result.candidates) };
   } else if (command === 'live' && values.length === 3) {
     const [venueId, name, suburb] = values;
     await queue.list(); // Do not spend a request on a known malformed queue.
