@@ -46,7 +46,7 @@ test("Explore immediately shows ten mapped swipe cards without suggestion API ca
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
   await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
   expect(new URL(page.url()).searchParams.get("keep")).toBe("1");
-  await page.getByRole("button", { name: "show all pick pins" }).click();
+  await expect(page.getByRole("button", { name: "show all pick pins" })).toHaveCount(0);
   const last = editorialPicks.at(-1);
   await page.getByRole("button", { name: `select ${last.name} on map`, exact: true }).click();
   await expect(page.locator(".picks-carousel-progress")).toContainText("10 / 10");
@@ -150,7 +150,7 @@ test("desktop keeps the phone-width frame, stacked map and synced horizontal car
     return Math.abs(box.left + box.width / 2 - list.left - list.width / 2) < 2;
   })).toBe(true);
   await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(last.lat));
-  await page.getByRole("button", { name: "show all pick pins" }).click();
+  await expect(page.getByRole("button", { name: "show all pick pins" })).toHaveCount(0);
   await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
   await page.locator(".editorial-place-cards").evaluate((list) => list.scrollTo({ left: list.children[1].offsetLeft - 18, behavior: "instant" }));
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
@@ -186,7 +186,7 @@ test("mobile swipe and pin selection keep the card and map in sync", async ({ pa
   }
   await page.setViewportSize({ width: 390, height: 844 });
   await expect.poll(centered).toBeLessThan(2);
-  await page.getByRole("button", { name: "show all pick pins" }).click();
+  await expect(page.getByRole("button", { name: "show all pick pins" })).toHaveCount(0);
   await page.screenshot({ path: info.outputPath("picks-mobile.png") });
 });
 
@@ -244,7 +244,7 @@ test("unavailable Google Maps and photos preserve swipe cards without an OpenStr
   await expect(page.locator('.editorial-place-card[data-venue-id="sydney-glebe-markets"]')).toHaveClass(/is-selected/);
   await expect(page.locator('.editorial-place-card[data-venue-id="sydney-glebe-markets"] .editorial-photo-placeholder')).toBeVisible();
   await expect(page.locator(".picks-map-unavailable a")).toHaveAttribute("href", /google.com\/maps/);
-  await expect(page.getByRole("button", { name: "show all pick pins" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "show all pick pins" })).toHaveCount(0);
 });
 
 test("dragging the photo swipes to the next card and updates its Google marker", async ({ page }, info) => {
