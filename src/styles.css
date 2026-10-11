@@ -5941,15 +5941,6 @@ html:has(.profile-page) {
   display: inline-flex;
   align-items: center;
 }
-.landing .intro-logo {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 12px;
-}
-.landing .intro-logo .brand-logo {
-  width: clamp(150px, 44vw, 200px);
-  height: clamp(150px, 44vw, 200px);
-}
 .intro-signature .brand-logo,
 .result-brand .brand-logo,
 .community-home-mark .brand-logo {
@@ -5987,4 +5978,127 @@ html:has(.profile-page) {
     width: 76px;
     height: 76px;
   }
+}
+
+/* A short editorial highlight, separate from community posts and live events. */
+.weekly-suggestions {
+  background: #f9faf6;
+  border: 1px solid #e4e7dc;
+  border-radius: 18px;
+  padding: 16px;
+  margin: 18px 0;
+}
+.community-page .weekly-suggestions {
+  margin: 18px 12px;
+}
+.weekly-suggestions > header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.weekly-suggestions h2 {
+  font: 650 16px/1.4 Outfit, sans-serif;
+  margin: 0;
+}
+.weekly-suggestions header small {
+  font-size: 11px;
+  color: #777;
+}
+.weekly-suggestions ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.weekly-suggestions li + li {
+  border-top: 1px solid #e4e7dc;
+}
+.weekly-suggestions li a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 68px;
+  padding: 10px 0;
+}
+.weekly-doodle {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+.weekly-label {
+  flex: 1;
+  min-width: 0;
+}
+.weekly-label strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.weekly-label small {
+  display: block;
+  color: #666;
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 3px;
+}
+.weekly-suggestions li a > svg {
+  flex-shrink: 0;
+}
+.weekly-detail-art {
+  width: 76px;
+  height: 76px;
+  margin: 30px 0 20px;
+}
+.weekly-detail-kicker,
+.weekly-detail-address {
+  color: #666;
+  font-size: 13px;
+}
+.weekly-detail h1 {
+  font-size: 38px;
+  line-height: 1.15;
+}
+.weekly-detail dl > div {
+  padding: 16px 0;
+  border-bottom: 1px solid #eee;
+}
+.weekly-detail dt {
+  color: #777;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.weekly-detail dd {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.weekly-detail-links {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.weekly-detail-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 44px;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.weekly-detail > .button {
+  width: 100%;
+  min-height: 48px;
+  background: #111;
+  color: white;
+}
+.weekly-detail .weekly-detail-source {
+  font-size: 11px;
+  line-height: 1.6;
+  color: #777;
+  margin-top: 16px;
 }

@@ -18,6 +18,8 @@ import useCommunity from "../hooks/useCommunity";
 import { profileHandle } from "../utils/profile";
 import { createId } from "../utils/id";
 import MellowayPicks from "../components/MellowayPicks.jsx";
+import WeeklySuggestions from "../components/WeeklySuggestions";
+import { weeklyEdition, weeklyMatches } from "../data/weeklySuggestions.js";
 import BrandLogo from "../components/BrandLogo";
 import { matchingPicks } from "../data/mellowayPicks.js";
 
@@ -443,7 +445,7 @@ export default function Community() {
           </Button>
         </form>
       )}
-      {!show && text && <MellowayPicks query={query} />}
+      {!show && text && <><MellowayPicks query={query} /><WeeklySuggestions query={query} /></>}
       <section className="community-feed" aria-label="community route posts">
         {feed.map((post, index) => (
           <Fragment key={post.id}>
@@ -462,10 +464,10 @@ export default function Community() {
               author={author}
               handle={handle}
             />
-            {!show && !text && index === 0 && <MellowayPicks />}
+            {!show && !text && index === 0 && <><WeeklySuggestions /><MellowayPicks /></>}
           </Fragment>
         ))}
-        {!feed.length && !matchingPicks(query).length && (
+        {!feed.length && !matchingPicks(query).length && !weeklyMatches(weeklyEdition(), {}, query).length && (
           <div className="community-empty">
             <p>no posts found</p>
             <button

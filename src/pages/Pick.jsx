@@ -26,6 +26,7 @@ import { sydneyToday } from "../utils/date.js";
 import Venue from "./Venue.jsx";
 import MellowayPicks from "../components/MellowayPicks.jsx";
 import BrandLogo from "../components/BrandLogo";
+import WeeklySuggestions from "../components/WeeklySuggestions";
 const RouteMap = lazy(() => import("../components/RouteMap.jsx"));
 
 export default function Pick() {
@@ -38,6 +39,7 @@ export default function Pick() {
         </Link>
         <h1>melloway picks.</h1>
         <MellowayPicks showHeading={false} />
+        <WeeklySuggestions />
       </div>
     );
   return (

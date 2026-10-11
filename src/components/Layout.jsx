@@ -129,7 +129,7 @@ export default function Layout() {
               end={to === "/"}
               aria-label={name}
               className={({ isActive }) =>
-                `tab ${isActive || (to === "/community" && pathname.startsWith("/picks")) ? "active" : ""}`
+                `tab ${isActive || (to === "/community" && (pathname.startsWith("/picks") || pathname.startsWith("/weekly/"))) ? "active" : ""}`
               }
             >
               <span className="tab-icon">

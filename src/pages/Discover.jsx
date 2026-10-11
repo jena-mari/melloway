@@ -13,6 +13,8 @@ import { useApp } from "../hooks/useApp";
 import { events } from "../data/events";
 import EventPoster from "../components/EventPoster";
 import BrandLogo from "../components/BrandLogo";
+import WeeklySuggestions from "../components/WeeklySuggestions";
+import { weeklyEdition, weeklyMatches } from "../data/weeklySuggestions.js";
 import { readLocal, writeLocal } from "../services/storage";
 import { planningArea } from "../utils/location";
 import { eventQuery, loadEvents, eventPostFromTicketmaster } from "../services/events";
@@ -190,6 +192,7 @@ export function Events() {
   const feed = events.filter(visible);
   const matching = (liveData?.events || []).map(eventPostFromTicketmaster).filter(visible);
   const unknown = (liveData?.unknownPriceEvents || []).map(eventPostFromTicketmaster).filter(visible);
+  const weeklyVisible = !focused && filter === "all" && weeklyMatches(weeklyEdition(), draft, query).length > 0;
   const renderPost = event => <EventPost key={event.id} event={event} focused={focused === event.id}
     liked={likes.includes(event.id)} onLike={() => like(event.id)} />;
   return (
@@ -236,6 +239,7 @@ export function Events() {
           </button>
         ))}
       </div>
+      {weeklyVisible && <WeeklySuggestions query={query} />}
       {focused && (
         <button
           type="button"
@@ -264,7 +268,7 @@ export function Events() {
       <section className="event-feed" aria-label="event poster feed">
         {feed.map(renderPost)}
       </section>
-      {!feed.length && !matching.length && !unknown.length && (
+      {!feed.length && !matching.length && !unknown.length && !weeklyVisible && (
         <div className="community-empty">
           <h2>
             {text

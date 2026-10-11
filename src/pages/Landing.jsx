@@ -1,7 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion } from "framer-motion";
 import { Reveal, gentleEase } from "../components/Introduction";
-import BrandLogo from "../components/BrandLogo";
 export default function Landing() {
   const navigate = useNavigate(),
     reduced = useReducedMotion();
@@ -12,7 +11,7 @@ export default function Landing() {
       </Reveal>
       <div className="landing-centre">
         <Reveal as="h1" className="intro-logo" delay={0.06}>
-          <BrandLogo />
+          melloway
         </Reveal>
         <Reveal delay={0.14}>
           <motion.button
