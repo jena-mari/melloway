@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { useReducedMotion } from "framer-motion";
-import { ArrowLeft, ArrowRight, ArrowUpRight, Clock3, MapPin } from "lucide-react";
-import { editorialPicks, pickCollections } from "../data/editorialPicks.js";
+import { ArrowLeft, ArrowUpRight, Clock3, MapPin } from "lucide-react";
+import { editorialPicks } from "../data/editorialPicks.js";
 import { Doodle } from "./DoodleBackdrop.jsx";
 import { MoodImage } from "./UI.jsx";
 import PicksMap from "./PicksMap.jsx";
@@ -48,13 +48,12 @@ function PickEvidence({ venue }) {
 export default function PicksExplorer() {
   const { id } = useParams();
   const [params, setParams] = useSearchParams();
-  const collection = pickCollections.some((item) => item.id === params.get("collection")) ? params.get("collection") : "all";
   const venues = useMemo(() => editorialPicks
-    .map((venue, index) => ({ ...venue, number: index + 1 }))
-    .filter((venue) => collection === "all" || venue.collections.includes(collection)), [collection]);
+    .map((venue, index) => ({ ...venue, number: index + 1 })), []);
   const [selectedId, setSelectedId] = useState(() => params.get("place") || venues[0].id);
   const [focused, setFocused] = useState(false), [resetView, setResetView] = useState(0);
-  const cards = useRef(new Map()), carousel = useRef(null), scrollTimer = useRef(null);
+  const cards = useRef(new Map()), carousel = useRef(null), scrollTimer = useRef(null), drag = useRef(null), skipClick = useRef(false);
+  const [dragging, setDragging] = useState(false);
   const reduced = useReducedMotion();
   const active = venues.find((venue) => venue.id === selectedId) || venues[0];
   const activeIndex = venues.indexOf(active);
@@ -64,11 +63,11 @@ export default function PicksExplorer() {
     if (id || !venues.some((venue) => venue.id === requested)) return;
     const frame = requestAnimationFrame(() => select(requested));
     return () => cancelAnimationFrame(frame);
-  }, [id, collection]);
+  }, [id]);
   useEffect(() => () => clearTimeout(scrollTimer.current), []);
   function select(id, scroll = true) {
     setSelectedId(id); setFocused(true);
-    setParams((old) => { const next = new URLSearchParams(old); next.set("place", id); return next; }, { replace: true });
+    setParams({ place: id }, { replace: true });
     const card = cards.current.get(id), list = carousel.current;
     if (!scroll || !card || !list) return;
     const cardBox = card.getBoundingClientRect(), listBox = list.getBoundingClientRect();
@@ -92,36 +91,60 @@ export default function PicksExplorer() {
       if (closest.id !== active.id) select(closest.id, false);
     }, 120);
   }
+  function startDrag(event) {
+    skipClick.current = false;
+    drag.current = null;
+    if (event.pointerType !== "mouse" || event.button !== 0 || event.target.closest("a, button")) return;
+    drag.current = { x: event.clientX, scroll: carousel.current.scrollLeft, moved: false };
+  }
+  function moveDrag(event) {
+    const gesture = drag.current;
+    if (!gesture || event.pointerType !== "mouse" || !event.buttons) return;
+    if (Math.abs(event.clientX - gesture.x) < 6 && !gesture.moved) return;
+    gesture.moved = true;
+    setDragging(true);
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+    event.currentTarget.scrollLeft = gesture.scroll + gesture.x - event.clientX;
+  }
+  function endDrag(event) {
+    if (!drag.current?.moved) { drag.current = null; return; }
+    setDragging(false);
+    const list = carousel.current;
+    const step = list.children[0].getBoundingClientRect().width + 12;
+    const index = Math.max(0, Math.min(venues.length - 1, Math.round(list.scrollLeft / step)));
+    select(venues[index].id);
+    skipClick.current = event.type !== "pointercancel";
+    drag.current = null;
+  }
+  function carouselKey(event) {
+    if (event.target !== event.currentTarget || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    event.preventDefault();
+    select(venues[Math.max(0, Math.min(venues.length - 1, activeIndex + (event.key === "ArrowRight" ? 1 : -1)))].id);
+  }
   if (id) {
     const venue = editorialPicks.find((venue) => venue.id === id);
     if (!venue) return <div className="page"><h1>that pick has wandered off.</h1><Link to="/picks">back to all picks</Link></div>;
     return <div className="editorial-pick-detail">
-      <Venue route={{ plan: { stops: [venue] } }} backTo={`/picks?collection=${collection}&place=${venue.id}`} backLabel="back to all picks"
+      <Venue route={{ plan: { stops: [venue] } }} backTo={`/picks?place=${venue.id}`} backLabel="back to all picks"
         photoCredit={venue.photo ? <PhotoCredit photo={venue.photo} /> : undefined}
         extraDetails={<PickEvidence venue={venue} />} />
     </div>;
   }
-  return <div className="picks-explorer">
+  return <><div className="picks-explorer">
     <header className="editorial-picks-header">
       <Link className="back" to="/explore"><ArrowLeft size={16} /> explore</Link>
-      <div><h1>Melloway’s Picks</h1><p>a few places worth making time for.</p></div>
-      <div className="editorial-collection-filters" role="group" aria-label="Pick collections">
-        {pickCollections.map((filter) => <button key={filter.id} type="button" aria-pressed={collection === filter.id}
-          onClick={() => { clearTimeout(scrollTimer.current); setParams(filter.id === "all" ? {} : { collection: filter.id }); setFocused(false); setResetView((old) => old + 1); carousel.current?.scrollTo({ left: 0, top: 0, behavior: "instant" }); }}>
-          {filter.label}
-        </button>)}
-      </div>
+      <h1>Melloway’s Picks</h1>
     </header>
     <div className="editorial-picks-browser">
       <PicksMap venues={venues} selectedId={active.id} focusPoint={focused ? active : null} onSelect={select}
         resetView={resetView} onShowAll={() => { setFocused(false); setResetView((old) => old + 1); }} />
       <section className="editorial-card-panel" aria-label="Pick photo cards">
-        <div className="editorial-carousel-controls">
-          <p aria-live="polite">{activeIndex + 1} / {venues.length} · {active.name}</p>
-          <div><button type="button" aria-label="previous pick" disabled={activeIndex === 0} onClick={() => select(venues[activeIndex - 1].id)}><ArrowLeft size={18} /></button>
-            <button type="button" aria-label="next pick" disabled={activeIndex === venues.length - 1} onClick={() => select(venues[activeIndex + 1].id)}><ArrowRight size={18} /></button></div>
-        </div>
-        <ul className="editorial-place-cards" ref={carousel} onScroll={followSwipe}>
+        <ul className={`editorial-place-cards ${dragging ? "is-dragging" : ""}`} ref={carousel} onScroll={followSwipe}
+          tabIndex={0} aria-label="Swipe through Melloway’s Picks" onKeyDown={carouselKey}
+          onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag}
+          onDragStart={(event) => event.preventDefault()}
+          onClickCapture={(event) => { if (skipClick.current) { event.preventDefault(); event.stopPropagation(); skipClick.current = false; } }}>
           {venues.map((venue) => <li key={venue.id} ref={(element) => { if (element) cards.current.set(venue.id, element); else cards.current.delete(venue.id); }}
             className={`editorial-place-card ${active.id === venue.id ? "is-selected" : ""}`} data-venue-id={venue.id}>
             <PlacePhoto venue={venue} />
@@ -133,15 +156,19 @@ export default function PicksExplorer() {
               <p>{venue.description}</p>
               <div className="editorial-place-facts"><span><Clock3 size={14} /> ~{venue.mins} min visit</span><span>{venue.costLabel}</span></div>
               <p className="editorial-place-schedule">{venue.scheduleLabel}</p>
-              <Link className="text-button" to={`/picks/places/${venue.id}?collection=${collection}`}>the details <ArrowUpRight size={15} /></Link>
+              <Link className="text-button" to={`/picks/places/${venue.id}`}>the details <ArrowUpRight size={15} /></Link>
             </div>
           </li>)}
         </ul>
+        <div className="picks-carousel-progress">
+          <p aria-live="polite">{activeIndex + 1} / {venues.length} · swipe to explore</p>
+          <div className="picks-carousel-dots" aria-hidden="true">{venues.map((venue) => <span key={venue.id} className={venue.id === active.id ? "is-selected" : ""} />)}</div>
+        </div>
       </section>
     </div>
-    <p className="editorial-browse-note">Editorial picks · estimated visits and allowances · venue/building pins. Check hours, access and event listings before heading out.</p>
+  </div>
     <section className="editorial-existing-picks" aria-label="Existing pick routes">
       <h2>make a day of it.</h2><MellowayPicks showHeading={false} /><WeeklySuggestions />
     </section>
-  </div>;
+  </>;
 }

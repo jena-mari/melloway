@@ -19,6 +19,7 @@ export default function GoogleMapCanvas({
   routeState.current = { paths: routePaths, transport: routeTransport };
   const reduced = useReducedMotion();
   const [status, setStatus] = useState("loading");
+  const [error, setError] = useState("");
   const [preview, setPreview] = useState(null);
   const previewRenderer = useRef(renderPreview);
   previewRenderer.current = renderPreview;
@@ -38,6 +39,7 @@ export default function GoogleMapCanvas({
     let cancelled = false;
     let clean = () => {};
     setStatus("loading");
+    setError("");
     closePreview();
     const authFailure = () => { if (!cancelled) setStatus("error"); };
     window.addEventListener("melloway-map-auth-error", authFailure);
@@ -175,7 +177,9 @@ export default function GoogleMapCanvas({
         canvas.current?.replaceChildren();
         view.current = null;
       };
-    }).catch(() => { if (!cancelled) setStatus("error"); });
+    }).catch((error) => {
+      if (!cancelled) { setError(error?.message || "Google Maps unavailable"); setStatus("error"); }
+    });
     return () => {
       cancelled = true;
       keepPreview();
@@ -195,7 +199,7 @@ export default function GoogleMapCanvas({
   }, [focusPoint?.id, focusPoint?.lat, focusPoint?.lng, reduced]);
   useEffect(() => { view.current?.fit(); }, [resetView]);
   return (
-    <div className={`google-map-canvas ${className}`} role="region" aria-label={ariaLabel} data-map-state={status}
+    <div className={`google-map-canvas ${className}`} role="region" aria-label={ariaLabel} data-map-state={status} data-map-error={error || undefined}
       onPointerLeave={leavePreview} onKeyDown={event => { if (event.key === "Escape" && preview) { event.stopPropagation(); closePreview(); } }}>
       <div ref={canvas} className="google-map-surface" />
       {status === "loading" && <p className={statusClassName} role="status">loading Google Maps…</p>}
