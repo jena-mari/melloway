@@ -21,10 +21,13 @@
     "typecheck:backend": "tsc -p server/tsconfig.discovery.json",
     "typecheck:discovery": "npm run typecheck:backend",
     "test:events": "node --experimental-strip-types --test tests/ticketmaster.test.ts tests/events.test.ts",
-    "test:discovery": "node --experimental-strip-types --test tests/openai-social-discovery.test.ts tests/discovery-review-queue.test.ts tests/discovery-export.test.ts",
+    "test:discovery": "node --experimental-strip-types --test tests/openai-social-discovery.test.ts tests/discovery-review-queue.test.ts tests/discovery-export.test.ts tests/tiktok-discovery.test.ts",
     "events:sydney": "node --experimental-strip-types --env-file-if-exists=.env scripts/fetch-sydney-events.ts",
     "prediscovery:review": "npm run build:domain",
-    "discovery:review": "node --experimental-strip-types scripts/discovery-review.ts"
+    "discovery:review": "node --experimental-strip-types scripts/discovery-review.ts",
+    "test:tiktokapi": "node --experimental-strip-types --test tests/tiktok-discovery.test.ts && python3 -m unittest discover -s tests/python -p test_tiktokapi_search.py",
+    "prediscovery:tiktok": "npm run build:domain",
+    "discovery:tiktok": "node --experimental-strip-types --env-file-if-exists=.env scripts/discovery-review.ts tiktok"
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0",

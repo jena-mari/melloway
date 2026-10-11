@@ -1,16 +1,17 @@
-/** Private CLI: mock by default; only the explicit live command can call Responses. */
+/** Private CLI: mock by default; explicit live/tiktok commands use their respective providers. */
 import { readFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { discoverCafeVideos } from '../server/socialDiscovery.ts';
 import { createLocalReviewQueue } from '../server/discoveryReviewQueue.ts';
 import { exportApprovedVideos } from '../server/discoveryExport.ts';
+import { discoverTikTokCafeVideos, type TikTokCollector } from '../server/tiktokDiscovery.ts';
 import type { SocialSearchSource } from '@melloway/domain';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const privateDirectory = resolve(root, '.local/discovery');
 const notice = 'Private local curation tool, not secure multi-user moderation. Matches remain tentative.';
-const usage = 'Usage: discovery:review -- [--queue path] mock <venue-id> "<exact name>" "<Sydney suburb>" <mock-sources.json> | live <venue-id> "<exact name>" "<Sydney suburb>" | list | approve <id> | reject <id> | export <new-output.json>';
+const usage = 'Usage: discovery:review -- [--queue path] mock <venue-id> "<exact name>" "<Sydney suburb>" <mock-sources.json> | live <venue-id> "<exact name>" "<Sydney suburb>" | tiktok <venue-id> "<exact name>" "<Sydney suburb>" | list | approve <id> | reject <id> | export <new-output.json>';
 const inside = (parent: string, child: string) => {
   const rel = relative(parent, child);
   return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
@@ -23,7 +24,7 @@ function requirePrivatePath(path: string) {
 }
 
 /** Fetch is injectable for isolated live-command tests; production uses the server adapter. */
-export async function runReviewCommand(input: string[], options: { fetcher?: typeof fetch } = {}) {
+export async function runReviewCommand(input: string[], options: { fetcher?: typeof fetch; tiktokCollector?: TikTokCollector } = {}) {
   const args = [...input];
   let queuePath = resolve(privateDirectory, 'review-queue.json');
   const flag = args.indexOf('--queue');
@@ -61,6 +62,14 @@ export async function runReviewCommand(input: string[], options: { fetcher?: typ
     await queue.list(); // Do not spend a request on a known malformed queue.
     const candidates = await discoverCafeVideos({ venueId, name, suburb }, { mode: 'live', fetcher: options.fetcher });
     return { notice, mode: 'live', ...await queue.importPending(candidates) };
+  } else if (command === 'tiktok' && values.length === 3) {
+    const [venueId, name, suburb] = values;
+    await queue.list(); // Validate existing storage before starting a browser.
+    const result = await discoverTikTokCafeVideos({ venueId, name, suburb }, {
+      mode: 'live', collector: options.tiktokCollector,
+    });
+    return { notice, mode: 'tiktok-local', received: result.received,
+      matching: result.candidates.length, ...await queue.importPending(result.candidates) };
   } else if (command === 'list' && values.length === 0) {
     return { notice, records: await queue.list() };
   } else if ((command === 'approve' || command === 'reject') && values.length === 1) {

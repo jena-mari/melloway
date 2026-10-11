@@ -1,0 +1,3 @@
+# Optional local discovery runtime; no npm/frontend dependency changes.
+TikTokApi==7.3.3
+playwright==1.63.0

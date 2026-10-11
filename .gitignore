@@ -13,3 +13,6 @@ playwright-report/
 # Local Supabase CLI state; migration SQL remains tracked
 supabase/.temp/
 supabase/.branches/
+
+# Local Python bytecode for the optional TikTokApi adapter
+__pycache__/
