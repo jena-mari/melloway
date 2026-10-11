@@ -6801,10 +6801,10 @@ html:has(.profile-page) {
 .completion-content { padding: 12px 24px calc(24px + env(safe-area-inset-bottom)); }
 
 /* Direct itinerary edits keep the original card and map in place. */
-.route-order-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
-.route-order-controls label { flex: 1 1 100%; }
-.route-order-controls select { width: 100%; min-height: 44px; font: inherit; font-size: 12px; padding: 8px 10px; border: 1px solid #ddd; border-radius: 12px; background: #fafafa; color: var(--ink); }
-.route-order-controls button { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1; border: 1px solid #ddd; border-radius: 12px; font-size: 12px; }
+.route-order-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 6px; margin: 0 0 10px; }
+.route-order-controls label { min-width: 0; }
+.route-order-controls select { width: 100%; min-width: 0; min-height: 44px; font: inherit; font-size: 12px; padding: 8px 6px; border: 1px solid #ddd; border-radius: 12px; background: #fafafa; color: var(--ink); }
+.route-order-controls button { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 8px 6px; border: 1px solid #ddd; border-radius: 12px; font-size: 12px; white-space: nowrap; }
 .generated-route-card .route-summary-list > li { grid-template-columns: 26px minmax(0, 1fr) 44px 44px; gap: 3px; padding: 8px; }
 .generated-route-card .route-summary-spot { grid-row: span 2; gap: 4px; }
 .route-summary-spot small { font-size: 10px; line-height: 1.4; color: #555; }
