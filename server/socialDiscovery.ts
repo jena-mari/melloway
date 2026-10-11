@@ -89,8 +89,11 @@ function sourcedCandidates(payload: unknown): SocialSearchSource[] {
     if (!object(item)) throw invalidResponse();
     if (item.type === 'web_search_call') {
       if (++searchCalls > 2 || item.status !== 'completed' || !object(item.action)
-        || item.action.type !== 'search' || !Array.isArray(item.action.sources)) throw invalidResponse();
-      for (const source of item.action.sources) {
+        || item.action.type !== 'search'
+        || (item.action.sources !== undefined && !Array.isArray(item.action.sources))) throw invalidResponse();
+      // The API schema makes sources optional. An omitted list provides no evidence,
+      // never permission to accept generated URLs or citation annotations instead.
+      for (const source of item.action.sources ?? []) {
         if (!object(source) || source.type !== 'url' || typeof source.url !== 'string') throw invalidResponse();
         // The parser also enforces the supported hosts/path formats locally.
         if (parseSocialMediaUrl(source.url)) sources.add(source.url);

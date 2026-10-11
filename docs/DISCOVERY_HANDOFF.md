@@ -91,6 +91,28 @@ Missing credentials/model or malformed existing queue data fail before API use.
 Use the same list/review/export commands with `live-review-queue.json` for later
 human curation; no real decisions were made during these tasks.
 
+## Optional search source lists
+
+The [Responses API schema](https://developers.openai.com/api/reference/resources/responses/methods/create)
+marks each search action's `sources` list as optional. An omitted list contributes
+no verified URLs; it does not cause a malformed-response error. If no calls supply
+usable sources, discovery returns zero candidates. This means **no verifiable
+matches**, not proof that no videos exist. Generated text and citation annotations
+cannot authorize candidates. Other calls with actual source lists can still
+contribute evidenced candidates. Explicit null, invalid types, malformed entries,
+failed calls and invalid candidate JSON remain errors. No fallback search or
+automatic retry is added.
+
+The original live check for Maeda/Newtown completed at the API but omitted source
+lists, exposing the previous parser assumption. Mock regressions cover omission,
+invented candidates/citations and mixed calls. The controlled manual retest
+on 2026-10-11 completed with HTTP 200, one Responses request and two search calls.
+Both source lists were omitted and the model returned zero candidates; the fixed
+CLI completed normally with zero records added. No video was watched or café
+match confirmed. This verifies graceful empty-result handling, not useful live
+video discovery. All 183 unit tests (37 focused discovery tests), typechecking,
+production build and diff checks passed. No frontend or request-limit changes.
+
 ## Export format and remaining limitations
 
 The JSON has `kind: "melloway-approved-social-videos"`, `version: 1`,

@@ -80,6 +80,37 @@ test('empty returned sources produce zero candidates, even if generated text sup
   assert.deepEqual(await live(mockResponse([], mockCandidates)), []);
 });
 
+test('omitted optional source lists yield no verifiable candidates, not a malformed-response error', async () => {
+  for (const candidates of [[], mockCandidates]) {
+    const payload = mockResponse([], candidates);
+    const action = payload.output[0].action!;
+    Reflect.deleteProperty(action, 'sources');
+    // Model text and a fabricated citation cannot supply the missing source evidence.
+    const message = payload.output[1];
+    const annotated = { ...payload, output: [payload.output[0], { ...message, content: [{
+      ...message.content![0], annotations: [{ type: 'url_citation', url: mockUrls[0], title: mockEvidence }],
+    }] }] };
+    let calls = 0;
+    assert.deepEqual(await discoverCafeVideos(mockCafe, { mode: 'live', now: mockNow,
+      fetcher: async () => { calls++; return Response.json(annotated); } }), []);
+    assert.equal(calls, 1);
+  }
+  // Keep the earlier explicitly undefined fixture case, now under its correct contract.
+  const undefinedSources = mockResponse();
+  undefinedSources.output[0].action!.sources = undefined as unknown as [];
+  assert.deepEqual(await live(undefinedSources), []);
+});
+
+test("a search without sources does not discard another search's evidenced candidates", async () => {
+  const payload = mockResponse([mockUrls[0]]);
+  const missing = mockResponse([mockUrls[1]]).output[0];
+  Reflect.deleteProperty(missing.action!, 'sources');
+  payload.output.splice(1, 0, { type: 'reasoning' } as typeof missing, missing);
+  const candidates = await live(payload);
+  assert.deepEqual(candidates.map(candidate => candidate.sourceUrl), [mockUrls[0]]);
+  assert.equal(candidates[0].status, 'pending');
+});
+
 test('fabricated URLs and citations cannot bypass exact membership in actual search sources', async () => {
   const fabricated = 'https://instagram.com/reel/MOCK_Invented/';
   const changedUsername = 'https://tiktok.com/@invented_fixture/video/9000000000000000001/';
@@ -137,7 +168,8 @@ test('malformed, incomplete, refused or excessive-call responses fail instead of
     { ...mockResponse(), status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' } },
     { ...mockResponse(), error: { message: fakeKey } },
     changed(p => { p.output[0].status = 'failed'; }),
-    changed(p => { p.output[0].action!.sources = undefined as unknown as []; }),
+    changed(p => { p.output[0].action!.sources = null as unknown as []; }),
+    changed(p => { p.output[0].action!.sources = 'invalid' as unknown as []; }),
     changed(p => { p.output[0].action!.sources = {} as unknown as []; }),
     changed(p => { p.output[0].action!.sources[0] = null as unknown as { type: string; url: string }; }),
     changed(p => { p.output[0].action!.sources[0].type = 'made_up'; }),
