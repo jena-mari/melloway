@@ -15,7 +15,7 @@ export default function PicksMap({ venues, selectedId, focusPoint, onSelect, onS
   })), [venues]);
   const active = venues.find((venue) => venue.id === selectedId) || venues[0];
   return <section className="picks-map" aria-label="Map of Melloway’s Picks" data-selected-place={selectedId}>
-    <GoogleMapCanvas points={points} selectedId={selectedId} focusPoint={focusPoint}
+    <GoogleMapCanvas points={points} selectedId={selectedId} focusPoint={focusPoint} smoothFocus
       onSelect={onSelect} resetView={resetView} fitPadding={fitPadding} markerContent={markerContent}
       className="picks-map-canvas" ariaLabel="Interactive picks map"
       fallback={<div className="picks-map-unavailable" role="status">

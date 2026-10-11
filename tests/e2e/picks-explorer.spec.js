@@ -60,6 +60,7 @@ test("Explore shows ten normal pick cards and opens details without changing the
   expect(new URL(page.url()).searchParams.get("keep")).toBe("1");
   await expect(mapSurface).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
   await expect(mapSurface).toHaveAttribute("data-map-zoom", "16");
+  expect(await mapSurface.getAttribute("data-camera-moves")).toBeNull();
   await page.keyboard.press("Escape");
   await expect(sheet).toHaveCount(0);
   await expect(trigger).toBeFocused();
@@ -105,6 +106,44 @@ test("Explore shows ten normal pick cards and opens details without changing the
   await expect(page.locator(".editorial-place-card")).toHaveCount(10);
   expect(requests).toEqual([]);
   expect(await state()).toEqual(before);
+});
+
+test("Explore eases the camera, follows the latest pin, and cancels movement on show-all", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockPicks(page);
+  await page.goto("/explore");
+  await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
+  const surface = page.locator(".picks-map .google-map-surface");
+  const overview = await surface.getAttribute("data-map-zoom");
+  async function open(venue) {
+    await page.getByRole("button", { name: `select ${venue.name} on map`, exact: true }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("dialog", { name: venue.name, exact: true })).toBeVisible();
+  }
+  async function close() {
+    await page.getByRole("button", { name: "close pick details", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
+  await open(editorialPicks[0]);
+  await expect(surface).toHaveAttribute("data-map-zoom", "16");
+  await expect(surface).toHaveAttribute("data-center-lat", String(editorialPicks[0].lat));
+  expect(Number(await surface.getAttribute("data-camera-moves"))).toBeGreaterThan(2);
+  await close();
+  await open(editorialPicks[1]);
+  await close();
+  await open(editorialPicks[2]);
+  await expect(surface).toHaveAttribute("data-center-lat", String(editorialPicks[2].lat));
+  await expect(surface).toHaveAttribute("data-center-lng", String(editorialPicks[2].lng));
+  await expect(surface).toHaveAttribute("data-map-zoom", "16");
+  await close();
+  await open(editorialPicks[0]);
+  await close();
+  await page.getByRole("button", { name: "show all pick pins", exact: true }).click();
+  await expect(surface).toHaveAttribute("data-map-zoom", overview);
+  await page.waitForTimeout(750); // A cancelled 650ms transition must not move the map back.
+  await expect(surface).toHaveAttribute("data-map-zoom", overview);
+  await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
 });
 
 test.describe("Explore pick taps", () => {

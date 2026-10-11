@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { loadGoogleMaps } from "../services/googleMaps";
+import { animateMapCamera } from "../utils/mapCamera.js";
 
 const located = (point) => Number.isFinite(point.lat) && Number.isFinite(point.lng);
 
 export default function GoogleMapCanvas({
-  points, selectedId, onSelect, focusPoint, resetView, interactive = true,
+  points, selectedId, onSelect, focusPoint, resetView, interactive = true, smoothFocus = false,
   groupNearby = false, fitPadding, markerContent, ariaLabel = "Google Maps",
   className = "map-canvas", statusClassName = "map-status", fallback,
   renderPreview, previewOnTap = false, routePaths, routeTransport = "Walking",
@@ -15,6 +16,7 @@ export default function GoogleMapCanvas({
   const select = useRef(onSelect);
   const selected = useRef(selectedId);
   const focused = useRef(focusPoint);
+  const stopCamera = useRef(() => {});
   const routeState = useRef({ paths: routePaths, transport: routeTransport });
   routeState.current = { paths: routePaths, transport: routeTransport };
   const reduced = useReducedMotion();
@@ -52,6 +54,7 @@ export default function GoogleMapCanvas({
         disableDefaultUI: true, zoomControl: interactive,
         gestureHandling: interactive ? "cooperative" : "none",
         keyboardShortcuts: interactive, clickableIcons: false,
+        ...(smoothFocus ? { isFractionalZoomEnabled: true } : {}),
       });
       let pins = [];
       let drawnZoom;
@@ -61,6 +64,7 @@ export default function GoogleMapCanvas({
       let routeLines = [];
       let routePositions = [];
       function fit() {
+        stopCamera.current();
         if (focused.current && located(focused.current)) {
           map.setZoom(16);
           map.setCenter({ lat: focused.current.lat, lng: focused.current.lng });
@@ -166,6 +170,7 @@ export default function GoogleMapCanvas({
       const resize = new ResizeObserver(fit);
       resize.observe(canvas.current);
       clean = () => {
+        stopCamera.current();
         clearTimeout(timeout);
         resize.disconnect();
         zoomListener.remove();
@@ -186,22 +191,31 @@ export default function GoogleMapCanvas({
       window.removeEventListener("melloway-map-auth-error", authFailure);
       clean();
     };
-  }, [points, interactive, groupNearby, fitPadding, markerContent]);
+  }, [points, interactive, groupNearby, fitPadding, markerContent, smoothFocus]);
   useEffect(() => { view.current?.setRoutes(routePaths, routeTransport); }, [routePaths, routeTransport]);
   useEffect(() => { view.current?.selectPins(); }, [selectedId]);
   useEffect(() => {
+    stopCamera.current();
     if (!focusPoint || !view.current || !located(focusPoint)) return;
     const { map } = view.current;
-    map.setZoom(16);
     const position = { lat: focusPoint.lat, lng: focusPoint.lng };
+    if (smoothFocus && !reduced) {
+      const cancel = animateMapCamera(map, { center: position, zoom: 16 });
+      stopCamera.current = cancel;
+      return cancel;
+    }
+    map.setZoom(16);
     if (reduced) map.setCenter(position);
     else map.panTo(position);
-  }, [focusPoint?.id, focusPoint?.lat, focusPoint?.lng, reduced]);
+  }, [focusPoint?.id, focusPoint?.lat, focusPoint?.lng, reduced, smoothFocus]);
   useEffect(() => { view.current?.fit(); }, [resetView]);
   return (
     <div className={`google-map-canvas ${className}`} role="region" aria-label={ariaLabel} data-map-state={status} data-map-error={error || undefined}
       onPointerLeave={leavePreview} onKeyDown={event => { if (event.key === "Escape" && preview) { event.stopPropagation(); closePreview(); } }}>
-      <div ref={canvas} className="google-map-surface" />
+      <div ref={canvas} className="google-map-surface"
+        onPointerDownCapture={() => stopCamera.current()}
+        onWheelCapture={() => stopCamera.current()}
+        onKeyDownCapture={() => stopCamera.current()} />
       {status === "loading" && <p className={statusClassName} role="status">loading Google Maps…</p>}
       {status === "error" && <div className="google-map-error">{fallback || <p role="status">Google Maps unavailable.</p>}</div>}
       {status === "ready" && preview && renderPreview && <div className="map-preview-layer"

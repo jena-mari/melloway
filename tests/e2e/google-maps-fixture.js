@@ -38,6 +38,11 @@ export const googleMapsFixture = String.raw`
     }
     setCenter(center) { this.center = center; this.bounds = null; this.element.dataset.centerLat = center.lat; this.element.dataset.centerLng = center.lng; this.render(); this.scheduleIdle(); }
     panTo(center) { this.setCenter(center); }
+    getCenter() { return new LatLng(this.center.lat, this.center.lng); }
+    moveCamera({ center, zoom }) {
+      this.element.dataset.cameraMoves = String(Number(this.element.dataset.cameraMoves || 0) + 1);
+      this.setZoom(zoom); this.setCenter(center);
+    }
     setZoom(zoom) { if (zoom !== this.zoom) { this.zoom = zoom; this.emit('zoom_changed'); } this.render(); this.scheduleIdle(); }
     getZoom() { return this.zoom; }
     getProjection() { return { fromLatLngToPoint: p => ({ x:(p.lng()+180)/360*256, y:(90-p.lat())/180*256 }) }; }
