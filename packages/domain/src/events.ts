@@ -4,11 +4,33 @@ export interface SydneyEvent {
   startDate: string;
   startTime: string | null;
   startDateTime: string | null;
+  endDateTime?: string | null;
   timezone: string | null;
   venue: { name: string | null; address: string | null; latitude: number | null; longitude: number | null } | null;
   category: string | null;
   url: string | null;
   priceRanges: { min: number | null; max: number | null; currency: string | null }[] | null;
+}
+
+export interface EventPreferences {
+  date: string;
+  time: string;
+  duration: number;
+  budget: number;
+  location: { lat: number; lng: number; r: number } | null;
+}
+
+export interface MatchingSydneyEvent extends SydneyEvent {
+  endDateTime: string | null;
+  minimumPriceAUD: number | null;
+  timeWindowFit: 'fits' | 'start-only';
+}
+
+export interface EventSearchResponse extends EventMapResponse {
+  events: MatchingSydneyEvent[];
+  unknownPriceEvents: MatchingSydneyEvent[];
+  preferences: EventPreferences;
+  truncated: boolean;
 }
 
 export interface EventMapPoint {
