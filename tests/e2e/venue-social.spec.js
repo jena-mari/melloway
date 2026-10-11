@@ -75,6 +75,8 @@ test("real-post grid shows both platforms and opens official players, with no bl
   await expect(page.getByRole("heading", { name: garden.name })).toBeVisible();
   await expect(page.locator(".venue-photo")).toHaveCount(0);
   await expect(page.locator(".venue-social-card")).toHaveCount(2);
+  await expect(page.locator(".venue-social-grid .social-card-caption, .venue-social-grid small, .venue-social-grid .social-original, .venue-social-grid .social-remove")).toHaveCount(0);
+  await expect(page.getByText(posts[0].caption, { exact: true })).toHaveCount(0);
   await expect(page.getByRole("group", { name: "filter posts" })).toHaveCount(0);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
@@ -137,10 +139,15 @@ test("shared public links validate, persist locally, and can be removed", async 
   await page.getByRole("button", { name: "add", exact: true }).click();
   await expect(page.locator(".venue-social-card")).toHaveCount(3);
   await page.reload();
-  await expect(page.getByText("Shared garden post")).toBeVisible();
-  await page
+  await expect(page.locator(".venue-social-card")).toHaveCount(3);
+  await expect(page.getByText("Shared garden post", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "remove shared Instagram post" })).toHaveCount(0);
+  await page.locator(`.venue-social-item[data-post-url="${shared}"] .venue-social-card`).click();
+  await expect(page.getByRole("dialog").getByRole("link", { name: "open on Instagram" })).toHaveAttribute("href", shared);
+  await page.getByRole("dialog")
     .getByRole("button", { name: "remove shared Instagram post" })
     .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".venue-social-card")).toHaveCount(2);
   await page.reload();
   await expect(page.locator(".venue-social-card")).toHaveCount(2);

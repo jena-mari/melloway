@@ -34,7 +34,7 @@ test("a fresh visit from the home menu to Explore shows MATCHA-YA's attached ree
   await page.getByRole("region", { name: "places", exact: true })
     .getByRole("link", { name: "view MATCHA-YA", exact: true }).click();
   await expect(page.locator(".venue-social-card")).toHaveCount(1);
-  await expect(page.getByText("venue link", { exact: true })).toBeVisible();
+  await expect(page.getByText("venue link", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: /watch TikTok post/ }).click();
   await expect(page.getByRole("dialog").getByRole("link", { name: "open on TikTok" })).toHaveAttribute("href", attached);
   await page.getByRole("button", { name: "close post", exact: true }).click();
@@ -47,7 +47,7 @@ test("a fresh visit from the home menu to Explore shows MATCHA-YA's attached ree
 test("the crawl and a previously saved venue variant share the same attached reel", async ({ page }) => {
   await page.goto("/picks/sydney-matcha-crawl/venue/pick-matcha-matchaya");
   await expect(page.locator(".venue-social-card")).toHaveCount(1);
-  await expect(page.getByText("venue link", { exact: true })).toBeVisible();
+  await expect(page.getByText("venue link", { exact: true })).toHaveCount(0);
   const cached = { ...matchaya, name: "Matcha-Ya Haymarket", lat: -33.8775, lng: 151.2026 };
   const prefs = { ...defaultDraft(), date: "2026-10-12", time: "12:00" };
   const plan = { ...schedule([cached], prefs, demoMatrix([cached], prefs.transport), [0]), prefs, id: "old-matchaya-plan" };
@@ -69,12 +69,17 @@ test("saving or removing a browser copy does not duplicate or remove the venue's
   await page.getByRole('checkbox', { name: /This shows MATCHA-YA/ }).check();
   await page.getByRole("button", { name: "add", exact: true }).click();
   await expect(page.locator(".venue-social-card")).toHaveCount(1);
-  await page.getByRole("button", { name: "remove shared TikTok post", exact: true }).click();
+  await page.getByRole("button", { name: /watch TikTok post/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "remove shared TikTok post", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".venue-social-card")).toHaveCount(1);
   await expect(page.getByRole("button", { name: "remove shared TikTok post", exact: true })).toHaveCount(0);
   await page.reload();
   await expect(page.locator(".venue-social-card")).toHaveCount(1);
-  await expect(page.getByText("venue link", { exact: true })).toBeVisible();
+  await expect(page.getByText("venue link", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: /watch TikTok post/ }).click();
+  await expect(page.getByRole("dialog").getByRole("link", { name: "open on TikTok" })).toHaveAttribute("href", attached);
+  await expect(page.getByRole("dialog").getByRole("button", { name: "remove shared TikTok post", exact: true })).toHaveCount(0);
 });
 
 test("Explore finds real matcha places, opens MATCHA-YA and retains the search and saved reel", async ({ page }) => {
@@ -107,7 +112,8 @@ test("Explore finds real matcha places, opens MATCHA-YA and retains the search a
   await expect(page.getByRole("heading", { name: "MATCHA-YA", exact: true })).toBeVisible();
   await expect(page.getByText(/10 Steam Mill Lane/).first()).toBeVisible();
   await expect(page.locator(".venue-social-card")).toHaveCount(2);
-  await page.locator(".venue-social-item").filter({ hasText: "shared link" })
+  await expect(page.getByText("shared link", { exact: true })).toHaveCount(0);
+  await page.locator(`.venue-social-item[data-post-url="${shared}"]`)
     .getByRole("button", { name: /watch TikTok post/ }).click();
   await expect(page.getByRole("dialog").getByRole("link", { name: "open on TikTok" })).toHaveAttribute("href", shared);
   await page.getByRole("button", { name: "close post", exact: true }).click();

@@ -44,7 +44,7 @@ export function EmbeddedPreview({ post }) {
   );
 }
 
-function PostPreview({ post, onClose }) {
+function PostPreview({ post, onClose, onRemove }) {
   const dialog = useRef(null);
   useEffect(() => {
     dialog.current.showModal();
@@ -84,6 +84,19 @@ function PostPreview({ post, onClose }) {
       <a href={post.url} target="_blank" rel="noopener noreferrer">
         open on {post.platform} <ArrowUpRight size={16} />
       </a>
+      {post.shared && (
+        <button
+          type="button"
+          className="text-button"
+          aria-label={`remove shared ${post.platform} post`}
+          onClick={() => {
+            dialog.current.close();
+            onRemove(post);
+          }}
+        >
+          remove shared post
+        </button>
+      )}
       <p>Preview not loading? Open the original post.</p>
     </dialog>
   );
@@ -242,7 +255,7 @@ export default function VenueSocial({ venue, compact = false }) {
       {posts.length > 0 && (
         <div className="venue-social-grid" tabIndex={0} role="region" aria-label="Posts at this spot">
           {posts.map((post) => (
-            <div className="venue-social-item" key={post.url}>
+            <div className="venue-social-item" key={post.url} data-post-url={post.url}>
               <button
                 className="venue-social-card"
                 onClick={() => setSelected(post)}
@@ -270,24 +283,7 @@ export default function VenueSocial({ venue, compact = false }) {
                   </span>
                   <span className="social-platform-label">{post.platform}</span>
                 </div>
-                <span className="social-card-caption">
-                  {post.caption ||
-                    (post.shared ? "shared post" : `${post.platform} post`)}
-                </span>
-                {post.creator && <small>{post.creator}</small>}
-                {post.attached && <small>venue link</small>}
-                {post.shared && <small>shared link</small>}
               </button>
-              {post.shared && (
-                <button
-                  className="social-remove"
-                  aria-label={`remove shared ${post.platform} post`}
-                  onClick={() => removeShared(post)}
-                >
-                  <X size={14} />
-                </button>
-              )}
-              <a className="social-original" href={post.url} target="_blank" rel="noopener noreferrer">original <ArrowUpRight size={12} /></a>
             </div>
           ))}
         </div>
@@ -340,7 +336,7 @@ export default function VenueSocial({ venue, compact = false }) {
         </a>
       </div>}
       {selected && (
-        <PostPreview post={selected} onClose={() => setSelected(null)} />
+        <PostPreview post={selected} onClose={() => setSelected(null)} onRemove={removeShared} />
       )}
     </section>
   );
