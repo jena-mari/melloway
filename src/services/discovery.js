@@ -9,6 +9,7 @@ import {
   resolvePlanningTime,
 } from "../engine/preferences.js";
 import { selectCandidates } from "../engine/filtering.js";
+import { mergeDiscoveryPool, sameBusiness } from "../engine/discoveryPool.ts";
 import { optimiseExperience } from "../engine/generation.js";
 import { closestExperience } from "../engine/alternatives.js";
 import {
@@ -18,7 +19,7 @@ import {
 } from "../utils/planner.js";
 
 // Native Capacitor builds point to an HTTPS backend instead of the web dev proxy.
-const apiBase = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+const apiBase = (import.meta.env?.VITE_API_BASE_URL || "").replace(/\/+$/, "");
 const apiUrl = (endpoint) => `${apiBase}/api/${endpoint}`;
 const withApiPhoto = (venue) => ({
   ...venue,
@@ -47,14 +48,16 @@ const catalogForPlan = (plan) =>
   plan.stops.every((v) => v.source === "demo")
     ? venues
     : curatedVenuesForDate(plan.prefs.date);
+const noticeForVenues = (pool) => {
+  const notices = [];
+  if (pool.some((v) => v.source === "curated")) notices.push(curatedNotice);
+  if (pool.some((v) => v.source === "google")) notices.push(liveNotice);
+  return notices.join(" ") || demoNotice;
+};
 const noticeForPlan = (plan) =>
   plan.pickId && plan.pickNotice
     ? plan.pickNotice
-    : plan.stops.some((v) => v.source === "google")
-      ? liveNotice
-      : plan.stops.some((v) => v.source === "curated")
-        ? curatedNotice
-        : demoNotice;
+    : noticeForVenues(plan.stops);
 const signature = (plan) =>
   plan?.stops
     .map((v) => v.id)
@@ -127,6 +130,28 @@ function usableDiscoveredVenue(v) {
         ),
     )
   );
+}
+
+async function supplementCatalog(curated, prefs, signal) {
+  try {
+    const found = await api("venues", { prefs }, signal);
+    const discovered = Array.isArray(found.venues)
+      ? found.venues.filter(usableDiscoveredVenue).map(withApiPhoto)
+      : [];
+    if (discovered.length)
+      return {
+        all: mergeDiscoveryPool(curated, discovered),
+        live: true,
+        notice: " " + liveNotice,
+      };
+  } catch {
+    checkCancelled(signal);
+  }
+  return {
+    all: curated,
+    live: false,
+    notice: " Discovery unavailable; using sourced Sydney venues.",
+  };
 }
 
 async function apiStatus(signal) {
@@ -208,20 +233,14 @@ export async function generate(
     prefs = resolved.prefs;
     notice += resolved.notice;
     if (status.venues === "google") {
-      const found = await api(
-        "venues",
-        { prefs: { ...prefs, preferences: intent.interests } },
+      const found = await supplementCatalog(
+        all,
+        { ...prefs, preferences: intent.interests },
         signal,
       );
-      if (
-        Array.isArray(found.venues) &&
-        found.venues.length >= 2 &&
-        found.venues.every(usableDiscoveredVenue)
-      ) {
-        all = found.venues.map(withApiPhoto);
-        live = true;
-        notice = liveNotice + resolved.notice;
-      } else notice += " Discovery unavailable; using sourced Sydney venues.";
+      all = found.all;
+      live = found.live;
+      notice += found.notice;
     }
   } catch {
     checkCancelled(signal);
@@ -342,11 +361,10 @@ export async function prepareRouteEdit(plan, { signal } = {}) {
 
 export async function prepareReplacement(plan, { signal } = {}) {
   const live = plan.stops.some((v) => v.source === "google");
-  const all = live
-    ? (await api("venues", { prefs: plan.prefs }, signal)).venues.map(
-        withApiPhoto,
-      )
-    : catalogForPlan(plan);
+  const found = live
+    ? await supplementCatalog(catalogForPlan(plan), plan.prefs, signal)
+    : { all: catalogForPlan(plan), notice: "" };
+  const all = found.all;
   const intent = plan.intent || interpretPreferences(plan.prefs);
   const selected = plan.stops.every((v) => v.source === "demo")
     ? selectVenues(all, plan.prefs)
@@ -362,14 +380,13 @@ export async function prepareReplacement(plan, { signal } = {}) {
     intent,
   );
   const options = ranked.candidates;
-  const currentIds = new Set(plan.stops.map((v) => v.id));
   const candidates = [
     ...plan.stops.map((v) => ({
       ...v,
       score: options.find((c) => c.id === v.id)?.score || 0,
     })),
     ...options
-      .filter((v) => !currentIds.has(v.id))
+      .filter((v) => !plan.stops.some((s) => sameBusiness(s, v)))
       .slice(0, 14 - plan.stops.length),
   ];
   const { matrix, routeNotice } = await routeMatrix(
@@ -381,7 +398,8 @@ export async function prepareReplacement(plan, { signal } = {}) {
   return {
     candidates,
     matrix,
-    notice: noticeForPlan(plan) + routeNotice + ranked.notice,
+    notice: noticeForPlan({ ...plan, stops: candidates }) +
+      (found.live ? "" : found.notice) + routeNotice + ranked.notice,
   };
 }
 
@@ -391,9 +409,10 @@ export async function prepareAdditions(plan, existing = [], { signal } = {}) {
   const interests = ["Photo booths", "Desserts", "Scenic walks", "Bookshops"];
   const prefs = { ...plan.prefs, preferences: interests };
   const legacyDemo = plan.stops.every((v) => v.source === "demo");
-  const all = live
-    ? (await api("venues", { prefs }, signal)).venues.map(withApiPhoto)
-    : catalogForPlan(plan);
+  const found = live
+    ? await supplementCatalog(catalogForPlan(plan), prefs, signal)
+    : { all: catalogForPlan(plan), notice: "" };
+  const all = found.all;
   const intent = plan.intent || interpretPreferences(plan.prefs);
   checkCancelled(signal);
   const extras = legacyDemo
@@ -420,7 +439,7 @@ export async function prepareAdditions(plan, existing = [], { signal } = {}) {
       plan.rejectedIds?.includes(venue.id)
     )
       continue;
-    if (!candidates.some((v) => v.id === venue.id || v.name === venue.name))
+    if (!candidates.some((v) => sameBusiness(v, venue)))
       candidates.push(venue);
   }
   const ranked = await recommend(
@@ -441,7 +460,8 @@ export async function prepareAdditions(plan, existing = [], { signal } = {}) {
   return {
     candidates,
     matrix,
-    notice: noticeForPlan(plan) + routeNotice + ranked.notice,
+    notice: noticeForPlan({ ...plan, stops: candidates }) +
+      (found.live ? "" : found.notice) + routeNotice + ranked.notice,
   };
 }
 

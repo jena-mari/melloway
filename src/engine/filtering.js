@@ -2,6 +2,7 @@ import { km, schedule, transportAllowance } from "../utils/planner.js";
 import { planningArea } from "../utils/location.js";
 import { venueRoles } from "./preferences.js";
 import { scoreVenue } from "./scoring.js";
+import { sameBusiness } from "./discoveryPool.ts";
 import {
   estimatedCost,
   allocateActivityBudgets,
@@ -106,12 +107,26 @@ export function selectCandidates(
     .filter((v) => !venueRejection(v, prefs, intent, rejectedIds))
     .map((v) => scoreVenue(v, prefs, intent, weights))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));
-  // Keep representatives of every requested role before filling the bounded pool.
+  // Curated venues are the primary catalogue. In a mixed pool reserve up to half
+  // the shortlist for the best eligible curated matches, with requested-role
+  // coverage first. This reserves candidates, never mandatory itinerary stops.
   const chosen = [];
   const add = (v) => {
-    if (v && !chosen.some((c) => c.id === v.id || c.name === v.name))
+    if (v && chosen.length < 14 && !chosen.some((c) => sameBusiness(c, v)))
       chosen.push(v);
   };
+  if (eligible.some((v) => v.source === "google")) {
+    const curated = eligible.filter((v) => v.source === "curated");
+    for (const role of intent.requiredRoles)
+      add(curated.find((v) => venueRoles(v).includes(role)) ||
+        eligible.find((v) => venueRoles(v).includes(role)));
+    const target = Math.min(7, curated.length);
+    for (const v of curated) {
+      if (chosen.filter((c) => c.source === "curated").length >= target) break;
+      add(v);
+    }
+  }
+  // Retain additional choices for each role before filling by the shared score.
   for (const role of intent.requiredRoles)
     eligible
       .filter((v) => venueRoles(v).includes(role))
