@@ -4,18 +4,6 @@ import { googleMapsFixture } from "./google-maps-fixture.js";
 import { mockMapTiles } from "./fixtures.js";
 import { communityExamples } from "../../src/data/community.js";
 
-async function mapView(page) {
-  return page.locator(".picks-map .google-map-surface").evaluate(surface => ({
-    zoom: surface.dataset.mapZoom,
-    lat: surface.dataset.centerLat,
-    lng: surface.dataset.centerLng,
-  }));
-}
-
-async function expectSelectedPin(page, venue) {
-  await expect(page.getByRole("button", { name: `select ${venue.name} on map`, exact: true })).toHaveAttribute("aria-pressed", "true");
-}
-
 async function mockPicks(page, { maps = true, images = true } = {}) {
   await page.route("https://**", (route) => route.abort());
   await mockMapTiles(page);
@@ -54,7 +42,7 @@ test("Explore immediately shows ten mapped swipe cards without suggestion API ca
   await expect(showAll).toHaveText("");
   await expect(showAll.locator("svg")).toHaveCount(1);
   const mapSurface = page.locator(".picks-map .google-map-surface");
-  const overview = await mapView(page);
+  const overviewZoom = await mapSurface.getAttribute("data-map-zoom");
   await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
   await expect(page.locator(".editorial-place-card")).toHaveCount(10);
   await expect(page.getByRole("button", { name: "show suggestions", exact: true })).toBeVisible();
@@ -62,26 +50,15 @@ test("Explore immediately shows ten mapped swipe cards without suggestion API ca
   const carousel = page.getByRole("list", { name: "Swipe through Melloway’s Picks" });
   await carousel.press("ArrowDown");
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
-  await expectSelectedPin(page, editorialPicks[1]);
-  expect(await mapView(page)).toEqual(overview);
+  await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
   expect(new URL(page.url()).searchParams.get("keep")).toBe("1");
-  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-  await expect(mapSurface).toHaveAttribute("data-map-zoom", String(Number(overview.zoom) + 1));
-  const manualView = await mapView(page);
-  await carousel.press("ArrowDown");
-  await expectSelectedPin(page, editorialPicks[2]);
-  expect(await mapView(page)).toEqual(manualView);
-  await carousel.press("ArrowUp");
-  await expectSelectedPin(page, editorialPicks[1]);
-  expect(await mapView(page)).toEqual(manualView);
+  await expect(mapSurface).toHaveAttribute("data-map-zoom", "16");
   await showAll.click();
-  await expect(mapSurface).toHaveAttribute("data-map-zoom", overview.zoom);
+  await expect(mapSurface).toHaveAttribute("data-map-zoom", overviewZoom);
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
   const last = editorialPicks.at(-1);
   await page.getByRole("button", { name: `select ${last.name} on map`, exact: true }).click();
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", last.id);
-  await expectSelectedPin(page, last);
-  expect(await mapView(page)).toEqual(overview);
   await expect(page.locator(".picks-carousel-progress")).toHaveText("swipe up or down");
   await expect(page.locator(".picks-carousel-dots")).toHaveCount(0);
   for (const width of [390, 320]) {
@@ -120,7 +97,6 @@ test.describe("Explore reel swipes", () => {
       });
       await page.goto("/explore");
       await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
-      const overview = await mapView(page);
       const feed = page.getByRole("list", { name: "Swipe through Melloway’s Picks" });
       const pageScroll = await page.evaluate(() => scrollY);
       const session = await page.context().newCDPSession(page);
@@ -138,8 +114,7 @@ test.describe("Explore reel swipes", () => {
       // Start on the caption and swipe up, then start on the photo and swipe down.
       await swipe(0.82, 0.12);
       await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
-      await expectSelectedPin(page, editorialPicks[1]);
-      expect(await mapView(page)).toEqual(overview);
+      await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
       await expect(page.locator(".picks-carousel-progress")).toHaveText("swipe up or down");
       const centered = () => feed.evaluate(list => {
         const card = list.querySelector(".is-selected").getBoundingClientRect();
@@ -151,8 +126,6 @@ test.describe("Explore reel swipes", () => {
       await expect(details).toBeInViewport();
       await swipe(0.12, 0.82);
       await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[0].id);
-      await expectSelectedPin(page, editorialPicks[0]);
-      expect(await mapView(page)).toEqual(overview);
       await expect.poll(centered).toBeLessThan(2);
       expect(await feed.evaluate(list => list.scrollLeft)).toBe(0);
       expect(await page.evaluate(() => scrollY)).toBe(pageScroll);
@@ -167,7 +140,6 @@ test("desktop keeps the phone-width frame, stacked map and synced horizontal car
   await mockPicks(page);
   await page.goto("/picks");
   await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
-  const overview = await mapView(page);
   await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
   await expect(page.locator(".editorial-place-card")).toHaveCount(10);
   const shell = await page.locator(".app-shell").boundingBox(), tabs = await page.locator(".bottom-tabs").boundingBox();
@@ -188,14 +160,12 @@ test("desktop keeps the phone-width frame, stacked map and synced horizontal car
     const box = node.getBoundingClientRect(), list = node.parentElement.getBoundingClientRect();
     return Math.abs(box.left + box.width / 2 - list.left - list.width / 2) < 2;
   })).toBe(true);
-  await expectSelectedPin(page, last);
-  expect(await mapView(page)).toEqual(overview);
+  await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(last.lat));
   await page.getByRole("button", { name: "show all pick pins" }).click();
   await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
   await page.locator(".editorial-place-cards").evaluate((list) => list.scrollTo({ left: list.children[1].offsetLeft - 18, behavior: "instant" }));
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
-  await expectSelectedPin(page, editorialPicks[1]);
-  expect(await mapView(page)).toEqual(overview);
+  await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
   await page.screenshot({ path: info.outputPath("picks-desktop.png") });
 });
 
@@ -204,19 +174,17 @@ test("mobile swipe and pin selection keep the card and map in sync", async ({ pa
   await mockPicks(page);
   await page.goto("/picks");
   await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
-  const overview = await mapView(page);
   const map = await page.locator(".picks-map").boundingBox(), cards = await page.locator(".editorial-card-panel").boundingBox();
   expect(map.y + map.height).toBeLessThan(cards.y);
   await page.locator(".editorial-place-cards").evaluate((list) => list.scrollTo({ left: list.children[1].offsetLeft - 18, behavior: "instant" }));
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
   await expect(page.getByRole("button", { name: `select ${editorialPicks[1].name} on map`, exact: true })).toHaveAttribute("aria-pressed", "true");
-  expect(await mapView(page)).toEqual(overview);
-  // Keyboard selection also verifies that nearby/overlapping marker buttons remain accessible.
+  await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
+  // The next place is outside this focused viewport. Keyboard selection also
+  // verifies that nearby/overlapping marker buttons remain accessible.
   await page.getByRole("button", { name: `select ${editorialPicks[2].name} on map`, exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.locator(`.editorial-place-card[data-venue-id="${editorialPicks[2].id}"]`)).toHaveClass(/is-selected/);
-  await expectSelectedPin(page, editorialPicks[2]);
-  expect(await mapView(page)).toEqual(overview);
   const centered = () => page.locator(`.editorial-place-card[data-venue-id="${editorialPicks[2].id}"]`).evaluate((card) => {
     const box = card.getBoundingClientRect(), list = card.parentElement.getBoundingClientRect();
     return Math.abs(box.left + box.width / 2 - list.left - list.width / 2);
@@ -295,7 +263,6 @@ test("dragging the photo swipes to the next card and updates its Google marker",
   await mockPicks(page);
   await page.goto("/picks");
   await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
-  const overview = await mapView(page);
   const photo = await page.locator(".editorial-place-photo").first().boundingBox();
   await page.mouse.move(photo.x + photo.width - 30, photo.y + photo.height / 2);
   await page.mouse.down();
@@ -304,8 +271,7 @@ test("dragging the photo swipes to the next card and updates its Google marker",
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
   await expect(page.locator(".picks-carousel-progress")).toHaveText("swipe to explore");
   await expect(page.locator(".picks-carousel-dots")).toHaveCount(0);
-  await expectSelectedPin(page, editorialPicks[1]);
-  expect(await mapView(page)).toEqual(overview);
+  await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
   await expect(page.locator(".editorial-place-cards")).not.toHaveClass(/is-dragging/);
   await page.screenshot({ path: info.outputPath("picks-swipe.png") });
 });

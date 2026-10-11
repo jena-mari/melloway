@@ -6,13 +6,13 @@ function markerContent(element, [point]) {
   element.textContent = String(point.number);
 }
 
-export default function PicksMap({ venues, selectedId, onSelect, onShowAll, resetView }) {
+export default function PicksMap({ venues, selectedId, focusPoint, onSelect, onShowAll, resetView }) {
   const points = useMemo(() => venues.map((venue) => ({
     ...venue, className: "editorial-pick-pin", ariaLabel: `select ${venue.name} on map`,
   })), [venues]);
   const active = venues.find((venue) => venue.id === selectedId) || venues[0];
   return <section className="picks-map" aria-label="Map of Melloway’s Picks" data-selected-place={selectedId}>
-    <GoogleMapCanvas points={points} selectedId={selectedId}
+    <GoogleMapCanvas points={points} selectedId={selectedId} focusPoint={focusPoint}
       onSelect={onSelect} resetView={resetView} markerContent={markerContent}
       className="picks-map-canvas" ariaLabel="Interactive picks map"
       fallback={<div className="picks-map-unavailable" role="status">
