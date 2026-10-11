@@ -66,6 +66,7 @@ function sourcesFrom(payload: unknown, query: string): SocialSearchSource[] {
     if (payload.code === 'SETUP_REQUIRED') throw new Error('Install TikTokApi first. Follow docs/TIKTOKAPI.md setup.');
     if (payload.code === 'SESSION_FAILED') throw new Error('TikTokApi browser/session failed. Check setup or supply your own TIKTOK_MS_TOKEN locally; see docs/TIKTOKAPI.md. No candidates saved.');
     if (payload.code === 'TIMEOUT') throw new Error('TikTokApi search timed out. No candidates saved.');
+    if (payload.code === 'EMPTY_RESPONSE') throw new Error('TikTok returned an empty search response, so no video data could be read. No candidates saved. See docs/TIKTOKAPI.md.');
     throw failure();
   }
   if (payload.status !== 'ok' || payload.query !== query || !Array.isArray(payload.videos)

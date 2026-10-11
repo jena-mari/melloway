@@ -83,6 +83,22 @@ test('TikTok setup, session and search errors are actionable without leaking wor
   } }), error => error instanceof Error && !error.message.includes('mock-private-token'));
 });
 
+test('TikTok empty search response is a failure, never successful zero results or a cookie diagnosis', async () => {
+  let calls = 0;
+  await assert.rejects(discoverTikTokCafeVideos(mockCafe, { mode: 'live', collector: async () => {
+    calls++;
+    return { version: 1, status: 'error', code: 'EMPTY_RESPONSE', detail: 'mock-private-session-token' };
+  } }), error => {
+    assert.ok(error instanceof Error);
+    assert.match(error.message, /empty search response/);
+    assert.match(error.message, /No candidates saved/);
+    assert.ok(!error.message.includes('mock-private-session-token'));
+    assert.ok(!error.message.includes('invalid cookie'));
+    return true;
+  });
+  assert.equal(calls, 1);
+});
+
 test('TikTok stalled collector is bounded, aborted and never retried', async () => {
   let calls = 0;
   let signal: AbortSignal | undefined;

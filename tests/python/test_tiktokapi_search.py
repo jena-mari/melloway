@@ -33,6 +33,8 @@ class MockApi:
     async def make_request(self, **options):
         self.requests.append(options)
         if self.search_error:
+            if isinstance(self.search_error, Exception):
+                raise self.search_error
             raise RuntimeError("mock-private-session-token")
         return self.response
 
@@ -67,6 +69,19 @@ class CollectorTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaisesRegex(collector.CollectorError, "^SEARCH_FAILED$"):
             await collector.search_once("Mock", lambda **kw: api)
         self.assertEqual(len(api.requests), 1)
+
+    async def test_empty_response_has_a_specific_safe_error_and_is_not_retried(self):
+        # MOCK of the pinned library exception; no TikTokApi dependency or network.
+        class EmptyResponseException(Exception):
+            pass
+
+        api = MockApi({}, search_error=EmptyResponseException("mock-private-session-token"))
+        with self.assertRaises(collector.CollectorError) as caught:
+            await collector.search_once("Mock", lambda **kw: api)
+        self.assertEqual(str(caught.exception), "EMPTY_RESPONSE")
+        self.assertNotIn("mock-private-session-token", str(caught.exception))
+        self.assertEqual(len(api.requests), 1)
+        self.assertEqual(api.requests[0]["retries"], 1)
 
     def test_missing_or_malformed_data_is_not_a_successful_empty_result(self):
         for value in [None, {}, {"status_code": 1, "item_list": []},

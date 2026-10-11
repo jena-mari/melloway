@@ -74,6 +74,15 @@ OpenAI/Ticketmaster/Google credentials are excluded. Library stdout/stderr and
 exception details are suppressed. No CAPTCHA solving, paid proxies or other
 block-circumvention fallback is implemented.
 
+### Empty search responses
+
+`EMPTY_RESPONSE` means the library received a blank response instead of search
+JSON. This is a failure, not a successful search with zero matches. It does not
+establish that your cookie is invalid or expired. The CLI saves no candidates
+and does not automatically retry. A working browser session alone does not prove
+this unofficial search endpoint will return usable videos. Repeatedly pasting
+cookies or rerunning the command is not a confirmed fix.
+
 If the optional environment was installed elsewhere, set `TIKTOK_PYTHON` in the
 root `.env` to that virtual environment's Python executable. The browser still
 belongs in `.local/discovery/playwright` for this checkout.
@@ -118,10 +127,30 @@ Validation on 11 October 2026:
   were saved and no queue file was created.** The available result does not prove
   which TikTok restriction caused the failure, or that supplying `msToken` fixes it.
   No automatic retry, paid provider call, proxy or real candidate approval occurred.
-- Useful live results with the user's own session cookie remain **unverified**.
-  There is no map import, video transcription or location extraction in this task.
+- A user-authorized saved-cookie run also failed without saving candidates. One
+  subsequent bounded diagnostic confirmed browser/session creation succeeded and
+  the single search request received **HTTP 200 with an empty body**, causing
+  TikTokApi's `EmptyResponseException`. No response JSON or video data was
+  available. This establishes the failure point; it does not establish why TikTok
+  sent a blank body or whether the cookie is valid. The CLI now reports this
+  specific failure without exposing raw library errors or session data.
+- Useful live results remain **unverified**. No further live retry was made after
+  that diagnostic. There is no map import, video transcription or location
+  extraction in this task.
 
-Changed files: `.env.example`, `.gitignore`, `package.json`,
+Follow-up empty-response fix, also on 11 October 2026:
+
+- `npm run test:tiktokapi`: **12 Node tests + 8 Python tests passed**.
+- `npm test`: **244 tests passed** (160 JavaScript, 35 events, 49 discovery),
+  including the latest main catalogue/frontend commits preserved before this fix.
+- `npm run typecheck` and `npm run build`: passed; the existing Vite large-chunk
+  warning remains. All automated tests used mocks, with no live browser/provider
+  requests. No real phone or useful live-video result was verified.
+- Only `scripts/tiktokapi_search.py`, `server/tiktokDiscovery.ts`, their two test
+  files and this document changed for the follow-up. Frontend, dependencies,
+  lockfile, credentials and generated research are unchanged.
+
+Changed files for the original adapter: `.env.example`, `.gitignore`, `package.json`,
 `scripts/discovery-review.ts`, `scripts/tiktokapi_search.py`,
 `scripts/tiktokapi-requirements.txt`, `server/tiktokDiscovery.ts`,
 `tests/tiktok-discovery.test.ts`, `tests/python/test_tiktokapi_search.py`,

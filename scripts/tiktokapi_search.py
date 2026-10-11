@@ -60,8 +60,11 @@ async def search_once(query, api_factory=None, token=None):
                 params={"keyword": query, "count": 10, "cursor": 0, "source": "search_video"},
                 # In TikTokApi 7.3.3 this is total attempts, despite the name.
                 retries=1, exponential_backoff=False, session_index=0)
-        except Exception:
-            raise CollectorError("SEARCH_FAILED") from None
+        except Exception as error:
+            # Retain only a fixed protocol code, never a library message/URL/cookie.
+            # Named here so mock-only tests do not require installing TikTokApi.
+            code = "EMPTY_RESPONSE" if type(error).__name__ == "EmptyResponseException" else "SEARCH_FAILED"
+            raise CollectorError(code) from None
         return {"version": 1, "status": "ok", "query": query, "videos": video_sources(response)}
 
 
