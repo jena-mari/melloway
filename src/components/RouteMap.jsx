@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Maximize2,
   ArrowUpRight,
-  LocateFixed,
-  ListOrdered,
   X,
 } from "lucide-react";
 import GoogleMapCanvas from "./GoogleMapCanvas";
@@ -36,18 +34,18 @@ function routeMarker(element, group) {
   element.append(numbers);
 }
 
-function MapCanvas({ stops, transport, interactive, selectedStopId, onSelectStop, resetView, routePaths, transportMode }) {
+function MapCanvas({ stops, transport, interactive, selectedStopId, onSelectStop, routePaths, transportMode }) {
   const points = useMemo(() => stops.map((stop, index) => ({
     ...stop, index, className: "route-pin editorial-pick-pin",
     ariaLabel: `Show ${String.fromCharCode(65 + index)}. ${stop.name} in your plan`,
   })), [stops]);
   if (stops.some((stop) => stop.source === "google"))
     return <GoogleStopMap stops={stops} selectedStopId={selectedStopId}
-      onSelectStop={onSelectStop} directionsUrl={directions(stops, transport)} routePaths={routePaths} transport={transportMode} resetView={resetView} />;
+      onSelectStop={onSelectStop} directionsUrl={directions(stops, transport)} routePaths={routePaths} transport={transportMode} />;
   return (
     <div className={`street-map ${interactive ? "interactive-map" : "map-preview"}`}>
       <GoogleMapCanvas routePaths={routePaths} routeTransport={transportMode} points={points} selectedId={selectedStopId}
-        onSelect={onSelectStop} resetView={resetView} interactive={interactive}
+        onSelect={onSelectStop} interactive={interactive}
         groupNearby mapStyles={quietMapStyles} routeColorVar="--pink" markerContent={routeMarker} ariaLabel="Map of your stops"
         renderPreview={(points, onSelect, onClose) => <MapSpotPreview points={points} onSelect={onSelect} onClose={onClose} />}
         fallback={<div className="map-unavailable">
@@ -64,7 +62,6 @@ function MapCanvas({ stops, transport, interactive, selectedStopId, onSelectStop
 export default function RouteMap({
   id = "route-map",
   title = "ur day, mapped out.",
-  compact = false,
   stops,
   transport = "Not selected",
   date,
@@ -74,13 +71,9 @@ export default function RouteMap({
 }) {
   const dialog = useRef(null);
   const [open, setOpen] = useState(false);
-  const [legend, setLegend] = useState(false);
-  const [resetView, setResetView] = useState(0);
-  const legendId = id === "route-map" ? "map-stop-legend" : `${id}-legend`;
   const titleId = id === "route-map" ? "expanded-map-title" : `${id}-title`;
   function selectStop(id) {
     dialog.current?.close();
-    setLegend(false);
     onSelectStop?.(id);
   }
   const [routes, setRoutes] = useState(null);
@@ -127,28 +120,8 @@ export default function RouteMap({
           interactive={false}
           selectedStopId={selectedStopId}
           onSelectStop={selectStop}
-          resetView={resetView}
         />
         <div className="map-toolbar">
-          {!compact && (
-            <button
-              className="map-legend-toggle"
-              aria-expanded={legend}
-              aria-controls={legendId}
-              onClick={() => setLegend((old) => !old)}
-            >
-              <ListOrdered size={17} /> stop order
-            </button>
-          )}
-          {!compact && (
-            <button
-              className="map-fit"
-              aria-label="show whole route"
-              onClick={() => setResetView((old) => old + 1)}
-            >
-              <LocateFixed size={19} />
-            </button>
-          )}
           <button
             className="map-expand"
             aria-label="expand map"
@@ -161,18 +134,6 @@ export default function RouteMap({
             <Maximize2 size={16} /> expand
           </button>
         </div>
-        {legend && (
-          <ol className="map-stop-legend" id={legendId}>
-            {stops.map((stop, i) => (
-              <li key={stop.id}>
-                <button onClick={() => selectStop(stop.id)}>
-                  <span>{String.fromCharCode(65 + i)}</span>
-                  {stop.name}
-                </button>
-              </li>
-            ))}
-          </ol>
-        )}
       </div>
       <p className="map-caption">{caption} {routeWarnings}</p>
       <dialog

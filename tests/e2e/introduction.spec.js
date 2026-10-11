@@ -665,9 +665,8 @@ test("result search, filters and map selection preserve the full generated day",
   await page.locator('.map-preview .route-pin').first().tap();
   await expect(page.getByRole('region', {name:`${original.stops[0].name} stop details`, exact:true})).toBeVisible();
   await expect(page.locator('.route-summary-spot').first()).toHaveAttribute('aria-expanded','true');
-  await page.getByRole('button', {name:'stop order',exact:true}).tap();
-  await expect(page.locator('#map-stop-legend li')).toHaveCount(count);
-  await page.locator('#map-stop-legend button').last().tap();
+  await expect(page.locator('.map-preview .pin-numbers span:not([hidden])')).toHaveCount(count);
+  await page.locator('.route-summary-spot').last().tap();
   await expect(page.getByRole('region', {name:`${original.stops.at(-1).name} stop details`,exact:true})).toBeVisible();
   await expect(page.locator('.inline-stop-expansion')).toHaveCount(1);
   await expect(
