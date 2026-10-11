@@ -1,10 +1,27 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { editorialPicks } from "../src/data/editorialPicks.js";
-import { sydneyVenues } from "../src/data/sydneyVenues.js";
+import { sydneyVenues, curatedVenuesForDate } from "../src/data/sydneyVenues.js";
 import { mellowayPicks } from "../src/data/mellowayPicks.js";
+import { directions } from "../src/utils/planner.js";
 
 const byId = (id) => editorialPicks.find((venue) => venue.id === id);
+
+test("Glebe Markets shares the school location across the planner, editorial pick and Google Maps links", () => {
+  const expected = { lat: -33.88346, lng: 151.19116 };
+  const address = "Glebe Public School, 46–56 Glebe Point Road, Glebe NSW 2037";
+  const catalog = sydneyVenues.find((venue) => venue.id === "sydney-glebe-markets");
+  const planned = curatedVenuesForDate("2026-10-17").find((venue) => venue.id === catalog.id);
+  for (const venue of [catalog, byId(catalog.id), planned]) {
+    assert.deepEqual({ lat: venue.lat, lng: venue.lng }, expected);
+    assert.equal(venue.address, address);
+    assert.equal(new URL(directions([venue], "Walking")).searchParams.get("query"), "-33.88346,151.19116");
+  }
+  const other = sydneyVenues.find((venue) => venue.id === "sydney-kinokuniya");
+  const route = new URL(directions([planned, other], "Walking"));
+  assert.equal(route.searchParams.get("origin"), "-33.88346,151.19116");
+  assert.equal(route.searchParams.get("destination"), `${other.lat},${other.lng}`);
+});
 
 test("editorial collections have ten unique places, with Glebe shared by ID", () => {
   assert.equal(editorialPicks.length, 10);

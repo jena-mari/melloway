@@ -81,9 +81,9 @@ export const sydneyVenues = [
   place(
     "glebe-markets",
     "Glebe Markets",
-    "46–56 Glebe Point Road, Glebe NSW 2037",
-    -33.8848,
-    151.193,
+    "Glebe Public School, 46–56 Glebe Point Road, Glebe NSW 2037",
+    -33.88346,
+    151.19116,
     "Flea markets",
     ["Flea markets", "Thrifting", "Vintage stores", "Shopping"],
     ["shop"],

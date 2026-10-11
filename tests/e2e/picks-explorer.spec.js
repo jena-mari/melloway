@@ -1,6 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { mediaVenueKey } from '../../packages/domain/src/venueMedia.ts';
 import { editorialPicks } from "../../src/data/editorialPicks.js";
+import { curatedVenuesForDate } from "../../src/data/sydneyVenues.js";
+import { defaultDraft } from "../../src/data/preferences.js";
+import { demoMatrix, schedule } from "../../src/utils/planner.js";
 import { googleMapsFixture } from "./google-maps-fixture.js";
 import { mockMapTiles } from "./fixtures.js";
 import { communityExamples } from "../../src/data/community.js";
@@ -19,6 +22,65 @@ async function mockPicks(page, { maps = true, images = true } = {}) {
     ? route.fulfill({ contentType: "image/svg+xml", body: '<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="960"><rect width="1280" height="960" fill="#cbd8bc"/><text x="160" y="300" font-size="28">Supplied photo test fixture</text></svg>' })
     : route.abort());
 }
+
+test("Glebe Markets uses its school location in Picks, venue details and itinerary routing", async ({ page }) => {
+  const id = "sydney-glebe-markets";
+  const coordinates = { lat: -33.88346, lng: 151.19116 };
+  const address = "Glebe Public School, 46–56 Glebe Point Road, Glebe NSW 2037";
+  const query = "-33.88346,151.19116";
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockPicks(page);
+  await page.goto("/picks");
+  const surface = page.locator(".picks-map .google-map-surface");
+  await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
+  expect(JSON.parse(await surface.getAttribute("data-fitted-points"))).toContainEqual(coordinates);
+  const pin = page.getByRole("button", { name: "select Glebe Markets on map", exact: true });
+  await pin.focus();
+  await page.keyboard.press("Enter");
+  await expect(surface).toHaveAttribute("data-center-lat", String(coordinates.lat));
+  await expect(surface).toHaveAttribute("data-center-lng", String(coordinates.lng));
+  await expect(pin).toHaveAttribute("aria-pressed", "true");
+  await page.goto(`/explore?place=${id}`);
+  await page.getByRole("button", { name: "view Glebe Markets details", exact: true }).click();
+  const details = page.getByRole("dialog", { name: "Glebe Markets", exact: true });
+  await expect(details).toContainText(address);
+  expect(new URL(await details.getByRole("link", { name: "check it on Google Maps" }).getAttribute("href")).searchParams.get("query")).toBe(query);
+  await page.keyboard.press("Escape");
+
+  for (const path of [`/picks/places/${id}`, `/venue/${id}`]) {
+    await page.goto(path);
+    await expect(page.getByRole("heading", { name: "Glebe Markets", exact: true })).toBeVisible();
+    await expect(page.locator(".venue")).toContainText(address);
+    expect(new URL(await page.getByRole("link", { name: "check it on Google Maps" }).getAttribute("href")).searchParams.get("query")).toBe(query);
+  }
+
+  const prefs = { ...defaultDraft(), date: "2026-10-17", time: "11:00", transport: "Walking", budget: 100, duration: 5 };
+  const catalog = curatedVenuesForDate(prefs.date);
+  const stops = [id, "sydney-kinokuniya"].map(id => ({ ...catalog.find(venue => venue.id === id), score: 10 }));
+  const matrix = demoMatrix(stops, prefs.transport);
+  const plan = { ...schedule(stops, prefs, matrix, [0, 1]), prefs, id: "glebe-location-fixture" };
+  expect(plan.stops).toHaveLength(2);
+  await page.evaluate(value => localStorage.setItem("melloway.current", JSON.stringify(value)), { plan, candidates: stops, matrix });
+  const routeRequests = [];
+  await page.route("**/api/itinerary-routes", route => {
+    const body = route.request().postDataJSON();
+    routeRequests.push(body);
+    return route.fulfill({ json: { transport: body.transport, missingLegs: 0, warnings: [],
+      paths: [{ fromIndex: 0, toIndex: 1, path: body.stops.map(({ lat, lng }) => ({ lat, lng })) }] } });
+  });
+  await page.goto("/itinerary");
+  await expect(page.locator(".route-map-hero .google-map-surface")).toHaveAttribute("data-route-legs", "1");
+  expect(routeRequests.length).toBeGreaterThan(0);
+  for (const body of routeRequests) {
+    expect(body.stops[0]).toMatchObject({ name: "Glebe Markets", ...coordinates });
+    expect(body.stops[1]).toMatchObject({ lat: stops[1].lat, lng: stops[1].lng });
+  }
+  expect(JSON.parse(await page.locator(".route-map-hero .google-map-surface").getAttribute("data-fitted-points"))).toContainEqual(coordinates);
+  await expect(page.locator(".route-summary-spot").first()).toContainText(address);
+  const directions = new URL(await page.getByRole("link", { name: "open Google Maps", exact: true }).getAttribute("href"));
+  expect(directions.searchParams.get("origin")).toBe(query);
+  expect(directions.searchParams.get("destination")).toBe(`${stops[1].lat},${stops[1].lng}`);
+});
 
 test("Explore applies local map styling without losing pins or changing the onboarding map", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
