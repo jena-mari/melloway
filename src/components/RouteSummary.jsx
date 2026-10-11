@@ -54,7 +54,9 @@ export default function RouteSummary({
           </button> : plan.title || location}</h2>
           <div className="route-day-schedule" aria-label="Your day timing">
             <p><time dateTime={plan.prefs.date}>{formatRouteDate(plan.prefs.date)}</time> · {formatTime(minutes(plan.prefs.time))} start</p>
-            <p><strong>~{formatRouteDuration(plan.elapsed)} / {formatRouteDuration(Number(plan.prefs.duration) * 60)} available</strong></p>
+            <p><strong>~{formatRouteDuration(plan.elapsed)} / {formatRouteDuration(Number(plan.prefs.duration) * 60)} available</strong>
+              {' · '}<span>{plan.prefs.transport === 'Not selected' ? 'Travel mode not selected · planning buffer' : plan.prefs.transport} · {plan.travel} min · estimated</span>
+            </p>
           </div>
         </div>
         {!readOnly && <button

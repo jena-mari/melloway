@@ -576,12 +576,9 @@ export default function Itinerary({
         <details className="route-summary-meta">
           <summary className="route-summary-total">
             {Math.floor(plan.elapsed / 60)}h {Math.round(plan.elapsed % 60)}m ·
-            ~${plan.cost} each
+            ~${plan.cost} / ${d.budget} each
             <ChevronDown size={13} aria-hidden="true" />
           </summary>
-          <p>
-            {d.transport === 'Not selected' ? 'Travel mode not selected · planning buffer' : d.transport} · {plan.travel} min · estimated
-          </p>
           <BudgetSplit
             key={plan.id}
             plan={plan}

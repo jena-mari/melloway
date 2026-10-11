@@ -28,7 +28,7 @@ const overview = page => page.getByLabel('Your day timing', { exact: true });
 const storedPlan = page => page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')).plan);
 
 test('selected date, visit times, incoming travel and used / available hours stay visible after refresh', async ({ page }, info) => {
-  const bundle = fixture();
+  const bundle = fixture({ transport: 'Public transport' });
   expect(bundle.plan.elapsed).toBe(200);
   await seed(page, bundle);
   await expect(overview(page)).toContainText('Sun, 18 Oct 2026');
@@ -36,9 +36,12 @@ test('selected date, visit times, incoming travel and used / available hours sta
   await expect(overview(page)).toContainText('2:00 pm start');
   await expect(overview(page)).not.toContainText('Sydney time');
   await expect(overview(page)).toContainText('~3h 20m / 5h available');
+  await expect(overview(page).locator('p').last()).toHaveText('~3h 20m / 5h available · Public transport · 35 min · estimated');
+  await expect(page.locator('.route-summary-meta')).not.toContainText('35 min · estimated');
+  await expect(page.locator('.route-summary-total')).toContainText(`~$${bundle.plan.cost} / $100 each`);
   await expect(overview(page)).not.toContainText('estimated, including travel and waiting');
   await expect(page.locator('.route-summary-spot small').first()).toHaveText('2:00 pm–2:30 pm');
-  await expect(page.locator('.route-leg-timing')).toHaveText(['A → B · ~15m walk', 'B → C · ~20m walk · 1h 15m wait']);
+  await expect(page.locator('.route-leg-timing')).toHaveText(['A → B · ~15m on public transport', 'B → C · ~20m on public transport · 1h 15m wait']);
   await expect(page.locator('.route-stop-box .route-leg-timing')).toHaveCount(0);
   await expect(page.locator('.inline-stop-expansion')).toHaveCount(0);
   expect((await storedPlan(page)).stops).toEqual(bundle.plan.stops);
@@ -55,10 +58,12 @@ test('selected date, visit times, incoming travel and used / available hours sta
     }
     await page.locator('.route-summary').screenshot({ path: info.outputPath(`day-timing-${width}.png`) });
   }
+  await page.locator('.route-summary-total').screenshot({ path: info.outputPath('cost-against-budget.png') });
   await page.getByRole('button', { name: 'lock this in', exact: true }).click();
   await page.reload();
   await expect(overview(page)).toContainText('~3h 20m / 5h available');
   await expect(overview(page)).toContainText('Sun, 18 Oct 2026');
+  await expect(overview(page)).toContainText('available · Public transport · 35 min · estimated');
   expect((await storedPlan(page)).stops).toEqual(bundle.plan.stops);
 });
 
@@ -80,6 +85,7 @@ test('unset modes remain travel buffers and missing legs do not become zero-minu
   const bundle = fixture({ transport: 'Not selected' });
   delete bundle.plan.stops[1].travelFromPrevious;
   await seed(page, bundle);
+  await expect(overview(page)).toContainText('available · Travel mode not selected · planning buffer · 35 min · estimated');
   await expect(page.locator('.route-leg-timing')).toHaveText(['A → B · 15m between stops · travel estimate unavailable', 'B → C · ~20m travel buffer · 1h 15m wait']);
 });
 
