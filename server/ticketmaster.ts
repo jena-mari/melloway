@@ -98,7 +98,8 @@ async function fetchEvents(options: FetchOptions, preferences?: EventPreferences
   if (preferences?.location) {
     url.searchParams.delete('city');
     url.searchParams.set('latlong', `${preferences.location.lat},${preferences.location.lng}`);
-    url.searchParams.set('radius', String(preferences.location.r));
+    // Ticketmaster rejects fractional radii; retain the exact radius in withinLocation below.
+    url.searchParams.set('radius', String(Math.ceil(preferences.location.r)));
     url.searchParams.set('unit', 'km');
   }
   const signal = AbortSignal.timeout(10_000); // One deadline shared by every page.

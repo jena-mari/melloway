@@ -1,7 +1,7 @@
 import test, { beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { fetchSydneyEvents } from '../server/ticketmaster.ts';
+import { fetchSydneyEvents, searchSydneyEvents } from '../server/ticketmaster.ts';
 
 const now = new Date('2026-10-11T00:00:00Z');
 const fakeKey = 'mock-secret-key';
@@ -136,6 +136,24 @@ test('empty results return an empty array without demo substitutions', async () 
   for (const payload of [{ page: { totalElements: 0 } }, { _embedded: { events: [] } }]) {
     assert.deepEqual(await fetchSydneyEvents({ now, fetcher: async () => Response.json(payload) }), []);
   }
+});
+
+test('fractional location radii use a whole-number provider search and preserve the exact boundary', async () => {
+  const preferences = { date: '2026-10-12', time: '19:00', duration: 3, budget: 80,
+    location: { lat: -33.86, lng: 151.21, r: 2.5 } };
+  const results = await searchSydneyEvents(preferences, { fetcher: async input => {
+    const url = new URL(String(input));
+    assert.equal(url.searchParams.get('radius'), '3');
+    assert.equal(url.searchParams.get('unit'), 'km');
+    // Both fixtures are within the provider's 3 km search; only the first is within 2.5 km.
+    return Response.json({ _embedded: { events: [-33.8384, -33.835].map((latitude, index) => ({
+      ...event(), id: `radius-${index}`, _embedded: { venues: [{
+        name: 'Mock venue', location: { latitude, longitude: 151.21 },
+      }] },
+    })) } });
+  } });
+  assert.deepEqual(results.events.map(result => result.id), ['radius-0']);
+  assert.equal(preferences.location.r, 2.5);
 });
 
 test('HTTP errors report only the status, never the response body or key', async () => {
