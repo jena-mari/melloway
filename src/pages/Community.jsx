@@ -21,9 +21,21 @@ import MellowayPicks from "../components/MellowayPicks.jsx";
 import WeeklySuggestions from "../components/WeeklySuggestions";
 import { weeklyEdition, weeklyMatches } from "../data/weeklySuggestions.js";
 import BrandLogo from "../components/BrandLogo";
-import { matchingPicks } from "../data/mellowayPicks.js";
+import { matchingPicks, mellowayPicks } from "../data/mellowayPicks.js";
+import { sydneyVenues } from "../data/sydneyVenues.js";
+import { editorialPicks } from "../data/editorialPicks.js";
+import { searchPlaces } from "../utils/placeSearch.ts";
+import ExplorePlaces from "../components/ExplorePlaces.jsx";
 
 import { Avatar, timeAgo } from "../components/CommunityIdentity";
+
+const placeEntries = [
+  ...sydneyVenues.map(venue => ({ venue, href: `/venue/${venue.id}` })),
+  ...editorialPicks.map(venue => ({ venue, href: `/picks/places/${venue.id}` })),
+  ...mellowayPicks.flatMap(pick => pick.stops.map(venue => ({
+    venue, href: `/picks/${pick.id}/venue/${venue.id}`,
+  }))),
+];
 
 export function CommunityPost({
   post,
@@ -220,7 +232,13 @@ export default function Community() {
   const [params, setParams] = useSearchParams();
   const [show, setShow] = useState(params.get("compose") === "1");
   const [photo, setPhoto] = useState("");
-  const [query, setQuery] = useState("");
+  const query = params.get("q") || "";
+  function setQuery(value) {
+    const next = new URLSearchParams(params);
+    if (value) next.set("q", value);
+    else next.delete("q");
+    setParams(next, { replace: true });
+  }
   useEffect(() => {
     if (show) document.getElementById("title")?.focus();
   }, [show]);
@@ -281,11 +299,11 @@ export default function Community() {
       setShow(false);
       setParams({});
       setPhoto("");
-      setQuery("");
       setStatus("Added to ur device feed. This is not publicly published.");
     }
   }
   const text = query.trim().toLowerCase();
+  const placeMatches = searchPlaces(placeEntries, query);
   const feed = [...posts, ...examples].filter(
     (post) =>
       !text ||
@@ -445,7 +463,11 @@ export default function Community() {
           </Button>
         </form>
       )}
-      {!show && text && <><MellowayPicks query={query} /><WeeklySuggestions query={query} /></>}
+      {!show && text && <>
+        <ExplorePlaces places={placeMatches} />
+        <MellowayPicks query={query} />
+        <WeeklySuggestions query={query} />
+      </>}
       <section className="community-feed" aria-label="community route posts">
         {feed.map((post, index) => (
           <Fragment key={post.id}>
@@ -467,7 +489,7 @@ export default function Community() {
             {!show && !text && index === 0 && <><WeeklySuggestions /><MellowayPicks /></>}
           </Fragment>
         ))}
-        {!feed.length && !matchingPicks(query).length && !weeklyMatches(weeklyEdition(), {}, query).length && (
+        {!feed.length && !placeMatches.length && !matchingPicks(query).length && !weeklyMatches(weeklyEdition(), {}, query).length && (
           <div className="community-empty">
             <p>no posts found</p>
             <button
