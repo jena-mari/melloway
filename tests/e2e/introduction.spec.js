@@ -68,7 +68,7 @@ test("name, age and gender arrive separately and keep their answers", async ({
   await expect(age).toHaveAttribute("type", "number");
   expect((await age.boundingBox()).width).toBeGreaterThanOrEqual(240);
   await age.fill("17");
-  await continueQuestions(page);
+  await page.getByRole("button", { name: "continue", exact: true }).click();
   await expect(page.getByRole("alert")).toHaveText(
     "Enter a whole age between 18 and 100.",
   );
@@ -114,7 +114,7 @@ test("hanging out asks one thing at a time with optional extra details", async (
   await expect(budget).toHaveAttribute("type", "number");
   await expect(budget).toHaveAttribute("inputmode", "decimal");
   await budget.fill("");
-  await continueQuestions(page);
+  await page.getByRole("button", { name: "continue", exact: true }).click();
   await expect(page.getByRole("alert")).toHaveText(/\$0 to \$200 AUD/);
   await budget.fill("201");
   await page.getByRole("button", { name: /a few more details/ }).click();
@@ -326,9 +326,9 @@ test("results show the route summary, expandable map and spot sheets while swaps
   const numbers = (
     await page.locator(".map-preview .pin-numbers").allTextContents()
   )
-    .flatMap((s) => s.split(" · ").map(Number))
-    .sort((a, b) => a - b);
-  expect(numbers).toEqual(Array.from({ length: count }, (_, i) => i + 1));
+    .flatMap((s) => s.split(" · "))
+    .sort();
+  expect(numbers).toEqual(Array.from({ length: count }, (_, i) => String.fromCharCode(65 + i)));
   await page.waitForTimeout(500);
   await page.evaluate(() => document.fonts.ready);
   await page.screenshot({
@@ -352,9 +352,7 @@ test("results show the route summary, expandable map and spot sheets while swaps
   const zoom = Number(await canvas.getAttribute("data-map-zoom"));
   await dialog.getByRole("button", { name: "Zoom in" }).tap();
   await expect.poll(async () => Number(await canvas.getAttribute("data-map-zoom"))).toBeGreaterThan(zoom);
-  await expect(
-    dialog.getByRole("link", { name: "get directions" }),
-  ).toHaveAttribute("href", /travelmode=walking/);
+  expect(new URL(await dialog.getByRole("link", { name: "get directions" }).getAttribute("href")).searchParams.get("travelmode")).toBeNull();
   await page.keyboard.press("Escape");
   await expect(dialog).not.toBeVisible();
   await expect(expand).toBeFocused();
@@ -494,9 +492,7 @@ test("Google Places plans keep ordered directions without using demo map tiles",
     await page.locator(".route-summary-list li").count(),
   );
   await page.getByRole("button", { name: "close map", exact: true }).tap();
-  await expect(
-    page.getByRole("link", { name: "open Google Maps" }),
-  ).toHaveAttribute("href", /travelmode=walking/);
+  expect(new URL(await page.getByRole("link", { name: "open Google Maps" }).getAttribute("href")).searchParams.get("travelmode")).toBeNull();
 });
 
 test("local Maple Shore and Outfit fonts finish loading", async ({ page }) => {
@@ -989,7 +985,7 @@ test("unmatched location text never silently uses the previous location", async 
   await expect(page.locator(".location-search-status")).toHaveText(
     /no matches/,
   );
-  await continueQuestions(page);
+  await page.getByRole("button", { name: "continue", exact: true }).click();
   await expect(page.getByRole("alert")).toHaveText(/Choose a suggestion/);
   await page
     .getByRole("button", { name: "anywhere in Sydney is good", exact: true })

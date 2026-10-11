@@ -81,6 +81,9 @@ export function budgetCategory(venue) {
   return "activities";
 }
 export function replacementBudget(previous, venue) {
+  venue = { ...venue,
+    ...(previous.arrivalOverride != null ? { arrivalOverride: previous.arrivalOverride } : {}),
+    ...(previous.visitOverride != null ? { mins: previous.visitOverride, visitOverride: previous.visitOverride } : {}) };
   const category = budgetCategory(venue);
   const minimum = estimatedCost(venue);
   return previous.budgetCategory === category &&

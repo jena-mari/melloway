@@ -11,7 +11,7 @@ import { selectGoogleMapsBrowserKey } from "./googleMapsBrowserKey.ts";
 import { createSocialLinkHandler } from "./socialLinks.ts";
 import { createTikTokPlacesHandler } from "./tiktokPlacesMap.ts";
 import { createItineraryMapHandler } from "./itineraryMap.ts";
-import { validPreferences } from "../src/utils/planner.js";
+import { validPreferences, demoMatrix } from "../src/utils/planner.js";
 import { localLocations } from "../src/utils/location.js";
 import { createGoogleProvider } from "./google.js";
 import { createSocialProvider, validSocialVenue } from "./social.js";
@@ -206,7 +206,7 @@ export function createApiServer(options = {}) {
       if (itineraryRoutesRequest) {
         let request;
         try { request = readItineraryRouteRequest(body); }
-        catch { return reply(400, { error: "Use valid Sydney stops, dates and walking or public transport." }); }
+        catch { return reply(400, { error: "Use valid Sydney stops, dates and a travel method." }); }
         return reply(200, await itineraryRoutes(request));
       }
       if (instagramEventsSearch) {
@@ -329,7 +329,7 @@ export function createApiServer(options = {}) {
         )
       )
         return reply(400, { error: "Invalid venue coordinates" });
-      return reply(200, { matrix: await provider.routeMatrix(venues, prefs) });
+      return reply(200, { matrix: prefs.transport === 'Not selected' ? demoMatrix(venues, prefs.transport) : await provider.routeMatrix(venues, prefs) });
     } catch {
       reply(502, { error: "External provider unavailable" });
     }

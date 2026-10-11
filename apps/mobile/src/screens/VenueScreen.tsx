@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Linking, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { venues } from '@melloway/domain';
+import { venues, formatTime } from '@melloway/domain';
 import { Screen } from '../components/Screen';
 import { Button, MoodImage, Notice } from '../components/UI';
 import { useAppStore } from '../store/useAppStore';
@@ -22,11 +22,13 @@ export default function VenueScreen() {
   const loadError = useVenueVideoStore(state => state.loadError);
   useEffect(() => { void load().catch(() => {}); }, [load]);
   const venue = plan?.stops.find(v => v.id === id) || venues.find(v => v.id === id);
+  const stopIndex = plan?.stops.findIndex(v => v.id === id) ?? -1;
   if (!venue) return <Screen><Text style={common.title}>that spot has wandered off.</Text><Button label="back to ur day" onPress={() => router.replace('/itinerary')} /></Screen>;
-  return <Screen eyebrow="LOCATION SPOTLIGHT">
+  return <Screen eyebrow={stopIndex >= 0 ? `STOP ${String.fromCharCode(65 + stopIndex)} · LOCATION SPOTLIGHT` : 'LOCATION SPOTLIGHT'}>
     <MoodImage uri={venue.image} source={venue.source} attribution={venue.attribution} height={280} />
     <Text accessibilityRole="header" style={common.title}>{venue.name}</Text>
     <Text style={common.subtitle}>{venue.address}</Text>
+    {stopIndex >= 0 && <Text style={common.fine}>{formatTime(plan!.stops[stopIndex].arrival)}–{formatTime(plan!.stops[stopIndex].arrival + venue.mins)}</Text>}
     <Notice>{venue.source === 'demo' ? 'Demo venue · illustrative mood imagery · sample hours and prices.' : `Google Places${venue.attribution ? ' · Photo: ' + venue.attribution : ''}`}</Notice>
     <Text style={common.text}>{venue.note}</Text>
     {venues.some(demo => demo.id === venue.id && demo.source === 'demo') && venue.source === 'demo' && <>

@@ -1,6 +1,6 @@
 export interface RoutePoint { lat: number; lng: number }
 export interface RoutePaths {
-  transport: 'Walking' | 'Public transport';
+  transport: 'Walking' | 'Public transport' | 'Driving';
   paths: { fromIndex: number; toIndex: number; path: RoutePoint[] }[];
   missingLegs: number;
   warnings: string[];

@@ -14,6 +14,8 @@ const mapsScript = `
 window.google = { maps: {
   importLibrary: async name => name === 'maps' ? { Map: class {
     constructor(element) { this.element = element; }
+    setCenter(position) { this.element.dataset.center = JSON.stringify(position); }
+    setZoom(zoom) { this.element.dataset.zoom = String(zoom); }
     fitBounds(bounds) { this.element.dataset.bounds = JSON.stringify(bounds.points); }
   } } : {
     PinElement: class { constructor(options) { const element = document.createElement('span'); element.textContent = options.glyphText; return element; } },

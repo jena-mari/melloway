@@ -34,9 +34,9 @@ test('main’s short onboarding reaches a plan, venue, saving/reloading, swap an
   await page.getByRole('button', { name: /^the details ·/ }).first().click();
   await expect(page).toHaveURL(/\/venue\//);
   await page.getByRole('button', { name: 'back to ur day', exact: true }).click();
-  await page.getByRole('button', { name: 'save this memory ♡', exact: true }).click();
+  await page.getByRole('button', { name: 'lock this in', exact: true }).click();
   await page.reload();
-  await expect(page.getByRole('button', { name: 'saved on this device ♡', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'saved ♡', exact: true })).toBeVisible();
   const persisted = await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.mobile.v1')).state);
   expect(persisted.draft.name).toBe('Alex');
   expect(persisted.onboarding.diningVibes).toEqual(['Cozy']);

@@ -64,7 +64,7 @@ test('mock cancellation is quiet and keeps the itinerary available', async ({ pa
   await expect(button).toBeEnabled();
   expect(await page.evaluate(() => window.__sharePayloads.length)).toBe(1);
   await expect(page.getByRole('alert')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'saved on this device ♡', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'saved ♡', exact: true })).toBeVisible();
 });
 
 test('mock failure shows helpful feedback and a successful retry clears it', async ({ page }) => {
@@ -76,7 +76,7 @@ test('mock failure shows helpful feedback and a successful retry clears it', asy
   await button.click();
   await expect(page.getByRole('alert')).toHaveCount(0);
   expect(await page.evaluate(() => window.__sharePayloads.length)).toBe(2);
-  await expect(page.getByRole('button', { name: 'saved on this device ♡', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'saved ♡', exact: true })).toBeVisible();
 });
 
 test('no itinerary means there is no share button or automatic share attempt', async ({ page }) => {

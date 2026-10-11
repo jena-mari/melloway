@@ -13,7 +13,7 @@ import { interpretPreferences } from '../src/engine/preferences.js';
 import { selectCandidates, venueRejection } from '../src/engine/filtering.js';
 import { generate, prepareAdditions, prepareBrowse } from '../src/services/discovery.js';
 import { demoMatrix } from '../src/utils/planner.js';
-const prefs = { ...defaultDraft(), date: '2026-10-18', area: 'Surry Hills', preferences: ['Coffee shops'], budget: 100 };
+const prefs = { ...defaultDraft(), date: '2026-10-18', area: 'Surry Hills', transport: 'Walking', preferences: ['Coffee shops'], budget: 100 };
 const source = recommendationSourceUrls[0];
 const post = 'https://www.instagram.com/reel/RealPost123/';
 const tiktok = 'https://www.tiktok.com/@visitor/video/7341234567890123456';

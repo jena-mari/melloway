@@ -3,14 +3,14 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View,
 import { colors, common, fonts } from '../theme';
 
 export function Button({ label, onPress, tone = 'pink', disabled, busy, testID }: {
-  label: string; onPress: () => void; tone?: 'pink' | 'yellow' | 'green' | 'cream'; disabled?: boolean; busy?: boolean; testID?: string;
+  label: string; onPress: () => void; tone?: 'pink' | 'yellow' | 'green' | 'cream' | 'ink'; disabled?: boolean; busy?: boolean; testID?: string;
 }) {
   return <Pressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: !!disabled || !!busy, busy: !!busy }}
     aria-disabled={!!disabled || !!busy} aria-busy={!!busy}
     testID={testID} disabled={disabled || busy} onPress={onPress}
     style={({ pressed }) => [styles.button, { backgroundColor: colors[tone], opacity: disabled || busy ? .5 : pressed ? .75 : 1 }]}>
-    {busy && <ActivityIndicator color={colors.ink} />}
-    <Text style={styles.buttonText}>{label}</Text>
+    {busy && <ActivityIndicator color={tone === 'ink' ? colors.cream : colors.ink} />}
+    <Text style={[styles.buttonText, tone === 'ink' && { color: colors.cream }]}>{label}</Text>
   </Pressable>;
 }
 export function Chips<T extends string | number>({ options, value, onChange, label }: {

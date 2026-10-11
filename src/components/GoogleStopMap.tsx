@@ -77,7 +77,7 @@ export default function GoogleStopMap({ stops, selectedStopId, onSelectStop, dir
   }, [resetView, status, origin]);
 
   if (status === 'error') return <div className="map-unavailable" role="status">
-    <span className="map-unavailable-dots" aria-hidden="true">{stops.map((_, i) => i + 1).join(' · ')}</span>
+    <span className="map-unavailable-dots" aria-hidden="true">{stops.map((_, i) => String.fromCharCode(65 + i)).join(' · ')}</span>
     <p>The map couldn’t load. Your stops are still below.</p>
     <a href={directionsUrl} target="_blank" rel="noreferrer">open Google Maps ↗</a>
   </div>;

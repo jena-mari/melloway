@@ -8,7 +8,7 @@ import { fetchSydneyEvents } from './ticketmaster.ts';
 export function renderVenueMap(points: EventMapPoint[], browserKey: string, source: 'events' | 'tiktok' | 'itinerary' = 'events'): string {
   if (!browserKey.trim()) throw new Error('Google Maps browser key is not configured.');
   const itinerary = source === 'itinerary';
-  if (!points.length || points.length > (itinerary ? 14 : 10) || points.some(point => !(itinerary ? /^(?:[1-9]|1[0-4])$/ : /^[A-J]$/).test(point.label)
+  if (!points.length || points.length > (itinerary ? 14 : 10) || points.some(point => !(itinerary ? /^[A-N]$/ : /^[A-J]$/).test(point.label)
     || !Number.isFinite(point.latitude) || !Number.isFinite(point.longitude)
     || Math.abs(point.latitude) > 90 || Math.abs(point.longitude) > 180)) throw new Error('Invalid venue pins.');
   // Treat provider names as data, including names containing closing script tags.
@@ -37,7 +37,8 @@ if (itinerary) window.addEventListener('message', event => {
   if (event.data?.type === 'melloway-map-fit') return fitMap();
   if (event.data?.type === 'melloway-map-route') {
     const { paths, transport } = event.data;
-    if (!['Walking', 'Public transport'].includes(transport) || !Array.isArray(paths) || paths.length > pins.length - 1
+    if (!transport && Array.isArray(paths) && paths.length === 0) return drawRoutes([], null);
+    if (!['Walking', 'Public transport', 'Driving'].includes(transport) || !Array.isArray(paths) || paths.length > pins.length - 1
       || paths.some(leg => !Array.isArray(leg?.path) || leg.path.length < 2 || leg.path.length > 10000
         || leg.path.some(p => !Number.isFinite(p?.lat) || !Number.isFinite(p?.lng)
           || Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180))) return;

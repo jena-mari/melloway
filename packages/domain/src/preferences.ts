@@ -21,7 +21,7 @@ export function sydneyToday(): string {
 export const defaultDraft = (): Preferences => ({
   mode: 'date', name: '', age: 24, gender: '', companion: 'my person', partner: '',
   area: 'Sydney CBD', budget: 80, date: sydneyToday(), time: '11:00',
-  transport: 'Walking', duration: 5, preferences: [],
+  transport: 'Not selected', duration: 5, preferences: [],
 });
 
 /** Validate mobile input at the boundary; the migrated optimiser is unchanged. */
@@ -35,6 +35,6 @@ export function validatePreferences(prefs: Preferences, today = sydneyToday()): 
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(prefs.time)) return 'Enter a starting time as HH:MM (24-hour).';
   if (!Number.isFinite(prefs.budget) || prefs.budget < 0 || prefs.budget > 200) return 'Budget must be between $0 and $200 per person.';
   if (![3, 4, 5, 6, 8].includes(prefs.duration)) return 'Choose an available outing duration.';
-  if (!['Walking', 'Public transport', 'Driving'].includes(prefs.transport)) return 'Choose a travel method.';
+  if (!['Not selected', 'Walking', 'Public transport', 'Driving'].includes(prefs.transport)) return 'Choose a travel method.';
   return null;
 }

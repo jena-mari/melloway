@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -42,6 +43,8 @@ import StopPicker from "../components/StopPicker";
 import StopDetails from "../components/StopDetails";
 import BudgetSplit from "../components/BudgetSplit";
 import { replacementBudget } from "../utils/activityBudget";
+import { reorderRoute } from '../engine/routeEditing.js';
+import StopTimeframe from '../components/StopTimeframe.jsx';
 const RouteMap = lazy(() => import("../components/RouteMap"));
 export default function Itinerary({
   route,
@@ -57,6 +60,7 @@ export default function Itinerary({
   const current = route || app.current;
   const setCurrent = onRouteChange || app.setCurrent;
   const [detailId, setDetailId] = useState(null),
+    [timeframeIndex, setTimeframeIndex] = useState(null),
     [showStopCards, setShowStopCards] = useState(false),
     [showPlanOptions, setShowPlanOptions] = useState(false),
     [picker, setPicker] = useState(null),
@@ -212,16 +216,18 @@ export default function Itinerary({
       ? { candidates, matrix, notice: plan.notice }
       : null;
   }
-  function commitEdit(next, options, message) {
-    setCurrent({
+  function commitEdit(next, options, message, prefs = d) {
+    const committed = setCurrent({
       ...current,
       ...options,
-      plan: { ...plan, ...next, notice: options.notice, id: createId() },
+      plan: { ...plan, ...next, prefs, notice: options.notice, id: createId() },
     });
+    if (committed === false) return false;
     setExtraPool(null);
     setQuery("");
     setCategory("all");
     setStatus(message);
+    return true;
   }
   async function editStops(stops, message) {
     const signal = beginRequest("edit");
@@ -230,7 +236,7 @@ export default function Itinerary({
         availableOptions() || (await prepareRouteEdit(plan, { signal }));
       if (signal.aborted) return;
       const next = editRoute(stops, d, options.candidates, options.matrix);
-      if (next) commitEdit(next, options, message);
+      if (next) return commitEdit(next, options, message);
       else
         setStatus(
           "That order doesn’t fit ur budget, time or opening hours. Try another order or tweak the details.",
@@ -244,6 +250,31 @@ export default function Itinerary({
         setBusyStop(null);
       }
     }
+    return false;
+  }
+  async function orderRoute(mode) {
+    const signal = beginRequest('order');
+    try {
+      const options = availableOptions() || await prepareRouteEdit(plan, { signal });
+      if (signal.aborted) return;
+      const { plan: next, bounded } = reorderRoute(plan, options.candidates, options.matrix, mode);
+      if (!next) { setStatus('No other order fits these timeframes and opening hours. Your stops are unchanged.'); return; }
+      if (next.stops.every((s, i) => s.id === plan.stops[i].id)) { setStatus('This order is already the most efficient checked.'); return; }
+      commitEdit(next, options, `${mode === 'shuffle' ? 'Alternative order ready.' : 'Route optimised.'}${bounded ? ' Best of the checked orders.' : ''}`);
+    } catch { if (!signal.aborted) setStatus('Couldn’t check another order. Your route is safe.'); }
+    finally { if (!signal.aborted) { setBusy(false); setBusyStop(null); } }
+  }
+  async function changeTransport(transport) {
+    const prefs = { ...d, transport };
+    const signal = beginRequest('transport');
+    try {
+      const options = await prepareRouteEdit({ ...plan, prefs }, { signal });
+      if (signal.aborted) return;
+      const next = editRoute(plan.stops, prefs, options.candidates, options.matrix);
+      if (!next) { setStatus('That travel mode doesn’t fit these hours, timeframes or budget. Try adjusting a stop.'); return; }
+      commitEdit(next, options, transport === 'Not selected' ? 'Travel mode cleared. Times use planning buffers.' : 'Transport updated.', prefs);
+    } catch { if (!signal.aborted) setStatus('Couldn’t update transport. Your route is safe.'); }
+    finally { if (!signal.aborted) { setBusy(false); setBusyStop(null); } }
   }
   async function applyBudgets(activityBudgets) {
     const prefs = { ...d, activityBudgets };
@@ -496,6 +527,7 @@ export default function Itinerary({
         <RouteSummary
           initialEditing={Boolean(!route && navigationState?.editStops)}
           plan={plan}
+          selectedStopId={selectedStop}
           location={location}
           busy={busy}
           visibleStops={shownStops}
@@ -509,6 +541,10 @@ export default function Itinerary({
             )
           }
           onChange={openPicker}
+          onSchedule={setTimeframeIndex}
+          onSwap={swap}
+          onOrder={orderRoute}
+          onTransport={changeTransport}
           onAdd={() => openPicker()}
           onSelect={(id) => {
             setSelectedId(id);
@@ -540,7 +576,7 @@ export default function Itinerary({
             <ChevronDown size={13} aria-hidden="true" />
           </summary>
           <p>
-            {d.transport} · {plan.travel} min travel · estimated
+            {d.transport === 'Not selected' ? 'Travel mode not selected · planning buffer' : d.transport} · {plan.travel} min · estimated
           </p>
           <BudgetSplit
             key={plan.id}
@@ -549,8 +585,8 @@ export default function Itinerary({
             onApply={applyBudgets}
           />
         </details>
-        <Link className="itinerary-explore-link" to="/explore">
-          explore more spots <ArrowRight size={16} aria-hidden="true" />
+        <Link className="itinerary-explore-link" to="/explore" aria-label="explore more spots">
+          <span>explore more spots<small>nearby · fits ur day</small></span> <ArrowRight size={18} aria-hidden="true" />
         </Link>
       </article>
       <section className="result-sheet" aria-label="Planned stops">
@@ -607,7 +643,7 @@ export default function Itinerary({
                         />
                       )}
                       <span className="stop-time">
-                        0{i + 1} · {formatTime(s.arrival)}
+                        {String.fromCharCode(65 + i)} · {formatTime(s.arrival)}
                       </span>
                       <span className="stop-allowance">~${s.cost} each</span>
                       {!s.image && (
@@ -681,10 +717,11 @@ export default function Itinerary({
               } else app.startRoute();
             }}>{plan.status === 'in-progress' ? `finish ${d.mode === 'date' ? 'date' : 'hangout'}` : 'start ur day'} <ArrowRight size={16} /></Button>
           </div>}
-          <div className="result-actions">
+          {createPortal(<div className="result-actions itinerary-sticky-actions" aria-label="Save and directions">
             <Button
               className={isSaved ? "green" : "pink"}
               aria-label={isSaved ? "saved · sync again" : "lock this in"}
+              disabled={busy}
               onClick={() => save(plan)}
             >
               <Bookmark
@@ -703,7 +740,7 @@ export default function Itinerary({
             >
               <Navigation size={16} aria-hidden="true" /> directions
             </a>
-          </div>
+          </div>, document.body)}
           <div className="result-secondary">
             <Link to="/community" aria-label="explore community">
               community <ArrowUpRight size={15} aria-hidden="true" />
@@ -719,7 +756,7 @@ export default function Itinerary({
               onClick={regenerate}
             >
               <RefreshCw size={14} aria-hidden="true" />
-              {busy && busyStop === null ? "finding…" : "shuffle"}
+              {busy && busyStop === null ? "finding…" : "new plan"}
             </button>
             <button
               aria-label="more plan options"
@@ -761,7 +798,7 @@ export default function Itinerary({
               {plan.source === "estimate"
                 ? "Travel is a rough estimate, not a calculated road or transit route."
                 : "Google route times are estimates. Transit is queried for the outing’s Sydney start time; later connections may differ."}{" "}
-              {d.transport === "Walking"
+              {d.transport === 'Not selected' ? 'Choose transport for mode-specific routes. Current times use geographic planning buffers.' : d.transport === "Walking"
                 ? "Walking has no transport allowance."
                 : `Budget includes a sample $${plan.transportAllowance} transport allowance per person, not a fare quote.`}
             </p>
@@ -788,6 +825,11 @@ export default function Itinerary({
           onClose={() => setPicker(null)}
         />
       )}
+      {timeframeIndex !== null && plan.stops[timeframeIndex] && <StopTimeframe key={plan.stops[timeframeIndex].id} stop={plan.stops[timeframeIndex]} index={timeframeIndex}
+        busy={busy} onClose={() => setTimeframeIndex(null)} onApply={async values => {
+          const okay = await editStops(plan.stops.map((s, i) => i === timeframeIndex ? { ...s, ...values, visitOverride: values.mins } : s), 'Timeframe updated.');
+          return okay ? '' : 'This timeframe conflicts with travel, opening hours or the outing’s duration. Try another time or a shorter visit.';
+        }} />}
       {detailIndex >= 0 && (
         <StopDetails
           stop={plan.stops[detailIndex]}

@@ -24,9 +24,9 @@ async function request(url: string, key = 'mock-public-demo-key') {
 test('the map preserves chosen stop order and exact coordinates, including shared locations', () => {
   const points = itineraryMapPoints([stops[2], stops[0], stops[0]]);
   assert.deepEqual(points.map(p => [p.label, p.name, p.latitude, p.longitude]), [
-    ['1', stops[2].name, stops[2].lat, stops[2].lng],
-    ['2', stops[0].name, stops[0].lat, stops[0].lng],
-    ['3', stops[0].name, stops[0].lat, stops[0].lng],
+    ['A', stops[2].name, stops[2].lat, stops[2].lng],
+    ['B', stops[0].name, stops[0].lat, stops[0].lng],
+    ['C', stops[0].name, stops[0].lat, stops[0].lng],
   ]);
 });
 
@@ -47,7 +47,7 @@ test('map endpoint uses only the dedicated public key and makes no provider look
   assert.equal(result.headers['Content-Type'], 'text/html; charset=utf-8');
   assert.equal(result.headers['Cache-Control'], 'no-store');
   assert.ok(result.body.includes('key=mock-public-demo-key'));
-  assert.ok(result.body.includes('"label":"3"'));
+  assert.ok(result.body.includes('"label":"C"'));
   assert.ok(result.body.includes('melloway-map-route'));
   assert.ok(result.body.includes('top: 76, right: 24'));
   assert.ok(result.body.includes('melloway-map-fit'));
@@ -76,12 +76,12 @@ test('provider names and map keys cannot inject scripts into the map HTML', asyn
 });
 
 
-test('edited web plans with one stop or fourteen stops retain every numbered Google pin', async () => {
+test('edited web plans with one stop or fourteen stops retain every alphabetical Google pin', async () => {
   for (const count of [1, 2, 6, 14]) {
     const edited = Array.from({ length: count }, (_, i) => ({ ...stops[i % stops.length], name: `Mock edited stop ${i + 1}` }));
     assert.equal(itineraryMapPoints(edited).length, count);
     const result = await request(path(edited));
     assert.equal(result.status, 200);
-    assert.ok(result.body.includes(`"label":"${count}"`));
+    assert.ok(result.body.includes(`"label":"${String.fromCharCode(64 + count)}"`));
   }
 });

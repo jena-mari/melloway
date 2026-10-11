@@ -120,7 +120,7 @@ test('Instagram event discovery is independent of Google and shares social-searc
 });
 
 test('existing venues, matrix, photos and location resolution use their original provider contracts', async () => {
-  const prefs = { ...defaultDraft(), date: '2026-10-18' };
+  const prefs = { ...defaultDraft(), date: '2026-10-18', transport: 'Walking' };
   const venue = { id: 'mock-venue', lat: -33.86, lng: 151.21 };
   const location = { id: 'mock-place', name: 'Mock place', lat: -33.86, lng: 151.21 };
   const matrix = [[{ minutes: 0, distance: 0, source: 'google' }]];
@@ -142,7 +142,7 @@ test('existing venues, matrix, photos and location resolution use their original
 });
 
 test('existing intent and recommendation endpoints retain validation and response shapes', async () => {
-  const prefs = { ...defaultDraft(), date: '2026-10-18' };
+  const prefs = { ...defaultDraft(), date: '2026-10-18', transport: 'Walking' };
   const venue = { id: 'mock-venue', name: 'Mock venue', category: 'Mock', area: 'Sydney CBD', tags: [], cost: 20, mins: 45 };
   const rankings = [{ venueId: venue.id, fit: 7, exclude: false }];
   const intent = { mock: true };
@@ -175,7 +175,7 @@ test('Ticketmaster JSON and restored map endpoints preserve the existing status 
 });
 
 test('existing CORS allowlist and recommendation rate limit remain enforced', async () => {
-  const prefs = { ...defaultDraft(), date: '2026-10-18' };
+  const prefs = { ...defaultDraft(), date: '2026-10-18', transport: 'Walking' };
   await withApi({ env: { APP_ORIGINS: 'http://mock-app.test', OPENAI_API_KEY: 'mock-openai-key' },
     recommendationProvider: { interpret: async () => ({ mock: true }), rank: unexpected } }, async request => {
     const response = await request('/api/status', undefined, { Origin: 'http://mock-app.test' });
@@ -207,21 +207,21 @@ test('restored itinerary, TikTok and copied-link endpoints dispatch without priv
 });
 
 
-test('itinerary route shapes validate Sydney stops and the two supported transport modes before provider calls', async () => {
+test('itinerary route shapes validate Sydney stops and three selected transport modes before provider calls', async () => {
   const stops = [{ name: 'Mock A', lat: -33.87, lng: 151.2 }, { name: 'Mock B', lat: -33.88, lng: 151.21 }];
   let calls = 0;
   await withApi({ env: { GOOGLE_MAPS_API_KEY: 'mock-private-key' }, itineraryRoutesProvider: async input => {
     calls++;
     return { transport: input.transport, paths: [], missingLegs: 1, warnings: [] };
   } }, async request => {
-    for (const transport of ['Walking', 'Public transport']) {
+    for (const transport of ['Walking', 'Public transport', 'Driving']) {
       const response = await request('/api/itinerary-routes', { stops, transport, date: '2026-10-12', time: '11:00' });
       assert.equal(response.status, 200);
       assert.equal((await response.json()).transport, transport);
     }
-    for (const value of [{stops, transport:'Driving'}, {stops:[{...stops[0],lat:0}],transport:'Walking'}, null])
+    for (const value of [{stops, transport:'Not selected'}, {stops:[{...stops[0],lat:0}],transport:'Walking'}, null])
       assert.equal((await request('/api/itinerary-routes', value)).status, 400);
   });
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
   await withApi({}, async request => assert.equal((await request('/api/itinerary-routes', {stops,transport:'Walking'})).status, 503));
 });

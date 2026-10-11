@@ -28,7 +28,7 @@ export async function generateItinerary(prefs: Preferences, options: GenerationO
   const candidates = selectVenues(all, prefs, seed);
   onStage('checking budget, hours & distance…');
   let matrix = demoMatrix(candidates, prefs.transport);
-  if (provider && all !== venues) {
+  if (provider && all !== venues && prefs.transport !== 'Not selected') {
     try { matrix = await provider.matrix(candidates, prefs); }
     catch { notice += ' Routing unavailable: travel uses rough geographic estimates.'; }
   }

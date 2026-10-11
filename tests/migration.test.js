@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as legacy from './fixtures/legacy-planner.js';
 import * as shared from '@melloway/domain';
 
-const base = { ...shared.defaultDraft(), date: '2026-10-10' };
+const base = { ...shared.defaultDraft(), date: '2026-10-10', transport: 'Walking' };
 test('TypeScript planner matches the original output across areas, budgets, modes, seeds and interests', () => {
   for (const overrides of [
     {}, { budget: 0 }, { area: 'Newtown', preferences: ['Matcha cafés', 'Bookshops'] },

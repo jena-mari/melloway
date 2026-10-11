@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, usePathname } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -15,6 +15,8 @@ export default function RootLayout() {
   const [loaded, fontError] = useFonts({ Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Yellowtail_400Regular, MapleShore: require('../../assets/fonts/MapleShore.otf') });
   const hydrated = useAppStore(state => state.hydrated);
   const status = useAppStore(state => state.status);
+  const pathname = usePathname();
+  const hasItinerary = useAppStore(state => !!state.current?.plan);
   const setStatus = useAppStore(state => state.setStatus);
   useEffect(() => { if (fontError) setStatus('Custom fonts unavailable. Using system fonts.'); }, [fontError, setStatus]);
   return <GestureHandlerRootView style={styles.root}><SafeAreaProvider><QueryClientProvider client={queryClient}>
@@ -34,7 +36,7 @@ export default function RootLayout() {
         <Stack.Screen name="events-map" />
         <Stack.Screen name="+not-found" />
       </Stack>}
-    {!!status && <View accessibilityLiveRegion="polite" style={styles.toast}><Text style={styles.toastText}>{status}</Text><Pressable accessibilityRole="button" accessibilityLabel="Dismiss notification" onPress={() => setStatus('')} style={styles.saved}><Text style={styles.toastText}>×</Text></Pressable></View>}
+    {!!status && !(pathname === '/itinerary' && hasItinerary) && <View accessibilityLiveRegion="polite" style={styles.toast}><Text style={styles.toastText}>{status}</Text><Pressable accessibilityRole="button" accessibilityLabel="Dismiss notification" onPress={() => setStatus('')} style={styles.saved}><Text style={styles.toastText}>×</Text></Pressable></View>}
   </QueryClientProvider></SafeAreaProvider></GestureHandlerRootView>;
 }
 const styles = StyleSheet.create({

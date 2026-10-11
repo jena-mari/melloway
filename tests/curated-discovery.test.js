@@ -11,7 +11,7 @@ import { generate, prepareReplacement, prepareAdditions } from "../src/services/
 
 const date = "2026-10-18";
 const curated = curatedVenuesForDate(date);
-const prefs = { ...defaultDraft(), date };
+const prefs = { ...defaultDraft(), date, transport: 'Walking' };
 const intent = interpretPreferences(prefs);
 const byId = (id) => curated.find((v) => v.id === `sydney-${id}`);
 

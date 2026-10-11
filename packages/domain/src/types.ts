@@ -1,6 +1,6 @@
 export interface Coordinates { lat: number; lng: number }
 export interface Area extends Coordinates { r: number }
-export type Transport = 'Walking' | 'Public transport' | 'Driving';
+export type Transport = 'Not selected' | 'Walking' | 'Public transport' | 'Driving';
 export interface Preferences {
   mode: 'date' | 'hangout';
   name: string;
@@ -24,6 +24,8 @@ export interface Venue extends Coordinates {
   address: string;
   cost: number;
   mins: number;
+  arrivalOverride?: number;
+  visitOverride?: number;
   tags: string[];
   category: string;
   note: string;

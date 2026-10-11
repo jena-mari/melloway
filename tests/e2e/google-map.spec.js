@@ -12,7 +12,7 @@ const stops = [0, 1, 2].map(index => ({
   arrival: 660 + index * 60, mins: 45, cost: 15,
   travelFromPrevious: index ? { minutes: 15, distance: .2, source: 'google' } : null,
 }));
-const current = { plan: { id: 'mock-google-plan', prefs: defaultDraft(), stops,
+const current = { plan: { id: 'mock-google-plan', prefs: { ...defaultDraft(), transport: 'Walking' }, stops,
   cost: 45, elapsed: 165, transportAllowance: 0, notice: 'Mock test plan' }, candidates: [], matrix: [] };
 const mapsScript = `window.google = { maps: {
   importLibrary: async name => name === 'maps' ? { Map: class {
@@ -50,23 +50,23 @@ async function mapFixture(page, script = mapsScript) {
   });
 }
 
-test('Google stops get numbered pins; selecting a pin selects its existing stop card', async ({ page }) => {
+test('Google stops get alphabetical pins; selecting a pin selects its existing stop card', async ({ page }) => {
   await mapFixture(page);
   await page.goto('/itinerary');
   const frame = page.frameLocator('.route-map-hero .google-route-map');
   for (let i = 0; i < stops.length; i++) {
-    await expect(frame.getByRole('button', { name: `${i + 1}. ${stops[i].name}` })).toBeVisible();
+    await expect(frame.getByRole('button', { name: `${String.fromCharCode(65 + i)}. ${stops[i].name}` })).toBeVisible();
   }
   await expect(page.getByText('bringing ur stops into view…')).toHaveCount(0);
   await expect(page.locator('.leaflet-container')).toHaveCount(0);
-  await frame.getByRole('button', { name: '2. Mock stop 2' }).click();
+  await frame.getByRole('button', { name: 'B. Mock stop 2' }).click();
   await expect(page.locator('#stop-1 .stop-card')).toHaveClass(/selected-stop/);
   await expect(page.getByRole('dialog')).toContainText('Mock stop 2');
   await page.getByRole('button', { name: 'close spot details', exact: true }).click();
   await expect(page.locator('.stop-body h2')).toHaveText(stops.map(stop => stop.name));
   await page.getByRole('button', { name: 'expand map', exact: true }).click();
-  await expect(page.frameLocator('dialog .google-route-map').getByRole('button', { name: '3. Mock stop 3' })).toBeVisible();
-  await page.frameLocator('dialog .google-route-map').getByRole('button', { name: '3. Mock stop 3' }).click();
+  await expect(page.frameLocator('dialog .google-route-map').getByRole('button', { name: 'C. Mock stop 3' })).toBeVisible();
+  await page.frameLocator('dialog .google-route-map').getByRole('button', { name: 'C. Mock stop 3' }).click();
   await expect(page.getByRole('dialog')).toContainText('Mock stop 3');
   await expect(page.locator('#stop-2 .stop-card')).toHaveClass(/selected-stop/);
 });
@@ -83,7 +83,7 @@ test('Google iframe marker hover previews the exact place and opens its existing
   await mapFixture(page);
   await page.goto('/itinerary');
   const frame = page.frameLocator('.route-map-hero .google-route-map');
-  await frame.getByRole('button', { name: '2. Mock stop 2' }).locator('span').hover();
+  await frame.getByRole('button', { name: 'B. Mock stop 2' }).locator('span').hover();
   const preview = page.getByRole('complementary', { name: 'Place preview' });
   await expect(preview).toContainText('Mock stop 2');
   await expect(preview).toContainText('~$15 each');
@@ -95,7 +95,7 @@ test('Google iframe marker hover previews the exact place and opens its existing
 test('unrelated window messages cannot select a stop or hide the map', async ({ page }) => {
   await mapFixture(page);
   await page.goto('/itinerary');
-  await expect(page.frameLocator('.route-map-hero .google-route-map').getByRole('button', { name: '1. Mock stop 1' })).toBeVisible();
+  await expect(page.frameLocator('.route-map-hero .google-route-map').getByRole('button', { name: 'A. Mock stop 1' })).toBeVisible();
   await page.evaluate(() => {
     window.postMessage({ type: 'melloway-map-stop', index: 2 }, '*');
     window.postMessage({ type: 'melloway-map-error' }, '*');
@@ -107,7 +107,7 @@ test('unrelated window messages cannot select a stop or hide the map', async ({ 
 });
 
 
-for (const transport of ['Walking', 'Public transport']) test(`${transport} connects the numbered stops with mode-specific route geometry in both map views`, async ({page}) => {
+for (const transport of ['Walking', 'Public transport', 'Driving']) test(`${transport} connects the alphabetical stops with mode-specific route geometry in both map views`, async ({page}) => {
   await mapFixture(page);
   await page.addInitScript(transport => {
     const value = JSON.parse(localStorage.getItem('melloway.current'));
@@ -133,7 +133,7 @@ test('a missing route keeps the pins and cards usable without drawing guessed co
   await page.goto('/itinerary');
   await expect(page.locator('.map-caption')).toContainText('Some route connections are unavailable');
   const frame=page.frameLocator('.route-map-hero .google-route-map');
-  await expect(frame.getByRole('button',{name:'1. Mock stop 1'})).toBeVisible();
+  await expect(frame.getByRole('button',{name:'A. Mock stop 1'})).toBeVisible();
   await expect(frame.locator('[data-route-path]')).toHaveCount(0);
   await expect(page.locator('.stop-body h2')).toHaveText(stops.map(stop => stop.name));
 });

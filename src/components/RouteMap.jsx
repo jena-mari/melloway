@@ -18,7 +18,7 @@ function routeMarker(element, group) {
   content.style.width = `${Math.max(64, group.length * 17 + 18)}px`;
   const numbers = document.createElement("b");
   numbers.className = "pin-numbers";
-  numbers.textContent = group.map((point) => point.index + 1).join(" · ");
+  numbers.textContent = group.map((point) => String.fromCharCode(65 + point.index)).join(" · ");
   content.append(numbers);
   if (group.length === 1) {
     const price = document.createElement("span");
@@ -32,7 +32,7 @@ function routeMarker(element, group) {
 function MapCanvas({ stops, transport, interactive, selectedStopId, onSelectStop, resetView, routePaths, transportMode }) {
   const points = useMemo(() => stops.map((stop, index) => ({
     ...stop, index, className: "route-pin",
-    ariaLabel: `Show ${index + 1}. ${stop.name} in your plan`,
+    ariaLabel: `Show ${String.fromCharCode(65 + index)}. ${stop.name} in your plan`,
   })), [stops]);
   if (stops.some((stop) => stop.source === "google"))
     return <GoogleStopMap stops={stops} selectedStopId={selectedStopId}
@@ -59,7 +59,7 @@ export default function RouteMap({
   title = "ur day, mapped out.",
   compact = false,
   stops,
-  transport = "Walking",
+  transport = "Not selected",
   date,
   time,
   selectedStopId,
@@ -79,9 +79,9 @@ export default function RouteMap({
   const [routes, setRoutes] = useState(null);
   const [routeStatus, setRouteStatus] = useState("loading");
   const realStops = stops.every(stop => ["google", "curated"].includes(stop.source));
-  const transportMode = transport === "Public transport" ? "Public transport" : "Walking";
+  const transportMode = ['Walking', 'Public transport', 'Driving'].includes(transport) ? transport : null;
   useEffect(() => {
-    if (!realStops || stops.length < 2) { setRoutes(null); setRouteStatus("order"); return; }
+    if (!realStops || stops.length < 2 || !transportMode) { setRoutes(null); setRouteStatus("order"); return; }
     const controller = new AbortController();
     setRoutes(null);
     setRouteStatus("loading");
@@ -94,7 +94,7 @@ export default function RouteMap({
   const routePaths = realStops ? routes?.paths || [] : undefined;
   const google = stops.some((stop) => stop.source === "google");
   const caption = realStops && stops.length > 1
-    ? routeStatus === "loading" ? `Loading ${transportMode.toLowerCase()} route…`
+    ? !transportMode ? 'Choose transport for directions · times use planning buffers.' : routeStatus === "loading" ? `Loading ${transportMode.toLowerCase()} route…`
       : routeStatus === "error" || routes?.missingLegs
         ? "Some route connections are unavailable. Open Google Maps for directions."
         : `${transportMode} route · confirm directions before heading out.`
@@ -159,7 +159,7 @@ export default function RouteMap({
             {stops.map((stop, i) => (
               <li key={stop.id}>
                 <button onClick={() => selectStop(stop.id)}>
-                  <span>{i + 1}</span>
+                  <span>{String.fromCharCode(65 + i)}</span>
                   {stop.name}
                 </button>
               </li>

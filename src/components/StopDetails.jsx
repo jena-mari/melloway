@@ -96,7 +96,7 @@ export default function StopDetails({
           {index > 0 && (
             <p className="stop-travel">
               {s.travelFromPrevious.minutes} min from previous stop ·{" "}
-              {d.transport.toLowerCase()} ·{" "}
+              {d.transport === 'Not selected' ? 'planning buffer · no travel mode selected' : d.transport.toLowerCase()} ·{" "}
               {s.travelFromPrevious.source === "google"
                 ? "Google route estimate"
                 : `rough estimate, ${s.travelFromPrevious.distance.toFixed(1)} km straight-line`}

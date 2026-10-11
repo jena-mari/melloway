@@ -78,7 +78,7 @@ async function stage(message, onStage, signal) {
   checkCancelled(signal);
 }
 async function routeMatrix(candidates, prefs, live, signal) {
-  if (live) {
+  if (live && prefs.transport !== "Not selected") {
     try {
       const { matrix } = await api(
         "matrix",
@@ -365,7 +365,7 @@ export async function generate(
 // Rebuild only the replacement pool for a saved plan. Keep its chosen stops.
 export async function prepareRouteEdit(plan, { signal } = {}) {
   const candidates = plan.stops;
-  const live = candidates.some((v) => v.source === "google");
+  const live = candidates.some((v) => ["google", "curated"].includes(v.source));
   const { matrix, routeNotice } = await routeMatrix(
     candidates,
     plan.prefs,

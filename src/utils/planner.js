@@ -8,7 +8,7 @@ import {
   replacementBudget,
 } from "./activityBudget.js";
 
-const modes = ["Walking", "Public transport", "Driving"];
+const modes = ["Not selected", "Walking", "Public transport", "Driving"];
 const interestOptions = new Set(Object.values(categories).flat());
 export function validPreferences(prefs) {
   return Boolean(
@@ -99,7 +99,7 @@ export function demoMatrix(venues, mode) {
           ? 0
           : Math.ceil(
               km(a, b) *
-                (mode === "Walking"
+                (mode === "Not selected" ? 0.3 : mode === "Walking"
                   ? 1.35 / 4.5
                   : mode === "Driving"
                     ? 1.5 / 22
@@ -173,9 +173,14 @@ export function schedule(stops, prefs, matrix, indices) {
       return null;
     time += leg?.minutes || 0;
     travel += leg?.minutes || 0;
+    if (venue.arrivalOverride != null) {
+      if (!Number.isInteger(venue.arrivalOverride) || venue.arrivalOverride < time || venue.arrivalOverride >= 2880) return null;
+      time = venue.arrivalOverride;
+    }
     const window = openingWindow(venue, day, time, prefs.date);
     if (!window) return null;
     time = Math.max(time, window.open);
+    if (venue.arrivalOverride != null && time !== venue.arrivalOverride) return null;
     if (time + venue.mins > end) return null;
     result.push({ ...venue, arrival: time, travelFromPrevious: leg });
     time += venue.mins;
@@ -337,7 +342,7 @@ export function directions(stops, mode) {
       .map((s) => `${s.lat},${s.lng}`)
       .join("|"),
   );
-  url.searchParams.set(
+  if (modes.includes(mode) && mode !== "Not selected") url.searchParams.set(
     "travelmode",
     mode === "Walking" ? "walking" : mode === "Driving" ? "driving" : "transit",
   );

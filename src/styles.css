@@ -2303,6 +2303,7 @@ dd {
 }
 .route-map-hero {
   position: relative;
+  isolation: isolate;
   height: clamp(230px, 31dvh, 320px);
 }
 .map-loading {
@@ -6694,6 +6695,45 @@ html:has(.profile-page) {
 .date-lifecycle .button { min-height: 44px; padding: 10px 20px; }
 .completion-sheet { max-width: 480px; animation: completion-rise .24s ease-out; }
 .completion-content { padding: 12px 24px calc(24px + env(safe-area-inset-bottom)); }
+
+/* Direct itinerary edits keep the original card and map in place. */
+.route-order-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
+.route-order-controls label { flex: 1 1 100%; }
+.route-order-controls select { width: 100%; min-height: 44px; font: inherit; font-size: 12px; padding: 8px 10px; border: 1px solid #ddd; border-radius: 12px; background: #fafafa; color: var(--ink); }
+.route-order-controls button { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 6px; flex: 1; border: 1px solid #ddd; border-radius: 12px; font-size: 12px; }
+.generated-route-card .route-summary-list li { grid-template-columns: 26px minmax(0, 1fr) 44px 44px; gap: 3px; padding: 8px; }
+.generated-route-card .route-summary-spot { grid-row: span 2; gap: 4px; }
+.route-summary-spot small { font-size: 10px; line-height: 1.4; color: #555; }
+.generated-route-card .route-summary-list li.selected-route-stop { background: #fcf9eb; border-color: #111; }
+.route-time-edit { grid-column: 3 / 5; grid-row: 2; font-size: 10px; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; }
+.route-row-arrow, .route-row-shuffle { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
+.route-row-shuffle { grid-row: 1; grid-column: 3; }
+.route-row-arrow { grid-row: 1; grid-column: 4; }
+.generated-route-card .route-summary-list.editing li { grid-template-columns: 26px minmax(0, 1fr) 44px; }
+.generated-route-card .route-summary-list.editing .route-time-edit { grid-column: 3; grid-row: 1 / 3; min-height: 44px; }
+.generated-route-card .route-row-tools { grid-column: 2 / -1; grid-row: 3; }
+.generated-route-card .route-summary-list li:has(.route-summary-spot):not(:has(.route-time-edit)) { grid-template-columns: 26px minmax(0, 1fr) 44px; }
+.generated-route-card .route-summary-list li:not(:has(.route-time-edit)) .route-row-arrow { grid-column: 3; }
+.itinerary-explore-link { display: flex; align-items: center; justify-content: space-between; margin: 10px 12px 12px; padding: 12px; border-radius: 12px; background: #f6f6f3; border: 1px solid #ddd; min-height: 54px; }
+.itinerary-explore-link span { display: grid; gap: 4px; }
+.itinerary-explore-link small { font-size: 10px; font-weight: 400; color: #666; }
+.map-result { padding-bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 100px); }
+.itinerary-sticky-actions { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom)); width: min(100%, 480px); padding: 10px 16px; background: #fffffff5; backdrop-filter: blur(12px); border-top: 1px solid #ddd; z-index: 39; box-shadow: 0 -4px 16px #00000008; animation: itinerary-actions-enter .2s ease-out; }
+.itinerary-sticky-actions .button { min-height: 48px; border-radius: 14px; }
+.itinerary-sticky-actions > .button:first-child { background: var(--ink) !important; color: white; }
+body:has(.keyboard-open) .itinerary-sticky-actions { display: none; }
+body:has(.itinerary-sticky-actions) .toast { bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 86px); }
+.timeframe-dialog { max-width: 480px; }
+.timeframe-dialog form { display: grid; gap: 18px; }
+.timeframe-fields { display: flex; flex-wrap: wrap; gap: 12px; }
+.timeframe-fields label { display: grid; flex: 1; min-width: 100px; gap: 8px; font-size: 13px; }
+.timeframe-fields input, .timeframe-fields select, .timeframe-duration input { width: 100%; min-height: 48px; padding: 10px; font: inherit; border: 1px solid #aaa; border-radius: 12px; color: var(--ink); background: white; }
+.timeframe-duration { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; font-size: 13px; }
+.timeframe-duration span { display: flex; align-items: center; gap: 8px; }
+.timeframe-duration input { width: 96px; font-size: 20px; }
+.timeframe-auto { display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 13px; }
+.timeframe-dialog .muted, .timeframe-dialog [role="alert"] { font-size: 12px; }
+@keyframes itinerary-actions-enter { from { opacity: 0; margin-bottom: -6px; } to { opacity: 1; margin-bottom: 0; } }
 .sheet-handle { display: block; width: 36px; height: 4px; border-radius: 4px; background: #ddd; margin: 0 auto 12px; }
 .completion-content > header { display: flex; align-items: center; margin-bottom: 8px; }
 .completion-close { margin-left: auto; }

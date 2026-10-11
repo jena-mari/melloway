@@ -47,8 +47,19 @@ test('public transport requests each consecutive leg for its Sydney scheduled de
   assert.equal(calls, 2);
 });
 
+test('driving uses DRIVE geometry and unset transport is rejected before any provider call', async () => {
+  assert.throws(() => request('Not selected'));
+  let calls = 0;
+  await createItineraryRoutesProvider('mock-key', async (_, options) => {
+    const body = JSON.parse(String(options?.body));
+    assert.equal(body.travelMode, 'DRIVE'); assert.equal(body.departureTime, undefined);
+    return Response.json(payload(calls++));
+  })(request('Driving'));
+  assert.equal(calls, 2);
+});
+
 test('invalid modes, dates, coordinates, stop counts and departure times fail before routing', () => {
-  for (const value of [null, {}, {...request(),transport:'Driving'}, {...request(),date:'2026-02-30'},
+  for (const value of [null, {}, {...request(),transport:'Not selected'}, {...request(),date:'2026-02-30'},
     {...request(),stops:Array(15).fill(stops[0])}, {...request(),stops:[{...stops[0],lat:0}]},
     {...request(),stops:[{...stops[0],departureMinutes:-1}]}]) assert.throws(() => readItineraryRouteRequest(value));
 });

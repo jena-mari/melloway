@@ -18,7 +18,7 @@ export function itineraryMapPoints(value: unknown): EventMapPoint[] {
   if (!Array.isArray(value) || value.length < 1 || value.length > 14 || !value.every(isPin)) {
     throw new Error('Invalid itinerary stops.');
   }
-  return value.map((pin, index) => ({ label: String(index + 1), name: pin.name,
+  return value.map((pin, index) => ({ label: String.fromCharCode(65 + index), name: pin.name,
     latitude: pin.lat, longitude: pin.lng, address: null, eventIds: [] }));
 }
 

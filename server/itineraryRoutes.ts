@@ -4,7 +4,7 @@ import { sydneyDate, sydneyInstant } from './eventPreferences.ts';
 export interface RoutePoint { lat: number; lng: number }
 export interface ItineraryRouteRequest {
   stops: { name: string; lat: number; lng: number; departureMinutes?: number }[];
-  transport: 'Walking' | 'Public transport';
+  transport: 'Walking' | 'Public transport' | 'Driving';
   date: string;
   time: string;
 }
@@ -19,7 +19,7 @@ export function readItineraryRouteRequest(value: unknown, now = new Date()): Iti
   if (!value || typeof value !== 'object') throw new Error('Invalid route details.');
   const input = value as Partial<ItineraryRouteRequest>;
   itineraryMapPoints(input.stops);
-  if (!['Walking', 'Public transport'].includes(input.transport ?? '')) throw new Error('Choose walking or public transport.');
+  if (!['Walking', 'Public transport', 'Driving'].includes(input.transport ?? '')) throw new Error('Choose a travel method.');
   const date = input.date ?? sydneyDate(now);
   const time = input.time ?? '11:00';
   if (typeof date !== 'string' || typeof time !== 'string') throw new Error('Invalid route date or time.');
@@ -61,7 +61,7 @@ export function createItineraryRoutesProvider(key: string | undefined, fetcher: 
               'Content-Type': 'application/json', 'X-Goog-Api-Key': key,
               'X-Goog-FieldMask': 'routes.polyline.geoJsonLinestring,routes.warnings',
             }, body: JSON.stringify({ origin: point(origin), destination: point(destination),
-              travelMode: request.transport === 'Walking' ? 'WALK' : 'TRANSIT',
+              travelMode: request.transport === 'Walking' ? 'WALK' : request.transport === 'Driving' ? 'DRIVE' : 'TRANSIT',
               ...(request.transport === 'Public transport' ? { departureTime: departure(request, index) } : {}),
               polylineEncoding: 'GEO_JSON_LINESTRING', polylineQuality: 'HIGH_QUALITY',
             }),

@@ -66,7 +66,7 @@ export const defaultDraft = () => ({
   date: sydneyToday(),
   time: "11:00",
   timeExplicit: false,
-  transport: "Walking",
+  transport: "Not selected",
   duration: 5,
   preferences: [],
   diningVibes: [],
