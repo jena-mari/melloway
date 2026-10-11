@@ -41,7 +41,7 @@ test('selected date, visit times, incoming travel and used / available hours sta
   await expect(page.locator('.route-summary-meta')).not.toContainText('35 min · estimated');
   await expect(page.locator('.route-summary-total')).toContainText(`~$${bundle.plan.cost} / $100 each`);
   await expect(overview(page)).not.toContainText('estimated, including travel and waiting');
-  await expect(page.locator('.route-summary-spot small').first()).toHaveText('2:00 pm–2:30 pm');
+  await expect(page.locator('.route-summary-time').first()).toHaveText('2:00 pm–2:30 pm');
   await expect(page.locator('.route-leg-timing')).toHaveText(['A → B · ~15m on public transport', 'B → C · ~20m on public transport · 1h 15m wait']);
   await expect(page.locator('.route-stop-box .route-leg-timing')).toHaveCount(0);
   await expect(page.locator('.inline-stop-expansion')).toHaveCount(0);
@@ -79,7 +79,7 @@ test('editing a timeframe updates visible times and duration without changing th
   await expect(dialog).not.toBeVisible();
   await expect(overview(page)).toContainText('~3h 35m / 5h available');
   await expect(overview(page)).toContainText('Sun, 18 Oct 2026');
-  await expect(page.locator('.route-summary-spot').first()).toContainText('3:00 pm–4:00 pm');
+  await expect(page.locator('.route-summary-time').first()).toHaveText('3:00 pm–4:00 pm');
   await expect(page.locator('.route-leg-timing')).toHaveText(['A → B · ~15m walk', 'B → C · ~20m walk']);
 });
 
@@ -96,8 +96,8 @@ test('late outings keep the chosen calendar date and mark stop times after midni
   await expect(overview(page)).toContainText('Sun, 12 July 2026');
   await expect(overview(page)).toContainText('11:30 pm start');
   await expect(overview(page)).toContainText('~2h 5m / 5h available');
-  await expect(page.locator('.route-summary-spot').first()).toContainText('11:30 pm–12:00 am (+1 day)');
-  await expect(page.locator('.route-summary-spot').nth(1)).toContainText('12:15 am (+1 day)');
+  await expect(page.locator('.route-summary-time').first()).toHaveText('11:30 pm–12:00 am (+1 day)');
+  await expect(page.locator('.route-summary-time').nth(1)).toContainText('12:15 am (+1 day)');
 });
 
 test('travel labels follow reordered places and do not join stops hidden by search', async ({ page }) => {

@@ -103,9 +103,12 @@ export default function RouteSummary({
             >
               <strong>{stop.name}</strong>
               <span>{stop.address}</span>
-              <small>{formatTime(stop.arrival)}–{formatTime(stop.arrival + stop.mins)}</small>
+              {(readOnly || !onSchedule) && <small className="route-summary-time">{formatTime(stop.arrival)}–{formatTime(stop.arrival + stop.mins)}</small>}
             </button>
-            {!readOnly && onSchedule && <button className="route-time-edit" disabled={busy} aria-label={`edit ${stop.name} timeframe`} onClick={() => onSchedule(i)}>time</button>}
+            {!readOnly && onSchedule && <button type="button" className="route-time-edit route-summary-time" disabled={busy}
+              aria-label={`edit ${stop.name} timeframe`} aria-haspopup="dialog" onClick={() => onSchedule(i)}>
+              {formatTime(stop.arrival)}–{formatTime(stop.arrival + stop.mins)}
+            </button>}
             {!editing && !readOnly && onSwap && <button className="route-row-shuffle" disabled={busy} aria-label={`regenerate ${stop.name}`} onClick={() => onSwap(i)}><Shuffle size={17} /></button>}
             {!editing && (
               <button

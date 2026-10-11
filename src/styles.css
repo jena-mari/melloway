@@ -6785,14 +6785,14 @@ html:has(.profile-page) {
 .route-order-controls button { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 4px; padding: 8px 6px; border: 1px solid #ddd; border-radius: 12px; font-size: 12px; white-space: nowrap; }
 .generated-route-card .route-summary-list > li > .route-stop-box { grid-template-columns: 26px minmax(0, 1fr) 44px 44px; gap: 3px; padding: 8px; }
 .generated-route-card .route-summary-spot { grid-row: span 2; gap: 4px; }
-.route-summary-spot small { font-size: 10px; line-height: 1.4; color: #555; }
+.route-summary-time { font-size: 10px; line-height: 1.4; color: #555; }
 .generated-route-card .route-summary-list > li.selected-route-stop > .route-stop-box { background: #fcf9eb; border-color: #111; }
-.route-time-edit { grid-column: 3 / 5; grid-row: 2; font-size: 10px; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; }
+.route-stop-box:has(.route-time-edit) .route-summary-spot { grid-column: 2; grid-row: 1; }
+.route-time-edit { grid-column: 2; grid-row: 2; justify-self: start; max-width: 100%; min-height: 44px; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
 .route-row-arrow, .route-row-shuffle { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
 .route-row-shuffle { grid-row: 1; grid-column: 3; }
 .route-row-arrow { grid-row: 1; grid-column: 4; }
 .generated-route-card .route-summary-list.editing > li > .route-stop-box { grid-template-columns: 26px minmax(0, 1fr) 44px; }
-.generated-route-card .route-summary-list.editing .route-time-edit { grid-column: 3; grid-row: 1 / 3; min-height: 44px; }
 .generated-route-card .route-row-tools { grid-column: 2 / -1; grid-row: 3; }
 .generated-route-card .route-summary-list > li > .route-stop-box:has(.route-summary-spot):not(:has(.route-time-edit)) { grid-template-columns: 26px minmax(0, 1fr) 44px; }
 .generated-route-card .route-summary-list > li > .route-stop-box:not(:has(.route-time-edit)) .route-row-arrow { grid-column: 3; }

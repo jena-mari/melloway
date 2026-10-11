@@ -23,15 +23,29 @@ test.beforeEach(async ({page}) => {
 
 test('timeframe edits cascade, invalid arrivals preserve the plan, and saving survives reload', async ({page}, info) => {
   await page.goto('/itinerary');
-  await page.getByRole('button', {name:'edit Fixture bookshop a timeframe',exact:true}).click();
+  const trigger = page.getByRole('button', {name:'edit Fixture bookshop a timeframe',exact:true});
+  await expect(trigger).toHaveText('11:00 am–11:30 am');
+  await expect(trigger).toHaveCSS('text-decoration-line', 'underline');
+  for (const width of [390, 320]) {
+    await page.setViewportSize({width, height:844});
+    await page.locator('.route-stop-box').first().screenshot({path:info.outputPath(`clickable-time-range-${width}.png`)});
+  }
+  await page.setViewportSize({width:390, height:844});
+  await trigger.focus();
+  await page.keyboard.press('Enter');
   const sheet = page.getByRole('dialog', {name:'Fixture bookshop a',exact:true});
+  await expect(sheet).toBeVisible();
+  await expect(page.locator('.inline-stop-expansion')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(trigger).toBeFocused();
+  await trigger.tap();
   await sheet.getByLabel('arrive at').fill('12:00');
   await sheet.getByLabel('visit length in minutes').fill('120');
   await sheet.getByRole('button',{name:'save timeframe',exact:true}).click();
   await expect(sheet).not.toBeVisible();
   const edited = await storedPlan(page);
   expect(edited.stops.map(s => s.arrival)).toEqual([720,870,930]);
-  await expect(page.locator('.route-summary-spot').first()).toContainText('12:00 pm–2:00 pm');
+  await expect(page.locator('.route-summary-time').first()).toHaveText('12:00 pm–2:00 pm');
   await page.getByRole('button', {name:'edit Fixture bookshop b timeframe',exact:true}).click();
   const otherSheet = page.getByRole('dialog',{name:'Fixture bookshop b',exact:true});
   await otherSheet.getByLabel('arrive at').fill('11:00');
@@ -42,7 +56,7 @@ test('timeframe edits cascade, invalid arrivals preserve the plan, and saving su
   await page.getByRole('button',{name:'lock this in',exact:true}).click();
   await page.reload();
   await expect(page.locator('.route-summary-list > li')).toHaveCount(3);
-  await expect(page.locator('.route-summary-spot').first()).toContainText('12:00 pm–2:00 pm');
+  await expect(page.locator('.route-summary-time').first()).toHaveText('12:00 pm–2:00 pm');
   expect((await storedPlan(page)).stops).toEqual(edited.stops);
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.saved')));
   expect(saved.at(-1).stops).toEqual(edited.stops);
