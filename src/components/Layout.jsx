@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { gentleEase } from "./Introduction";
 import DoodleBackdrop from "./DoodleBackdrop";
 import BrandLogo from "./BrandLogo";
-import { Heart, Compass, Bookmark, MapPin, Map, MessageCircle } from "lucide-react";
+import { Heart, Compass, MapPin, Map, MessageCircle } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import useKeyboard from "../hooks/useKeyboard";
 import { Avatar } from "./CommunityIdentity";
@@ -13,7 +13,6 @@ const tabs = [
   { to: "/", name: "make a plan", label: "plan", icon: Heart },
   { to: "/explore", name: "explore", label: "explore", icon: Compass },
   { to: "/community", name: "the community", label: "feed", icon: MessageCircle },
-  { to: "/favourites", name: "saved", label: "saved", icon: Bookmark },
 ];
 export default function Layout() {
   const { status, setStatus, current, profile, draft } = useApp(),
@@ -115,6 +114,7 @@ export default function Layout() {
                 {label}
               </Link>
             ))}
+            <Link to="/favourites" onClick={() => menu.current.close()}>saved</Link>
             <Link to="/events" onClick={() => menu.current.close()}>what’s on</Link>
             <Link to="/history" onClick={() => menu.current.close()}>past dates</Link>
           </nav>

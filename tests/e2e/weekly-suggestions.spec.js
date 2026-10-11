@@ -16,7 +16,8 @@ test("suggestions belong to Explore while Feed and What’s On stay separate", a
   expect((await page.locator(".community-post").first().boundingBox()).y).toBeLessThan(100);
   await expect(page.locator(".weekly-suggestions, .melloway-picks, .route-extras")).toHaveCount(0);
   const nav = page.getByRole("navigation", { name: "Main navigation" });
-  await expect(nav.getByRole("link")).toHaveCount(4);
+  await expect(nav.getByRole("link")).toHaveCount(3);
+  await expect(nav.getByRole("link", { name: "saved", exact: true })).toHaveCount(0);
   await expect(nav.getByRole("link", { name: "the community", exact: true })).toContainText("feed");
   await expect(nav.getByRole("link", { name: "what’s on", exact: true })).toHaveCount(0);
   await nav.getByRole("link", { name: "explore", exact: true }).click();

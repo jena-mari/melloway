@@ -71,7 +71,7 @@ test('private ratings persist; favourites open history; sharing requires a separ
   await expect(page.getByLabel('Your private review')).toContainText('a lovely afternoon');
   await expect(page.getByLabel('4 out of 5 stars')).toBeVisible();
   await page.getByRole('button', { name: 'save route', exact: true }).click();
-  await page.getByRole('link', { name: 'saved', exact: true }).click();
+  await page.goto('/favourites');
   await page.getByRole('button', { name: 'open plan', exact: true }).click();
   await expect(page).toHaveURL(/\/history\/original$/);
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')))).toBeNull();
@@ -151,7 +151,7 @@ test('opening a saved current route preserves its started state', async ({ page 
   await page.getByRole('button', { name: 'lock this in', exact: true }).click();
   await page.getByRole('button', { name: 'start ur day', exact: true }).click();
   const startedAt = await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')).plan.startedAt);
-  await page.getByRole('link', { name: 'saved', exact: true }).click();
+  await page.goto('/favourites');
   await page.getByRole('button', { name: 'open plan', exact: true }).click();
   await expect(page.getByRole('button', { name: 'finish date', exact: true })).toBeVisible();
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')).plan.startedAt)).toBe(startedAt);

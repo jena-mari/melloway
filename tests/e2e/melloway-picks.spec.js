@@ -92,7 +92,7 @@ test("browse and save a melloway pick without changing the existing route or onb
       fullPage: true,
     });
   }
-  await page.getByRole("link", { name: "saved", exact: true }).click();
+  await page.goto("/favourites");
   await expect(
     page.getByRole("heading", { name: "Sydney Matcha Crawl", exact: true }),
   ).toBeVisible();

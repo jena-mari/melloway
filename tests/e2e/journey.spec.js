@@ -11,12 +11,7 @@ async function openStops(page) {
   await expect(page.locator('.route-summary-spot strong').first()).toBeVisible();
 }
 async function openSaved(page) {
-  if (
-    !(await page.getByRole("link", { name: "saved", exact: true }).isVisible())
-  ) {
-    await page.getByRole("button", { name: "Open melloway menu" }).click();
-  }
-  await page.getByRole("link", { name: "saved", exact: true }).click();
+  await page.goto("/favourites");
 }
 async function planDay(page) {
   await page.goto("/");
