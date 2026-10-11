@@ -3,6 +3,7 @@ import { eventMapPoints, type EventMapResponse, type EventMapPoint } from '@mell
 import { selectGoogleMapsBrowserKey } from './googleMapsBrowserKey.ts';
 export { selectGoogleMapsBrowserKey } from './googleMapsBrowserKey.ts';
 import { fetchSydneyEvents } from './ticketmaster.ts';
+import { quietMapStyles } from '../shared/mapStyles.ts';
 
 /** This page exposes only a selected browser Maps key, never server provider keys. */
 export function renderVenueMap(points: EventMapPoint[], browserKey: string, source: 'events' | 'tiktok' | 'itinerary' = 'events'): string {
@@ -19,7 +20,14 @@ export function renderVenueMap(points: EventMapPoint[], browserKey: string, sour
   const label = itinerary ? 'Google map of your itinerary stops' : source === 'tiktok' ? 'Google map of cafés discovered on TikTok' : 'Google map of Ticketmaster event venues';
   return `<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title>
-<style>html,body,#map{height:100%;margin:0}body{font:16px sans-serif;background:#fffdf9;color:#24231f}#error{padding:24px}</style>
+<style>html,body,#map{height:100%;margin:0}body{font:16px sans-serif;background:#fffdf9;color:#24231f}#error{padding:24px}
+${itinerary ? `:root{--pink:#f8a8b9}
+.route-pin{box-sizing:border-box;position:relative;width:26px;height:26px;padding:0;display:grid;place-items:center;border:1.5px solid #111;border-radius:50%;background:white;color:#111;filter:drop-shadow(0 2px 3px #1112);cursor:pointer}
+.route-pin::before{content:"";position:absolute;z-index:1;width:20px;height:20px;border-radius:50%;background:white}
+.route-pin::after{content:"";position:absolute;z-index:0;bottom:-3px;left:calc(50% - 3px);width:6px;height:6px;box-sizing:border-box;background:inherit;border-right:1.5px solid #111;border-bottom:1.5px solid #111;transform:rotate(45deg)}
+.pin-numbers{position:relative;z-index:2;color:#111;font:800 13px/1 Outfit,sans-serif}
+.route-pin:focus-visible{outline:2px solid #111;outline-offset:4px}
+.route-pin.is-selected{background:#111;transform:scale(1.12)}` : ''}</style>
 </head><body><div id="map" aria-label="${label}"></div><div id="error" role="alert" hidden></div>
 <script>
 const pins = ${pins};
@@ -36,12 +44,14 @@ if (itinerary) window.addEventListener('message', event => {
   if (event.source !== window.parent || event.origin !== parentOrigin) return;
   if (event.data?.type === 'melloway-map-fit') return fitMap();
   if (event.data?.type === 'melloway-map-route') {
-    const { paths, transport } = event.data;
+    const { paths, transport, routeColor } = event.data;
     if (!transport && Array.isArray(paths) && paths.length === 0) return drawRoutes([], null);
     if (!['Walking', 'Public transport', 'Driving'].includes(transport) || !Array.isArray(paths) || paths.length > pins.length - 1
       || paths.some(leg => !Array.isArray(leg?.path) || leg.path.length < 2 || leg.path.length > 10000
         || leg.path.some(p => !Number.isFinite(p?.lat) || !Number.isFinite(p?.lng)
           || Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180))) return;
+    if (typeof routeColor === 'string' && /^#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})$/i.test(routeColor))
+      document.documentElement.style.setProperty('--pink', routeColor);
     return drawRoutes(paths, transport);
   }
   if (event.data?.type !== 'melloway-map-select') return;
@@ -65,22 +75,55 @@ function failMap(reason = 'load') {
 window.gm_authFailure = () => { complete = false; failMap('auth'); };
 window.initVenueMap = async () => {
   try {
-    const { Map, Polyline } = await google.maps.importLibrary('maps');
-    const { AdvancedMarkerElement, PinElement } = await google.maps.importLibrary('marker');
+    const { Map, Polyline, OverlayView, RenderingType } = await google.maps.importLibrary('maps');
+    const { AdvancedMarkerElement, PinElement } = itinerary ? {} : await google.maps.importLibrary('marker');
+    const { LatLng } = itinerary ? await google.maps.importLibrary('core') : {};
     const map = new Map(document.getElementById('map'), { center: { lat: pins[0].latitude, lng: pins[0].longitude },
-      zoom: itinerary ? 17 : 14, maxZoom: 18, mapId: 'DEMO_MAP_ID', streetViewControl: false, mapTypeControl: false });
+      zoom: itinerary ? 17 : 14, maxZoom: 18,
+      ...(itinerary ? { styles: ${JSON.stringify(quietMapStyles)}, renderingType: RenderingType.RASTER,
+        disableDefaultUI: true, zoomControl: true, gestureHandling: 'cooperative', clickableIcons: false }
+        : { mapId: 'DEMO_MAP_ID', streetViewControl: false, mapTypeControl: false }) });
     const bounds = new google.maps.LatLngBounds();
     const markers = [];
     for (const [index, pin] of pins.entries()) {
       const position = { lat: pin.latitude, lng: pin.longitude };
-      const marker = new AdvancedMarkerElement({ map, position, title: pin.label + '. ' + (pin.name || 'Venue') });
-      const icon = new PinElement({ glyphText: pin.label, background: '#24231f', borderColor: '#24231f', glyphColor: '#ffffff', scale: itinerary ? 1.2 : 1 });
-      marker.append(icon);
+      const title = pin.label + '. ' + (pin.name || 'Venue');
+      let marker, icon;
+      if (itinerary) {
+        icon = document.createElement('button');
+        icon.type = 'button';
+        icon.className = 'route-pin';
+        icon.setAttribute('aria-label', title);
+        const letter = document.createElement('b');
+        letter.className = 'pin-numbers';
+        letter.textContent = pin.label;
+        icon.append(letter);
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'position:absolute;transform:translate(-50%,-100%)';
+        wrapper.title = title;
+        wrapper.append(icon);
+        const overlay = new OverlayView();
+        overlay.onAdd = () => {
+          overlay.getPanes().overlayMouseTarget.append(wrapper);
+          OverlayView.preventMapHitsAndGesturesFrom(wrapper);
+        };
+        overlay.draw = () => {
+          const pixel = overlay.getProjection()?.fromLatLngToDivPixel(new LatLng(position.lat, position.lng));
+          if (pixel) { wrapper.style.left = pixel.x + 'px'; wrapper.style.top = pixel.y + 'px'; }
+        };
+        overlay.onRemove = () => wrapper.remove();
+        overlay.setMap(map);
+        marker = { set zIndex(value) { wrapper.style.zIndex = String(value); } };
+        icon.addEventListener('click', () => {
+          selectMarker(index);
+          notifyParent({ type: 'melloway-map-stop', index });
+        });
+      } else {
+        marker = new AdvancedMarkerElement({ map, position, title });
+        icon = new PinElement({ glyphText: pin.label, background: '#24231f', borderColor: '#24231f', glyphColor: '#ffffff', scale: 1 });
+        marker.append(icon);
+      }
       markers.push({ marker, icon });
-      if (itinerary) marker.addListener('click', () => {
-        selectMarker(index);
-        notifyParent({ type: 'melloway-map-stop', index });
-      });
       if (itinerary) {
         icon.addEventListener('pointerenter', event => {
           if (event.pointerType !== 'touch') notifyParent({ type: 'melloway-map-preview', index });
@@ -93,7 +136,10 @@ window.initVenueMap = async () => {
     }
     selectMarker = index => {
       markers.forEach(({ marker, icon }, i) => {
-        icon.background = i === index ? '#f39aad' : '#24231f';
+        if (itinerary) {
+          icon.classList.toggle('is-selected', i === index);
+          icon.setAttribute('aria-pressed', String(i === index));
+        } else icon.background = i === index ? '#f39aad' : '#24231f';
         marker.zIndex = i === index ? 10 : 0;
       });
     };
@@ -114,7 +160,7 @@ window.initVenueMap = async () => {
       routePaths = paths;
       lines = paths.flatMap(leg => [
         new Polyline({ map, path: leg.path, strokeColor: '#ffffff', strokeOpacity: .95, strokeWeight: 9, zIndex: 1 }),
-        new Polyline({ map, path: leg.path, strokeColor: transport === 'Walking' ? '#cc5478' : '#287665',
+        new Polyline({ map, path: leg.path, strokeColor: getComputedStyle(document.documentElement).getPropertyValue('--pink').trim() || '#f8a8b9',
           strokeOpacity: 1, strokeWeight: 5, zIndex: 2 }),
       ]);
       document.getElementById('map').dataset.routeMode = transport;

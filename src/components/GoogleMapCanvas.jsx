@@ -31,7 +31,7 @@ export default function GoogleMapCanvas({
   points, selectedId, onSelect, focusPoint, resetView, interactive = true, smoothFocus = false,
   groupNearby = false, fitPadding, mapStyles, markerContent, ariaLabel = "Google Maps",
   className = "map-canvas", statusClassName = "map-status", fallback,
-  renderPreview, previewOnTap = false, routePaths, routeTransport = "Walking",
+  renderPreview, previewOnTap = false, routePaths, routeTransport = "Walking", routeColorVar,
 }) {
   const canvas = useRef(null);
   const view = useRef(null);
@@ -88,6 +88,7 @@ export default function GoogleMapCanvas({
       valid.forEach((point) => bounds.extend({ lat: point.lat, lng: point.lng }));
       let routeLines = [];
       let routePositions = [];
+      const routeColor = () => routeColorVar ? getComputedStyle(canvas.current).getPropertyValue(routeColorVar).trim() : null;
       function fit() {
         stopCamera.current();
         if (focused.current && located(focused.current)) {
@@ -168,14 +169,14 @@ export default function GoogleMapCanvas({
       }
       const line = groupNearby && routeState.current.paths === undefined ? new maps.Polyline({
         map, path: valid.map(({ lat, lng }) => ({ lat, lng })), strokeOpacity: 0,
-        icons: [{ icon: { path: "M 0,-1 0,1", strokeColor: "#f39aad", strokeOpacity: 1, scale: 2 }, offset: "0", repeat: "12px" }],
+        icons: [{ icon: { path: "M 0,-1 0,1", strokeColor: routeColor() || "#f39aad", strokeOpacity: 1, scale: 2 }, offset: "0", repeat: "12px" }],
       }) : null;
       function setRoutes(paths, transport) {
         routeLines.forEach(line => line.setMap(null));
         routePositions = (paths || []).flatMap(leg => leg.path);
         routeLines = (paths || []).flatMap(leg => [
           new maps.Polyline({ map, path: leg.path, strokeColor: "#ffffff", strokeOpacity: .95, strokeWeight: 9, zIndex: 1 }),
-          new maps.Polyline({ map, path: leg.path, strokeColor: transport === "Walking" ? "#cc5478" : "#287665",
+          new maps.Polyline({ map, path: leg.path, strokeColor: routeColor() || (transport === "Walking" ? "#cc5478" : "#287665"),
             strokeOpacity: 1, strokeWeight: 5, zIndex: 2 }),
         ]);
         canvas.current.dataset.routeMode = transport;
@@ -217,7 +218,7 @@ export default function GoogleMapCanvas({
       window.removeEventListener("melloway-map-auth-error", authFailure);
       clean();
     };
-  }, [points, interactive, groupNearby, fitPadding, mapStyles, markerContent, smoothFocus]);
+  }, [points, interactive, groupNearby, fitPadding, mapStyles, markerContent, smoothFocus, routeColorVar]);
   useEffect(() => { view.current?.setRoutes(routePaths, routeTransport); }, [routePaths, routeTransport]);
   useEffect(() => { view.current?.selectPins(); }, [selectedId]);
   useEffect(() => {

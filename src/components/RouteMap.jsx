@@ -12,26 +12,33 @@ import MapSpotPreview from "./MapSpotPreview";
 
 import { requestItineraryRoutes } from "../services/itineraryRoutes.ts";
 import { directions } from "../utils/planner";
+import { quietMapStyles } from "../../shared/mapStyles.ts";
 function routeMarker(element, group) {
-  const content = document.createElement("span");
-  content.className = "pin-content";
-  content.style.width = `${Math.max(64, group.length * 17 + 18)}px`;
   const numbers = document.createElement("b");
   numbers.className = "pin-numbers";
-  numbers.textContent = group.map((point) => String.fromCharCode(65 + point.index)).join(" · ");
-  content.append(numbers);
-  if (group.length === 1) {
-    const price = document.createElement("span");
-    price.className = "pin-price";
-    price.textContent = Number.isFinite(group[0].cost) ? `~$${group[0].cost}` : "estimate";
-    content.append(price);
+  group.forEach((point, index) => {
+    const letter = document.createElement("span");
+    letter.textContent = String.fromCharCode(65 + point.index);
+    numbers.append(letter);
+    if (index < group.length - 1) {
+      const separator = document.createElement("span");
+      separator.hidden = true;
+      separator.textContent = " · ";
+      numbers.append(separator);
+    }
+  });
+  if (group.length > 1) {
+    const columns = Math.ceil(Math.sqrt(group.length));
+    element.style.setProperty("--map-pin-size", `${columns * 18 + 8}px`);
+    numbers.style.setProperty("--pin-columns", columns);
+    numbers.style.fontSize = "11px";
   }
-  element.append(content);
+  element.append(numbers);
 }
 
 function MapCanvas({ stops, transport, interactive, selectedStopId, onSelectStop, resetView, routePaths, transportMode }) {
   const points = useMemo(() => stops.map((stop, index) => ({
-    ...stop, index, className: "route-pin",
+    ...stop, index, className: "route-pin editorial-pick-pin",
     ariaLabel: `Show ${String.fromCharCode(65 + index)}. ${stop.name} in your plan`,
   })), [stops]);
   if (stops.some((stop) => stop.source === "google"))
@@ -41,7 +48,7 @@ function MapCanvas({ stops, transport, interactive, selectedStopId, onSelectStop
     <div className={`street-map ${interactive ? "interactive-map" : "map-preview"}`}>
       <GoogleMapCanvas routePaths={routePaths} routeTransport={transportMode} points={points} selectedId={selectedStopId}
         onSelect={onSelectStop} resetView={resetView} interactive={interactive}
-        groupNearby markerContent={routeMarker} ariaLabel="Map of your stops"
+        groupNearby mapStyles={quietMapStyles} routeColorVar="--pink" markerContent={routeMarker} ariaLabel="Map of your stops"
         renderPreview={(points, onSelect, onClose) => <MapSpotPreview points={points} onSelect={onSelect} onClose={onClose} />}
         fallback={<div className="map-unavailable">
           <p role="status">Google Maps unavailable.</p>
