@@ -13,16 +13,6 @@ import VenueSocial from "./VenueSocial.jsx";
 import PlaceActions from './PlaceActions.jsx';
 import VenueReviews from "./VenueReviews.jsx";
 
-function PhotoCredit({ photo }) {
-  return <span className="editorial-photo-credit">
-    <a href={photo.sourceUrl} target="_blank" rel="noreferrer">{photo.author}</a>
-    {photo.license && photo.license !== "Reuse unverified" && <>
-      {" · "}<a href={photo.licenseUrl} target="_blank" rel="noreferrer">{photo.license}</a>
-    </>}
-    <span>{photo.caption}</span>
-  </span>;
-}
-
 function PlacePhoto({ venue }) {
   return <div className={`editorial-place-photo ${venue.image ? "has-photo" : ""}`}>
     <div className="editorial-photo-placeholder">
@@ -31,7 +21,6 @@ function PlacePhoto({ venue }) {
       <small>{venue.category}</small>
     </div>
     {venue.image && <MoodImage src={venue.image} alt={venue.photo.caption} />}
-    {venue.photo && <PhotoCredit photo={venue.photo} />}
   </div>;
 }
 
@@ -46,7 +35,6 @@ function PickEvidence({ venue }) {
       </a>)}
       <a href={venue.coordinateSource} target="_blank" rel="noreferrer">map source <ArrowUpRight size={14} /></a>
     </div>
-    {venue.photo && <PhotoCredit photo={venue.photo} />}
   </section>;
 }
 
@@ -179,7 +167,7 @@ export default function PicksExplorer({ embedded = false }) {
     if (!venue) return <div className="page"><h1>that pick has wandered off.</h1><Link to="/picks">back to all picks</Link></div>;
     return <div className="editorial-pick-detail">
       <Venue route={{ plan: { stops: [venue] } }} backTo={`/picks?place=${venue.id}`} backLabel="back to all picks"
-        photoCredit={venue.photo ? <PhotoCredit photo={venue.photo} /> : undefined}
+        photoCredit={false}
         extraDetails={<PickEvidence venue={venue} />} />
     </div>;
   }

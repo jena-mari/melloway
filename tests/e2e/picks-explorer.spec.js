@@ -229,9 +229,7 @@ test.describe("Explore vertical reels", () => {
         await expect(page.getByRole("dialog")).toHaveCount(0);
         expect(await page.evaluate(() => scrollY)).toBe(originalScroll);
       }
-      // The compact photo now has a clickable source credit across its centre.
-      // Tap the uncovered image, preserving the credit link’s normal behaviour.
-      await photo.tap({ position: { x: box.width / 2, y: 4 } });
+      await photo.tap();
       const sheet = page.getByRole("dialog", { name: editorialPicks[0].name, exact: true });
       await expect(sheet).toBeVisible();
       const bounds = await sheet.boundingBox();
@@ -256,7 +254,7 @@ test.describe("Explore vertical reels", () => {
     });
 });
 
-test("Explore sheets retain unknown prices, access conditions and licensed photos", async ({ page }) => {
+test("Explore sheets retain unknown prices and access conditions without photo overlays", async ({ page }) => {
   await mockPicks(page, { maps: false, images: false });
   await page.goto("/explore");
   await expect(page.locator(".picks-map-unavailable")).toBeVisible();
@@ -268,14 +266,8 @@ test("Explore sheets retain unknown prices, access conditions and licensed photo
     await expect(sheet.getByRole("region", { name: "Pick sources and access" })).toContainText(venue.conditions);
     await expect(sheet.getByText("$0 allowance", { exact: true })).toHaveCount(0);
     await expect(sheet.locator(".editorial-photo-placeholder")).toBeVisible();
-    if (venue.photo) {
-      if (venue.photo.license !== "Reuse unverified") {
-        await expect(sheet.getByRole("link", { name: venue.photo.license, exact: true }).first()).toHaveAttribute("href", venue.photo.licenseUrl);
-      }
-      await expect(sheet.getByText("Reuse unverified", { exact: true })).toHaveCount(0);
-      await expect(sheet.getByRole("link", { name: venue.photo.author, exact: true }).first()).toHaveAttribute("href", venue.photo.sourceUrl);
-      await expect(sheet).toContainText(venue.photo.author);
-    }
+    await expect(sheet.locator(".editorial-photo-credit")).toHaveCount(0);
+    await expect(sheet.getByText(venue.photo.caption, { exact: true })).toHaveCount(0);
     await sheet.getByRole("button", { name: "close pick details" }).click();
   }
 });
@@ -399,7 +391,7 @@ test("all ten Melloway picks appear without filters or editorial copy, preservin
   await expect(page.getByRole("link", { name: "view Sydney Matcha Crawl", exact: true })).toBeVisible();
 });
 
-test("details retain event/access conditions, licensing and the selected card", async ({ page }) => {
+test("details retain event/access conditions and the selected card without photo overlays", async ({ page }) => {
   await mockPicks(page);
   await page.goto("/picks/places/pick-birdcage-bank-hotel?collection=melloway");
   await expect(page.getByRole("heading", { name: "Birdcage at The Bank Hotel", exact: true })).toBeVisible();
@@ -413,8 +405,9 @@ test("details retain event/access conditions, licensing and the selected card", 
   await expect(page.locator(".editorial-evidence")).toContainText("free membership has limited weekly access");
   await expect(page.locator(".venue dl")).toContainText("Membership applies");
   await page.goto("/picks/places/pick-observatory-hill-park");
-  await expect(page.locator(".venue-photo")).toContainText("MDRX");
-  await expect(page.locator(".venue-photo")).toContainText("CC BY-SA 4.0");
+  await expect(page.locator(".venue-photo img")).toHaveAttribute("src", editorialPicks.find(v => v.id === "pick-observatory-hill-park").image);
+  await expect(page.locator(".venue-photo .pill-label")).toHaveCount(0);
+  await expect(page.locator(".editorial-photo-credit")).toHaveCount(0);
   await expect(page.locator(".editorial-evidence")).toContainText("Observatory tours have separate opening times");
 });
 
@@ -524,7 +517,7 @@ for (const path of ["/explore", "/picks"]) test(`${path} has compact pointed pla
   await expect(camera).toHaveAttribute("aria-pressed", "true");
 });
 
-test("all ten supplied image links render with source credits", async ({ page }, info) => {
+test("all ten supplied image links render without credit or caption overlays", async ({ page }, info) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockPicks(page, { maps: false });
   await page.goto("/picks");
@@ -536,13 +529,10 @@ test("all ten supplied image links render with source credits", async ({ page },
     await expect(image).toBeVisible();
     await expect.poll(() => image.evaluate(node => node.complete && node.naturalWidth)).toBe(1280);
     expect(await image.evaluate(node => node.currentSrc)).toBe(venue.image);
-    const credit = card.locator(".editorial-photo-credit");
-    await expect(credit.getByRole("link", { name: venue.photo.author, exact: true })).toHaveAttribute("href", venue.photo.sourceUrl);
-    if (venue.photo.license !== "Reuse unverified") {
-      await expect(credit.getByRole("link", { name: venue.photo.license, exact: true })).toHaveAttribute("href", venue.photo.licenseUrl);
-    }
-    await expect(credit.getByText("Reuse unverified", { exact: true })).toHaveCount(0);
-    await expect(credit).toContainText(venue.photo.caption);
+    await expect(card.locator(".editorial-photo-credit")).toHaveCount(0);
+    await expect(card.getByText(venue.photo.caption, { exact: true })).toHaveCount(0);
+    await expect(card.getByText(venue.photo.author, { exact: true })).toHaveCount(0);
+    await expect(card.getByText(venue.photo.license, { exact: true })).toHaveCount(0);
     await card.screenshot({ path: info.outputPath(`${id}.png`) });
   }
 });

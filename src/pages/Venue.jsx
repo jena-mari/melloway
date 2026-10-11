@@ -33,13 +33,13 @@ export default function Venue({ route, backTo = "/itinerary", backLabel = "back 
               src={v.image}
               alt={v.source === "demo" ? "Illustrative mood photograph" : ""}
             />
-            <span className="pill-label">
+            {photoCredit !== false && <span className="pill-label">
               {photoCredit || (v.photo ? <><a href={v.photo.sourceUrl} target="_blank" rel="noreferrer">{v.photo.author}</a> · <a href={v.photo.licenseUrl} target="_blank" rel="noreferrer">{v.photo.license}</a></> : v.source === "demo"
                 ? "demo venue · mood imagery"
                 : v.source === "curated"
                   ? "sourced Sydney venue"
                   : `Google Places${v.attribution ? " · " + v.attribution : ""}`)}
-            </span>
+            </span>}
           </div>
         )}
         <div>

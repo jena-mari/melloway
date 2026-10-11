@@ -28,12 +28,16 @@ The existing card layout may crop the image for display; no content was added.
 
 No endorsement is implied. These two local adaptations remain available;
 the picks now use the ten remote image links supplied in the research pack.
-Visible source credits and display-crop notices remain on the existing cards.
+At the user’s request, all photo-credit/caption overlays are removed from
+the Picks cards, detail sheets and dedicated Picks detail photo. Source and
+license metadata remain in editorialPicks.js and this file; caption alt text
+remains available to screen readers.
 
 The supplied melloway_photo_research_pack.zip has eight further reference-only
 entries without confirmed reuse permissions. At the user’s explicit request,
 their provided remote image URLs are now used without downloading/bundling
 those eight images. The unverified reuse status remains in the source metadata;
-its label is hidden from photo credits at the user’s request. Source attribution,
-confirmed license links and contextual/branch uncertainty remain visible. Existing placeholders handle failed loads.
+its label is hidden at the user’s request along with the other photo overlays.
+Source attribution, confirmed licenses and contextual/branch uncertainty remain
+in the metadata. Existing placeholders handle failed loads.
 No Google Photos requests or new provider integrations have been added.
