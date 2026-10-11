@@ -12,6 +12,9 @@ import {
   deleteCloud,
 } from "../services/storage";
 import { validPlan, readJourney, finishJourney, archiveRoute, cleanReview, HISTORY_KEY } from "../utils/routeHistory";
+import { sameBusiness } from '../engine/discoveryPool.ts';
+const validPlace = place => place && typeof place.id === 'string' && typeof place.name === 'string' &&
+  typeof place.address === 'string' && Number.isFinite(place.lat) && Number.isFinite(place.lng) && Array.isArray(place.tags);
 const Context = createContext(null);
 function readDraft() {
   const stored = readLocal("melloway.draft", {});
@@ -35,6 +38,19 @@ export function AppProvider({ children }) {
     readProfile(readLocal("melloway.profile", null)),
   );
   const [saved, setSaved] = useState(readSaved);
+  const [savedPlaces, setSavedPlaces] = useState(() => {
+    const value = readLocal('melloway.savedPlaces', []);
+    return Array.isArray(value) ? value.filter(validPlace).slice(0, 100) : [];
+  });
+  function togglePlaceSave(venue) {
+    if (!validPlace(venue)) return false;
+    const kept = savedPlaces.some(place => sameBusiness(place, venue));
+    if (!kept && savedPlaces.length >= 100) { setStatus('Up to 100 saved places. Remove one to save another.'); return false; }
+    const { arrival, arrivalOverride, visitOverride, travelFromPrevious, ...place } = venue;
+    const next = kept ? savedPlaces.filter(place => !sameBusiness(place, venue)) : [place, ...savedPlaces];
+    try { writeLocal('melloway.savedPlaces', next); setSavedPlaces(next); return true; }
+    catch { return false; }
+  }
   const [journey] = useState(() => readJourney(readLocal, writeLocal));
   const unpersistedHistory = useRef(Boolean(journey.unpersisted));
   const [history, setHistory] = useState(journey.history);
@@ -245,6 +261,8 @@ export function AppProvider({ children }) {
         startNew,
         setDraft,
         saved: savedPlans,
+        savedPlaces,
+        togglePlaceSave,
         history,
         startRoute,
         finishRoute,

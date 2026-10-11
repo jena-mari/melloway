@@ -5945,7 +5945,12 @@ html:has(.profile-page) {
 }
 .venue-social-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(150px, 46%);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  padding: 2px 2px 12px;
   gap: 20px 10px;
 }
 .venue-social-card {
@@ -5959,6 +5964,7 @@ html:has(.profile-page) {
 .venue-social-item {
   min-width: 0;
   position: relative;
+  scroll-snap-align: start;
 }
 .venue-social-item .venue-social-card {
   width: 100%;
@@ -6918,3 +6924,18 @@ body:has(.itinerary-sticky-actions) .toast > button { pointer-events: auto; }
 .inline-stop-source, .inline-stop-social summary { font-size: 12px; min-height: 44px; display: flex; align-items: center; }
 .inline-stop-social { margin-top: 4px; }
 html:has(.itinerary-sticky-actions) { scroll-padding-bottom: calc(var(--tabs-height, 72px) + env(safe-area-inset-bottom) + 150px); }
+
+.place-actions { margin: 14px 0; }
+.place-actions > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.place-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 10px 15px; border: 1px solid #111; border-radius: 99px; background: white; font: inherit; font-size: 13px; }
+.place-actions button:last-child { background: #f6e8ab; }
+.place-actions button:disabled { opacity: .6; }
+.place-actions p, .social-inferred { font-size: 12px; color: #666; line-height: 1.5; }
+.social-original { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; font-size: 12px; }
+.social-confirm { display: flex; gap: 10px; align-items: flex-start; font-size: 12px; line-height: 1.5; }
+.social-link-form .social-confirm input { width: 20px; height: 20px; min-width: 20px; margin: 0; }
+.venue-social-grid:focus-visible { outline: 2px solid #111; outline-offset: 3px; border-radius: 12px; }
+.saved-place-list { display: grid; gap: 12px; }
+.saved-place-list article { display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid #ddd; border-radius: 16px; }
+.saved-place-list article > a { flex: 1; min-width: 0; text-decoration: none; }
+.saved-place-list span { display: block; color: #666; font-size: 12px; margin-top: 6px; }

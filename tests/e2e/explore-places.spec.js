@@ -66,6 +66,7 @@ test("saving or removing a browser copy does not duplicate or remove the venue's
   await expect(page.locator(".venue-social-card")).toHaveCount(1);
   await page.getByRole("button", { name: "add a post", exact: true }).click();
   await page.getByLabel("post link", { exact: true }).fill(attached);
+  await page.getByRole('checkbox', { name: /This shows MATCHA-YA/ }).check();
   await page.getByRole("button", { name: "add", exact: true }).click();
   await expect(page.locator(".venue-social-card")).toHaveCount(1);
   await page.getByRole("button", { name: "remove shared TikTok post", exact: true }).click();

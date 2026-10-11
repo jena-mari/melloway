@@ -6,12 +6,13 @@ import { sydneyVenues } from "../data/sydneyVenues";
 import { useApp } from "../hooks/useApp";
 import { MoodImage } from "../components/UI";
 import VenueSocial from "../components/VenueSocial";
+import PlaceActions from '../components/PlaceActions.jsx';
 export default function Venue({ route, backTo = "/itinerary", backLabel = "back to ur day", photoCredit, extraDetails }) {
   const { id } = useParams(),
-    { current } = useApp();
+    { current, savedPlaces } = useApp();
   const v =
     (route || current)?.plan?.stops.find((s) => s.id === id) ||
-    [...sydneyVenues, ...venues].find((s) => s.id === id);
+    [...savedPlaces, ...(current?.candidates || []), ...sydneyVenues, ...venues].find((s) => s.id === id);
   if (!v)
     return (
       <div className="page">
@@ -32,7 +33,7 @@ export default function Venue({ route, backTo = "/itinerary", backLabel = "back 
               alt={v.source === "demo" ? "Illustrative mood photograph" : ""}
             />
             <span className="pill-label">
-              {photoCredit || (v.source === "demo"
+              {photoCredit || (v.photo ? <><a href={v.photo.sourceUrl} target="_blank" rel="noreferrer">{v.photo.author}</a> · <a href={v.photo.licenseUrl} target="_blank" rel="noreferrer">{v.photo.license}</a></> : v.source === "demo"
                 ? "demo venue · mood imagery"
                 : v.source === "curated"
                   ? "sourced Sydney venue"
@@ -43,6 +44,7 @@ export default function Venue({ route, backTo = "/itinerary", backLabel = "back 
         <div>
           <h1>{v.name}</h1>
           <p>{v.address}</p>
+          <PlaceActions venue={v} />
           <VenueSocial key={v.id} venue={v} />
           <div className="chips">
             {v.tags.map((t) => (

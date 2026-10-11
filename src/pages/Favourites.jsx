@@ -8,12 +8,12 @@ import { savedInstagramEvents } from "../services/instagramEvents.js";
 import EventPoster from "../components/EventPoster";
 import { Doodle } from "../components/DoodleBackdrop";
 export default function Favourites() {
-  const { saved, savedEvents, toggleEventSave, openSavedPlan, remove } = useApp(),
+  const { saved, savedEvents, savedPlaces, togglePlaceSave, toggleEventSave, openSavedPlan, remove } = useApp(),
     navigate = useNavigate();
   const [search, setSearch] = useSearchParams();
   const tab =
     search.get("tab") ||
-    (!saved.length && savedEvents.length ? "events" : "routes");
+    (!saved.length && savedPlaces.length ? 'places' : !saved.length && savedEvents.length ? "events" : "routes");
   const keptEvents = [...savedInstagramEvents(), ...sydneyEvents, ...events].filter((event) => savedEvents.includes(event.id));
   return (
     <div className="page collection">
@@ -24,7 +24,7 @@ export default function Favourites() {
         role="group"
         aria-label="saved things"
       >
-        {["routes", "events"].map((item) => (
+        {["routes", "places", "events"].map((item) => (
           <button
             type="button"
             key={item}
@@ -32,11 +32,17 @@ export default function Favourites() {
             onClick={() => setSearch({ tab: item })}
           >
             {item}{" "}
-            <span>{item === "routes" ? saved.length : keptEvents.length}</span>
+            <span>{item === "routes" ? saved.length : item === 'places' ? savedPlaces.length : keptEvents.length}</span>
           </button>
         ))}
       </div>
-      {tab === "events" ? (
+      {tab === 'places' ? <div className="saved-place-list">
+        {!savedPlaces.length && <p>No saved places yet.</p>}
+        {savedPlaces.map(place => <article key={place.id}>
+          <Link to={`/venue/${encodeURIComponent(place.id)}`}><strong>{place.name}</strong><span>{place.address}</span></Link>
+          <button className="icon-button" aria-label={`unsave ${place.name}`} onClick={() => togglePlaceSave(place)}><Bookmark size={18} fill="currentColor" /></button>
+        </article>)}
+      </div> : tab === "events" ? (
         keptEvents.length ? (
           <div className="saved-event-list">
             {keptEvents.map((event) => (

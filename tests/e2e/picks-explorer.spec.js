@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { mediaVenueKey } from '../../packages/domain/src/venueMedia.ts';
 import { editorialPicks } from "../../src/data/editorialPicks.js";
 import { googleMapsFixture } from "./google-maps-fixture.js";
 import { mockMapTiles } from "./fixtures.js";
@@ -279,7 +280,7 @@ test("closing a reel returns to the same Explore bottom sheet", async ({ page })
   await page.route("**/api/status", route => route.fulfill({ json: { socialDiscovery: "openai" } }));
   await page.route("**/api/social/search", route => {
     requested = route.request().postDataJSON().venue;
-    return route.fulfill({ json: { posts: [{ url: post, creator: "visitor", caption: "A visit to Chubby Cubby" }] } });
+    return route.fulfill({ json: { posts: [{ url: post, creator: "visitor", caption: "A visit to Chubby Cubby", venueKey: mediaVenueKey(requested) }] } });
   });
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));

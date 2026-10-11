@@ -5,6 +5,7 @@ import { discoverSocial, previewSocial } from "../services/social.js";
 import { socialEmbed, socialPost } from "../utils/social.js";
 import { readLocal, writeLocal } from "../services/storage.js";
 import { venuePostLinks } from "../data/venuePosts.ts";
+import { inferSocialContext, mediaVenueKey } from '@melloway/domain';
 
 const storageKey = (venue) =>
   `melloway.social.${JSON.stringify([venue.name, venue.lat, venue.lng])}`;
@@ -97,6 +98,7 @@ export default function VenueSocial({ venue, compact = false }) {
     [url, setUrl] = useState("");
   const [error, setError] = useState(""),
     [saving, setSaving] = useState(false);
+  const [confirmed, setConfirmed] = useState(false), [attempt, setAttempt] = useState(0);
   const controller = useRef(null);
   const key = storageKey(venue);
   const attached = venuePostLinks(venue);
@@ -109,6 +111,8 @@ export default function VenueSocial({ venue, compact = false }) {
     setSelected(null);
     setError("");
     setAdding(false);
+    setConfirmed(false);
+    setSaving(false);
     const links = savedLinks(key);
     const previewLinks = [...new Set([...attached, ...links])];
     // Attached and shared links appear even without search or metadata.
@@ -137,7 +141,10 @@ export default function VenueSocial({ venue, compact = false }) {
           : [])
           merged.set(post.url, post);
         for (const post of shared.status === "fulfilled" ? shared.value : [])
-          if (currentLinks.has(post.url) || attached.includes(post.url)) merged.set(post.url, post);
+          if (currentLinks.has(post.url) || attached.includes(post.url)) merged.set(post.url, {
+            ...merged.get(post.url), ...post,
+            ...(attached.includes(post.url) ? { venueKey: mediaVenueKey(venue) } : merged.get(post.url)?.venueKey ? {} : { metadataSource: undefined }),
+          });
         return [...merged.values()].map((post) => ({
           ...post,
           shared: currentLinks.has(post.url),
@@ -147,7 +154,7 @@ export default function VenueSocial({ venue, compact = false }) {
       setState(discovered.status === "fulfilled" ? "ready" : "unavailable");
     });
     return () => abort.abort();
-  }, [key, attachedKey]);
+  }, [key, attachedKey, attempt]);
   async function addPost(event) {
     event.preventDefault();
     const post = socialPost(url.trim());
@@ -155,6 +162,7 @@ export default function VenueSocial({ venue, compact = false }) {
       setError("Use a TikTok video or Instagram post link.");
       return;
     }
+    if (!confirmed) { setError('Confirm this post shows this exact place and branch.'); return; }
     const signal = controller.current.signal;
     setSaving(true);
     setError("");
@@ -170,6 +178,7 @@ export default function VenueSocial({ venue, compact = false }) {
         { ...preview, shared: true, attached: attached.includes(post.url) },
       ]);
       setUrl("");
+      setConfirmed(false);
       setAdding(false);
     } catch (failure) {
       if (!signal.aborted)
@@ -192,6 +201,8 @@ export default function VenueSocial({ venue, compact = false }) {
     }
   }
   const search = encodeURIComponent(`${venue.name} Sydney`);
+  const inferred = inferSocialContext(venue, posts);
+  const vibe = [...inferred.atmosphere, ...inferred.interests].slice(0, 4);
   return (
     <section className={`venue-social${compact ? " venue-social-compact" : ""}`} aria-labelledby={titleId}>
       <header>
@@ -215,7 +226,7 @@ export default function VenueSocial({ venue, compact = false }) {
               id={inputId}
               type="url"
               value={url}
-              onChange={(event) => setUrl(event.target.value)}
+              onChange={(event) => { setUrl(event.target.value); setConfirmed(false); }}
               placeholder="TikTok or Instagram URL"
               required
               maxLength={500}
@@ -223,11 +234,13 @@ export default function VenueSocial({ venue, compact = false }) {
             <button disabled={saving}>{saving ? "adding…" : "add"}</button>
           </div>
           <small>Links you add stay on this device.</small>
+          <label className="social-confirm"><input type="checkbox" checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />
+            This shows {venue.name} at {venue.address}.</label>
           {error && <p role="alert">{error}</p>}
         </form>
       )}
       {posts.length > 0 && (
-        <div className="venue-social-grid" tabIndex={compact ? 0 : undefined} role={compact ? "region" : undefined} aria-label={compact ? "Posts at this spot" : undefined}>
+        <div className="venue-social-grid" tabIndex={0} role="region" aria-label="Posts at this spot">
           {posts.map((post) => (
             <div className="venue-social-item" key={post.url}>
               <button
@@ -274,10 +287,12 @@ export default function VenueSocial({ venue, compact = false }) {
                   <X size={14} />
                 </button>
               )}
+              <a className="social-original" href={post.url} target="_blank" rel="noopener noreferrer">original <ArrowUpRight size={12} /></a>
             </div>
           ))}
         </div>
       )}
+      {vibe.length > 0 && <p className="social-inferred">From captions · {vibe.join(' · ')} <small>(inferred)</small></p>}
       {state === "loading" && (
         <p className="social-status" role="status">
           finding posts…
@@ -290,6 +305,7 @@ export default function VenueSocial({ venue, compact = false }) {
             : "No public posts found yet."}
         </p>
       )}
+      {state === 'unavailable' && <button className="text-button" type="button" onClick={() => setAttempt(value => value + 1)}>retry posts</button>}
       {(!compact || !posts.length) && <div className="social-search-links">
         <a
           href={`https://www.tiktok.com/search?q=${search}`}

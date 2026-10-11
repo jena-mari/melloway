@@ -3,6 +3,7 @@ import { sydneyVenues } from "../../src/data/sydneyVenues.js";
 import { defaultDraft } from "../../src/data/preferences.js";
 import { schedule, demoMatrix } from "../../src/utils/planner.js";
 import { mockMapTiles } from "./fixtures.js";
+import { mediaVenueKey } from '../../packages/domain/src/venueMedia.ts';
 
 const garden = sydneyVenues.find(
   (venue) => venue.name === "Royal Botanic Garden Sydney",
@@ -33,7 +34,7 @@ test.beforeEach(async ({ page }) => {
     }),
   );
   await page.route("**/api/social/search", (route) =>
-    route.fulfill({ json: { posts } }),
+    route.fulfill({ json: { posts: posts.map(post => ({ ...post, venueKey: mediaVenueKey(route.request().postDataJSON().venue) })) } }),
   );
   await page.route("**/api/social/preview", (route) =>
     route.fulfill({
@@ -132,6 +133,7 @@ test("shared public links validate, persist locally, and can be removed", async 
     "Use a TikTok video or Instagram post link.",
   );
   await page.getByLabel("post link", { exact: true }).fill(shared);
+  await page.getByRole('checkbox', { name: `This shows ${garden.name} at ${garden.address}.` }).check();
   await page.getByRole("button", { name: "add", exact: true }).click();
   await expect(page.locator(".venue-social-card")).toHaveCount(3);
   await page.reload();
@@ -163,6 +165,7 @@ test("failed discovery and blocked previews keep venue details and original-post
   ).toHaveAttribute("href", /Royal%20Botanic%20Garden%20Sydney/);
   await page.getByRole("button", { name: "add a post" }).click();
   await page.getByLabel("post link", { exact: true }).fill(tiktok);
+  await page.getByRole('checkbox', { name: /This shows Royal Botanic Garden Sydney/ }).check();
   await page.getByRole("button", { name: "add", exact: true }).click();
   await page
     .getByRole("button", { name: "watch TikTok post", exact: true })
@@ -205,7 +208,7 @@ test("stop details show three visitor posts inline and return from a post to the
   let requested;
   await page.route("**/api/social/search", route => {
     requested = route.request().postDataJSON().venue;
-    return route.fulfill({ json: { posts: visitorPosts } });
+    return route.fulfill({ json: { posts: visitorPosts.map(post => ({ ...post, venueKey: mediaVenueKey(requested) })) } });
   });
   const errors = [];
   page.on("pageerror", error => errors.push(error.message));
