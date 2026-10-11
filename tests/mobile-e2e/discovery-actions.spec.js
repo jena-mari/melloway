@@ -1,0 +1,40 @@
+import { test, expect } from '@playwright/test';
+import { defaultDraft, editRoute, demoMatrix } from '../../packages/domain/dist/index.js';
+import { mediaVenueKey } from '../../packages/domain/src/venueMedia.ts';
+const place = { id: 'live-fixture', name: 'Fixture Bookshop', address: '12 King Street, Sydney NSW 2000', area: 'Sydney CBD',
+  lat: -33.87, lng: 151.2, cost: 10, mins: 30, source: 'google', category: 'Bookshop', tags: ['Bookshops'], note: 'Venue fixture', hours: { open: 540, close: 1320 } };
+const url = 'https://www.tiktok.com/@fixture/video/7123456789012345678';
+test('native discovery shows branch-matched media, saves places and inserts without replacing the route', async ({ page }) => {
+  await page.route('https://**', route => route.abort());
+  await page.route('**/api/status', route => route.fulfill({ json: { socialDiscovery: 'openai' } }));
+  await page.route('**/api/social/search', route => route.fulfill({ json: { posts: [{ url, caption: 'A quiet bookshop.', venueKey: mediaVenueKey(place), metadataSource: 'source-excerpt' }] } }));
+  await page.route('**/api/social/preview', route => route.fulfill({ json: { post: { url: route.request().postDataJSON().url, caption: 'User supplied fixture post' } } }));
+  const prefs = { ...defaultDraft(), area: 'Sydney CBD', date: '2026-10-12', time: '11:00', duration: 8, budget: 100, transport: 'Not selected', preferences: ['Bookshops'] };
+  const a = { ...place, id: 'a', name: 'Fixture A', arrivalOverride: 720 }, b = { ...place, id: 'b', name: 'Fixture B', lng: place.lng + .001 };
+  const candidates = [a, b, place].map(v => ({ ...v, score: 0 })), matrix = demoMatrix(candidates, prefs.transport);
+  const plan = { ...editRoute([a, b], prefs, candidates, matrix), prefs, id: 'original-id', createdAt: '2026-10-12T00:00:00Z', notice: 'fixture' };
+  await page.addInitScript(stored => { if (!localStorage.getItem('melloway.mobile.v1')) localStorage.setItem('melloway.mobile.v1', JSON.stringify(stored)); },
+    { state: { draft: prefs, current: { plan, candidates, matrix, notice: 'fixture' }, saved: [] }, version: 1 });
+  await page.goto('/explore');
+  await expect(page.getByRole('heading', { name: place.name, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: `see the vibe at ${place.name}`, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'watch TikTok post', exact: true })).toBeVisible();
+  await expect(page.getByText('From captions · quiet (inferred)', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: `save ${place.name}`, exact: true }).click();
+  const card = page.getByRole('heading', { name: place.name, exact: true }).locator('..');
+  await card.getByRole('button', { name: 'add to itinerary', exact: true }).click();
+  await expect(card.getByRole('button', { name: 'in your day', exact: true })).toBeVisible();
+  const updated = await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.mobile.v1')).state.current);
+  expect(updated.plan.id).toBe(plan.id);
+  expect(updated.plan.stops.filter(s => s.id !== place.id).map(s => s.id)).toEqual(['a', 'b']);
+  expect(updated.plan.stops.find(s => s.id === 'a').arrival).toBe(720);
+  await page.getByRole('button', { name: 'add a post', exact: true }).click();
+  await page.getByRole('textbox', { name: 'post link', exact: true }).fill('https://www.instagram.com/p/SharedPost123/');
+  await page.getByRole('checkbox', { name: 'This post shows this exact place and branch', exact: true }).click();
+  await page.getByRole('button', { name: 'save post link', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'watch Instagram post', exact: true })).toBeVisible();
+  await page.goto('/saved');
+  await expect(page.getByRole('button', { name: `view ${place.name}`, exact: true })).toBeVisible();
+  await page.getByRole('button', { name: `view ${place.name}`, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'watch Instagram post', exact: true })).toBeVisible();
+});

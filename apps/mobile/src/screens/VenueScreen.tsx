@@ -10,10 +10,15 @@ import { useVenueVideoStore } from '../store/useVenueVideoStore';
 import { videosForVenue } from '../services/venueVideos';
 import { SocialLinkForm } from './SocialLinkScreen';
 import SocialVideoPreview from '../components/SocialVideoPreview';
+import VenueMediaGallery from '../components/VenueMediaGallery';
+import PlaceActions from '../components/PlaceActions';
+import { useSavedPlaces } from '../store/useSavedPlaces';
 
 export default function VenueScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const plan = useAppStore(state => state.current?.plan);
+  const candidates = useAppStore(state => state.current?.candidates);
+  const places = useSavedPlaces(state => state.places);
   const setStatus = useAppStore(state => state.setStatus);
   const [addingVideo, setAddingVideo] = useState<string | null>(null);
   const videos = useVenueVideoStore(state => state.videos);
@@ -21,13 +26,15 @@ export default function VenueScreen() {
   const hydrated = useVenueVideoStore(state => state.hydrated);
   const loadError = useVenueVideoStore(state => state.loadError);
   useEffect(() => { void load().catch(() => {}); }, [load]);
-  const venue = plan?.stops.find(v => v.id === id) || venues.find(v => v.id === id);
+  const venue = plan?.stops.find(v => v.id === id) || candidates?.find(v => v.id === id) || places.find(v => v.id === id) || venues.find(v => v.id === id);
   const stopIndex = plan?.stops.findIndex(v => v.id === id) ?? -1;
   if (!venue) return <Screen><Text style={common.title}>that spot has wandered off.</Text><Button label="back to ur day" onPress={() => router.replace('/itinerary')} /></Screen>;
   return <Screen eyebrow={stopIndex >= 0 ? `STOP ${String.fromCharCode(65 + stopIndex)} · LOCATION SPOTLIGHT` : 'LOCATION SPOTLIGHT'}>
     <MoodImage uri={venue.image} source={venue.source} attribution={venue.attribution} height={280} />
     <Text accessibilityRole="header" style={common.title}>{venue.name}</Text>
     <Text style={common.subtitle}>{venue.address}</Text>
+    <PlaceActions venue={venue} />
+    {venue.source !== 'demo' && <VenueMediaGallery key={venue.id} venue={venue} />}
     {stopIndex >= 0 && <Text style={common.fine}>{formatTime(plan!.stops[stopIndex].arrival)}–{formatTime(plan!.stops[stopIndex].arrival + venue.mins)}</Text>}
     <Notice>{venue.source === 'demo' ? 'Demo venue · illustrative mood imagery · sample hours and prices.' : `Google Places${venue.attribution ? ' · Photo: ' + venue.attribution : ''}`}</Notice>
     <Text style={common.text}>{venue.note}</Text>

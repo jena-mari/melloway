@@ -31,6 +31,7 @@ export default function RootLayout() {
         <Stack.Screen name="itinerary" />
         <Stack.Screen name="venue/[id]" />
         <Stack.Screen name="saved" />
+        <Stack.Screen name="explore" />
         <Stack.Screen name="social-link" />
         <Stack.Screen name="tiktok-places" />
         <Stack.Screen name="events-map" />

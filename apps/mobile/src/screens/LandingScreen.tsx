@@ -23,6 +23,7 @@ export default function LandingScreen() {
     <Text style={common.label}>what are we planning? ↴</Text>
     <Button label="a date ♡" onPress={() => start('date')} />
     <Button label="just a cute hangout ✳" tone="yellow" onPress={() => start('hangout')} />
+    <Button label="explore places" tone="green" onPress={() => router.push('/explore')} />
     <Button label="paste a TikTok or Reel link" tone="green" onPress={() => router.push('/social-link')} />
     <Button label="TikTok places map" tone="green" onPress={() => router.push('/tiktok-places')} />
     <Button label="Ticketmaster venue map" tone="yellow" onPress={() => router.push('/events-map')} />
