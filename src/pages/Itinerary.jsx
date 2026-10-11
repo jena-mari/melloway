@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { createPortal } from 'react-dom';
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import BrandLogo from "../components/BrandLogo";
 import {
   Bookmark,
-  ArrowUpRight,
   RefreshCw,
   ChevronDown,
   ArrowRight,
@@ -13,9 +12,6 @@ import {
   X,
   ArrowLeft,
   Navigation,
-  MoreHorizontal,
-  Pencil,
-  Plus,
 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import { replaceExperienceStop } from "../engine/replacement";
@@ -50,15 +46,13 @@ export default function Itinerary({
   initialStopId = "",
 }) {
   const app = useApp();
-  const navigate = useNavigate();
   const { state: navigationState } = useLocation();
-  const { setDraft, startNew, saved, save, setStatus } = app;
+  const { saved, save, setStatus } = app;
   const current = route || app.current;
   const setCurrent = onRouteChange || app.setCurrent;
   const [detailId, setDetailId] = useState(null),
     [showRename, setShowRename] = useState(false),
     [timeframeIndex, setTimeframeIndex] = useState(null),
-    [showPlanOptions, setShowPlanOptions] = useState(false),
     [picker, setPicker] = useState(null),
     [extraPool, setExtraPool] = useState(null),
     [busy, setBusy] = useState(false),
@@ -598,114 +592,42 @@ export default function Itinerary({
           <span>explore more spots<small>nearby · fits ur day</small></span> <ArrowRight size={18} aria-hidden="true" />
         </Link>
       </article>
-      <section className="result-sheet" aria-label="Plan actions">
-        <div className="result-next">
-          {!route && <div className="date-lifecycle">
-            <span className="eyebrow">{plan.status === 'in-progress' ? 'in progress' : 'upcoming'}</span>
-            <Button disabled={busy} onClick={() => {
-              if (plan.status === 'in-progress') {
-                if (app.finishRoute()) navigate('/');
-              } else app.startRoute();
-            }}>{plan.status === 'in-progress' ? `finish ${d.mode === 'date' ? 'date' : 'hangout'}` : 'start ur day'} <ArrowRight size={16} /></Button>
-          </div>}
-          {createPortal(<div className="result-actions itinerary-sticky-actions" aria-label="Save and directions">
-            <Button
-              className={isSaved ? "green" : "pink"}
-              aria-label={isSaved ? "saved · sync again" : "lock this in"}
-              disabled={busy}
-              onClick={() => save(plan)}
-            >
-              <Bookmark
-                size={15}
-                fill={isSaved ? "currentColor" : "none"}
-                aria-hidden="true"
-              />
-              {isSaved ? "saved" : "lock this in"}
-            </Button>
-            <a
-              className="button result-directions"
-              aria-label="open Google Maps"
-              target="_blank"
-              rel="noreferrer"
-              href={directions(plan.stops, d.transport)}
-            >
-              <Navigation size={16} aria-hidden="true" /> directions
-            </a>
-          </div>, document.body)}
-          <div className="result-secondary">
-            <Link to="/community" aria-label="explore community">
-              community <ArrowUpRight size={15} aria-hidden="true" />
-            </Link>
-            <button
-              className="result-regenerate"
-              aria-label={
-                busy && busyStop === null
-                  ? "finding another…"
-                  : "try another plan"
-              }
-              disabled={busy}
-              onClick={regenerate}
-            >
-              <RefreshCw size={14} aria-hidden="true" />
-              {busy && busyStop === null ? "finding…" : "new plan"}
-            </button>
-            <button
-              aria-label="more plan options"
-              aria-expanded={showPlanOptions}
-              aria-controls="result-plan-options"
-              onClick={() => setShowPlanOptions((shown) => !shown)}
-            >
-              <MoreHorizontal size={17} aria-hidden="true" /> more
-            </button>
-          </div>
-        </div>
-        <div
-          id="result-plan-options"
-          className="result-plan-options"
-          hidden={!showPlanOptions}
-        >
-          <div className="result-tools">
-            <Link
-              to="/plan/details"
-              aria-label="tweak the details"
-              onClick={() => {
-                const { selectedPreferences, ...answers } = d;
-                setDraft({
-                  ...answers,
-                  preferences: selectedPreferences || d.preferences,
-                });
-              }}
-            >
-              <Pencil size={15} aria-hidden="true" /> edit plan
-            </Link>
-            <Link to="/" onClick={startNew} aria-label="start a new plan">
-              <Plus size={16} aria-hidden="true" /> new plan
-            </Link>
-          </div>
-          <details className="data-notice plan-disclosure">
-            <summary>sources & estimates</summary>
-            <p>
-              {plan.notice}{" "}
-              {plan.source === "estimate"
-                ? "Travel is a rough estimate, not a calculated road or transit route."
-                : "Google route times are estimates. Transit is queried for the outing’s Sydney start time; later connections may differ."}{" "}
-              {d.transport === 'Not selected' ? 'Choose transport for mode-specific routes. Current times use geographic planning buffers.' : d.transport === "Walking"
-                ? "Walking has no transport allowance."
-                : `Budget includes a sample $${plan.transportAllowance} transport allowance per person, not a fare quote.`}
-            </p>
-          </details>
-          {d.notes && (
-            <details className="plan-notes">
-              <summary>notes</summary>
-              <p>{d.notes}</p>
-              <span>
-                Specific requests are notes for your outing; venue availability
-                and dietary needs aren’t verified.
-              </span>
-            </details>
-          )}
-        </div>
-      </section>
+      {createPortal(
+        <div className="result-actions itinerary-sticky-actions" role="group" aria-label="Plan actions">
+          <Button
+            className={isSaved ? "green" : "pink"}
+            aria-label={isSaved ? "saved · sync again" : "lock this in"}
+            disabled={busy}
+            onClick={() => save(plan)}
+          >
+            <Bookmark
+              size={15}
+              fill={isSaved ? "currentColor" : "none"}
+              aria-hidden="true"
+            />
+            {isSaved ? "saved" : "lock this in"}
+          </Button>
+          <Button
+            className="result-regenerate"
+            aria-label={busy && busyStop === null ? "finding another…" : "try another plan"}
+            disabled={busy}
+            onClick={regenerate}
+          >
+            <RefreshCw size={15} aria-hidden="true" />
+            {busy && busyStop === null ? "finding…" : "new plan"}
+          </Button>
+          <a
+            className="button result-directions"
+            aria-label="open Google Maps"
+            target="_blank"
+            rel="noreferrer"
+            href={directions(plan.stops, d.transport)}
+          >
+            <Navigation size={16} aria-hidden="true" /> directions
+          </a>
+        </div>,
+        document.body,
+      )}
       {showRename && !route && <PlanNameDialog key={plan.id} plan={plan}
         onApply={app.renameCurrentPlan} onClose={() => setShowRename(false)} />}
       {picker && (

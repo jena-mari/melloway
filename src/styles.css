@@ -6802,8 +6802,8 @@ html:has(.profile-page) {
 .itinerary-explore-link span { display: grid; gap: 4px; }
 .itinerary-explore-link small { font-size: 10px; font-weight: 400; color: #666; }
 .map-result { padding-bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 100px); }
-.itinerary-sticky-actions { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom)); width: min(100%, 480px); padding: 10px 16px; background: #fffffff5; backdrop-filter: blur(12px); border-top: 1px solid #ddd; z-index: 39; box-shadow: 0 -4px 16px #00000008; animation: itinerary-actions-enter .2s ease-out; }
-.itinerary-sticky-actions .button { min-height: 48px; border-radius: 14px; }
+.itinerary-sticky-actions { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom)); width: min(100%, 480px); grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 10px 12px; background: #fffffff5; backdrop-filter: blur(12px); border-top: 1px solid #ddd; z-index: 39; box-shadow: 0 -4px 16px #00000008; animation: itinerary-actions-enter .2s ease-out; }
+.itinerary-sticky-actions .button { min-width: 0; min-height: 48px; padding: 10px 4px; gap: 4px; border-radius: 14px; font-size: 12px; white-space: nowrap; }
 .itinerary-sticky-actions > .button:first-child { background: var(--ink) !important; color: white; }
 body:has(.keyboard-open) .itinerary-sticky-actions { display: none; }
 body:has(.itinerary-sticky-actions) .toast { bottom: calc(var(--tabs-height) + env(safe-area-inset-bottom) + 86px); }

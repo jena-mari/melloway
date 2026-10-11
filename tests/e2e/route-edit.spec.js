@@ -156,12 +156,37 @@ test("compact route rows lead into the map and suggestion previews remain opt-in
   ).toBeVisible();
   await arrow.tap();
   await expect(page.locator(".inline-stop-expansion")).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".result-sheet, #result-plan-options, .date-lifecycle")).toHaveCount(0);
+  const actions = page.getByRole("group", { name: "Plan actions", exact: true });
+  const buttons = actions.locator(":scope > .button");
+  await expect(buttons).toHaveText(["lock this in", "new plan", "directions"]);
+  const newPlan = actions.getByRole("button", { name: "try another plan", exact: true });
+  await newPlan.focus();
+  await expect(newPlan).toBeFocused();
+  for (const width of [320, 390]) {
+    await page.setViewportSize({ width, height: 844 });
+    const boxes = await buttons.evaluateAll(elements => elements.map(el => {
+      const { x, y, width, height } = el.getBoundingClientRect();
+      return { x, y, width, height, overflow: el.scrollWidth > el.clientWidth };
+    }));
+    for (const box of boxes) {
+      expect(box.y).toBe(boxes[0].y);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      expect(box.height).toBeGreaterThanOrEqual(44);
+      expect(box.overflow).toBe(false);
+    }
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await actions.screenshot({ path: "/private/tmp/melloway-plan-actions-390.png" });
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await expect(page.locator("#result-plan-options")).not.toBeVisible();
     await page
-      .locator(".result-sheet")
+      .locator(".itinerary-sticky-actions")
       .screenshot({ path: `/private/tmp/melloway-plan-actions-${width}.png` });
+    await page.locator(".map-preview").scrollIntoViewIfNeeded();
     const map = await page.locator(".map-preview").boundingBox();
     const rows = await page.locator(".route-summary-list").boundingBox();
     const suggestions = await page.locator(".itinerary-explore-link").boundingBox();
@@ -182,29 +207,6 @@ test("compact route rows lead into the map and suggestion previews remain opt-in
       fullPage: true,
     });
   }
-  await page.setViewportSize({ width: 390, height: 844 });
-  const more = page.getByRole("button", {
-    name: "more plan options",
-    exact: true,
-  });
-  await more.focus();
-  await page.keyboard.press("Enter");
-  await expect(page.locator("#result-plan-options")).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "tweak the details", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "start a new plan", exact: true }),
-  ).toBeVisible();
-  await page.locator(".plan-disclosure summary").tap();
-  await expect(page.locator(".plan-disclosure p")).toContainText(
-    "Sourced venues",
-  );
-  await page
-    .locator(".result-sheet")
-    .screenshot({ path: "/private/tmp/melloway-plan-options-390.png" });
-  await more.tap();
-  await expect(page.locator("#result-plan-options")).not.toBeVisible();
   await page.getByRole("link", { name: "explore more spots", exact: true }).click();
   await page.getByRole("button", { name: "show suggestions", exact: true }).click();
   const preview = page.getByRole("button", {
