@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { Fragment, useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Heart,
@@ -17,6 +17,9 @@ import { communityExamples } from "../data/community";
 import useCommunity from "../hooks/useCommunity";
 import { profileHandle } from "../utils/profile";
 import { createId } from "../utils/id";
+import MellowayPicks from "../components/MellowayPicks.jsx";
+import BrandLogo from "../components/BrandLogo";
+import { matchingPicks } from "../data/mellowayPicks.js";
 
 import { Avatar, timeAgo } from "../components/CommunityIdentity";
 
@@ -332,7 +335,7 @@ export default function Community() {
           )}
         </label>
         <Link to="/" className="community-home-mark" aria-label="melloway home">
-          m
+          <BrandLogo decorative />
         </Link>
       </header>
       {show && (
@@ -440,24 +443,29 @@ export default function Community() {
           </Button>
         </form>
       )}
+      {!show && text && <MellowayPicks query={query} />}
       <section className="community-feed" aria-label="community route posts">
-        {feed.map((post) => (
-          <CommunityPost
-            key={post.id}
-            post={post}
-            liked={likes.includes(post.id)}
-            onLike={() => like(post.id)}
-            replies={replies[post.id] || []}
-            onReply={(text) => reply(post.id, text)}
-            saved={saved.some((plan) => plan.id === post.plan?.id)}
-            onSave={(plan) =>
-              saved.some((p) => p.id === plan.id) ? remove(plan.id) : save(plan)
-            }
-            author={author}
-            handle={handle}
-          />
+        {feed.map((post, index) => (
+          <Fragment key={post.id}>
+            <CommunityPost
+              post={post}
+              liked={likes.includes(post.id)}
+              onLike={() => like(post.id)}
+              replies={replies[post.id] || []}
+              onReply={(text) => reply(post.id, text)}
+              saved={saved.some((plan) => plan.id === post.plan?.id)}
+              onSave={(plan) =>
+                saved.some((p) => p.id === plan.id)
+                  ? remove(plan.id)
+                  : save(plan)
+              }
+              author={author}
+              handle={handle}
+            />
+            {!show && !text && index === 0 && <MellowayPicks />}
+          </Fragment>
         ))}
-        {!feed.length && (
+        {!feed.length && !matchingPicks(query).length && (
           <div className="community-empty">
             <p>no posts found</p>
             <button

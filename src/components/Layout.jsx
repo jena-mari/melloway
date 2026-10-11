@@ -3,6 +3,7 @@ import { useRef, useEffect } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { gentleEase } from "./Introduction";
 import DoodleBackdrop from "./DoodleBackdrop";
+import BrandLogo from "./BrandLogo";
 import { Heart, Compass, Sparkles, Bookmark, MapPin, Map } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import useKeyboard from "../hooks/useKeyboard";
@@ -48,7 +49,7 @@ export default function Layout() {
         pathname !== "/profile" && (
           <header className="app-topbar">
             <Link to="/" className="wordmark" aria-label="melloway home">
-              melloway<span>✳</span>
+              <BrandLogo decorative />
             </Link>
             <div className="topbar-account">
               <span className="city-label">
@@ -86,7 +87,7 @@ export default function Layout() {
           aria-label="Open melloway menu"
           onClick={() => menu.current?.showModal()}
         >
-          m
+          <BrandLogo decorative />
         </button>
       )}
       <dialog
@@ -127,7 +128,9 @@ export default function Layout() {
               to={to}
               end={to === "/"}
               aria-label={name}
-              className={({ isActive }) => `tab ${isActive ? "active" : ""}`}
+              className={({ isActive }) =>
+                `tab ${isActive || (to === "/community" && pathname.startsWith("/picks")) ? "active" : ""}`
+              }
             >
               <span className="tab-icon">
                 <Icon size={21} strokeWidth={1.6} />

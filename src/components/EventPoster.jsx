@@ -1,3 +1,5 @@
+import BrandLogo from "./BrandLogo";
+
 export default function EventPoster({ event, compact = false }) {
   return (
     <div
@@ -6,7 +8,8 @@ export default function EventPoster({ event, compact = false }) {
       aria-label={`${event.posterTitle.join(" ")} — ${event.source === "ticketmaster" ? "Ticketmaster event" : "sample event poster"}`}
     >
       <span className="poster-topline" aria-hidden="true">
-        {event.source === "ticketmaster" ? "Ticketmaster listing" : "melloway presents"} <span>✳</span>
+        <BrandLogo decorative />
+        {event.source === "ticketmaster" ? "Ticketmaster listing" : "presents"}
       </span>
       <strong className="poster-title" aria-hidden="true">
         {event.posterTitle.map((line) => (

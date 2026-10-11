@@ -10,6 +10,7 @@ import { useEffect, lazy, Suspense } from "react";
 import { useLocation } from "react-router-dom";
 const Community = lazy(() => import("./pages/Community"));
 const CommunityRoute = lazy(() => import("./pages/CommunityRoute"));
+const Pick = lazy(() => import("./pages/Pick"));
 const Itinerary = lazy(() => import("./pages/Itinerary"));
 const Favourites = lazy(() => import("./pages/Favourites"));
 const Profile = lazy(() => import("./pages/Profile"));
@@ -94,6 +95,25 @@ export default function App() {
                   </Suspense>
                 }
               />
+              {["/picks", "/picks/:pickId", "/picks/:pickId/venue/:id"].map(
+                (path) => (
+                  <Route
+                    key={path}
+                    path={path}
+                    element={
+                      <Suspense
+                        fallback={
+                          <div className="page" role="status">
+                            opening the pick…
+                          </div>
+                        }
+                      >
+                        <Pick />
+                      </Suspense>
+                    }
+                  />
+                ),
+              )}
               {["/community/:postId", "/community/:postId/venue/:id"].map(
                 (path) => (
                   <Route

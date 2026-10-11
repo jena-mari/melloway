@@ -17,6 +17,7 @@ import useCommunity, { readLikes } from "../hooks/useCommunity";
 import { CommunityPost } from "./Community";
 import { Avatar } from "../components/CommunityIdentity";
 import { Doodle } from "../components/DoodleBackdrop";
+import BrandLogo from "../components/BrandLogo";
 import EventPoster from "../components/EventPoster";
 import { communityExamples } from "../data/community";
 import { events } from "../data/events";
@@ -37,7 +38,7 @@ function CoverArtwork({ image }) {
       <span className="profile-cover-doodle">
         <Doodle kind="matcha" />
       </span>
-      <span className="profile-cover-wordmark">melloway</span>
+      <span className="profile-cover-wordmark"><BrandLogo decorative /></span>
       <span className="profile-cover-doodle">
         <Doodle kind="camera" />
       </span>

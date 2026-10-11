@@ -4,6 +4,7 @@ import { useApp } from "../hooks/useApp";
 import { MoodImage } from "../components/UI";
 import { events } from "../data/events";
 import EventPoster from "../components/EventPoster";
+import { Doodle } from "../components/DoodleBackdrop";
 export default function Favourites() {
   const { saved, savedEvents, toggleEventSave, setCurrent, remove } = useApp(),
     navigate = useNavigate();
@@ -83,16 +84,28 @@ export default function Favourites() {
           {saved.map((p) => (
             <article className="collection-card" key={p.id}>
               <div className="collection-photo">
-                <MoodImage src={p.stops.find((s) => s.image)?.image} />
+                {p.pickId ? (
+                  <span className="saved-pick-art" aria-hidden="true">
+                    <Doodle kind="matcha" />
+                  </span>
+                ) : (
+                  <MoodImage src={p.stops.find((s) => s.image)?.image} />
+                )}
                 <span className="pill-label">
-                  {p.stops[0].source === "demo" ? "demo plan" : "Google Places"}
+                  {p.pickId
+                    ? "melloway pick"
+                    : p.stops[0].source === "demo"
+                      ? "demo plan"
+                      : p.stops[0].source === "curated"
+                        ? "Sydney venues"
+                        : "Google Places"}
                 </span>
               </div>
               <div className="collection-body">
                 <span className="eyebrow">{p.prefs.area}</span>
                 <h2>
-                  {p.prefs.mode === "date" ? "a date" : "a hangout"} with{" "}
-                  {p.prefs.partner || "good company"}
+                  {p.title ||
+                    `${p.prefs.mode === "date" ? "a date" : "a hangout"} with ${p.prefs.partner || "good company"}`}
                 </h2>
                 <p>
                   {p.stops.length} stops · ~${p.cost} each · {p.prefs.date}

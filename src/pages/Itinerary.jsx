@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
+import BrandLogo from "../components/BrandLogo";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Bookmark,
@@ -417,7 +418,7 @@ export default function Itinerary({
               communityPost ? "back to community feed" : "melloway home"
             }
           >
-            {communityPost ? <ArrowLeft size={20} /> : "m"}
+            {communityPost ? <ArrowLeft size={20} /> : <BrandLogo decorative />}
           </Link>
           <div className="result-intro">
             <h1>

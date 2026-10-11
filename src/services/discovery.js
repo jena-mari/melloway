@@ -48,11 +48,13 @@ const catalogForPlan = (plan) =>
     ? venues
     : curatedVenuesForDate(plan.prefs.date);
 const noticeForPlan = (plan) =>
-  plan.stops.some((v) => v.source === "google")
-    ? liveNotice
-    : plan.stops.some((v) => v.source === "curated")
-      ? curatedNotice
-      : demoNotice;
+  plan.pickId && plan.pickNotice
+    ? plan.pickNotice
+    : plan.stops.some((v) => v.source === "google")
+      ? liveNotice
+      : plan.stops.some((v) => v.source === "curated")
+        ? curatedNotice
+        : demoNotice;
 const signature = (plan) =>
   plan?.stops
     .map((v) => v.id)

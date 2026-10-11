@@ -12,6 +12,7 @@ import {
 import { useApp } from "../hooks/useApp";
 import { events } from "../data/events";
 import EventPoster from "../components/EventPoster";
+import BrandLogo from "../components/BrandLogo";
 import { readLocal, writeLocal } from "../services/storage";
 import { planningArea } from "../utils/location";
 import { eventQuery, loadEvents, eventPostFromTicketmaster } from "../services/events";
@@ -41,7 +42,7 @@ function EventPost({ event, liked, onLike, focused }) {
           className={`event-host-avatar poster-${event.theme}`}
           aria-hidden="true"
         >
-          {event.initials}
+          {event.handle?.startsWith("melloway.") ? <BrandLogo decorative /> : event.initials}
         </span>
         <div>
           <strong>{event.host}</strong>
