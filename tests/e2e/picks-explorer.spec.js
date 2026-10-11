@@ -58,7 +58,9 @@ test("Explore immediately shows ten mapped swipe cards without suggestion API ca
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
   const last = editorialPicks.at(-1);
   await page.getByRole("button", { name: `select ${last.name} on map`, exact: true }).click();
-  await expect(page.locator(".picks-carousel-progress")).toContainText("10 / 10");
+  await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", last.id);
+  await expect(page.locator(".picks-carousel-progress")).toHaveText("swipe up or down");
+  await expect(page.locator(".picks-carousel-dots")).toHaveCount(0);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -113,7 +115,7 @@ test.describe("Explore reel swipes", () => {
       await swipe(0.82, 0.12);
       await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
       await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
-      await expect(page.locator(".picks-carousel-progress")).toContainText("2 / 10 · swipe up or down");
+      await expect(page.locator(".picks-carousel-progress")).toHaveText("swipe up or down");
       const centered = () => feed.evaluate(list => {
         const card = list.querySelector(".is-selected").getBoundingClientRect();
         const box = list.getBoundingClientRect();
@@ -267,7 +269,8 @@ test("dragging the photo swipes to the next card and updates its Google marker",
   await page.mouse.move(photo.x + 30, photo.y + photo.height / 2, { steps: 15 });
   await page.mouse.up();
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
-  await expect(page.locator(".picks-carousel-progress")).toContainText("2 / 10");
+  await expect(page.locator(".picks-carousel-progress")).toHaveText("swipe to explore");
+  await expect(page.locator(".picks-carousel-dots")).toHaveCount(0);
   await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
   await expect(page.locator(".editorial-place-cards")).not.toHaveClass(/is-dragging/);
   await page.screenshot({ path: info.outputPath("picks-swipe.png") });

@@ -171,8 +171,7 @@ export default function PicksExplorer({ embedded = false }) {
           </li>)}
         </ul>
         <div className="picks-carousel-progress">
-          <p aria-live="polite">{activeIndex + 1} / {venues.length} · {embedded ? "swipe up or down" : "swipe to explore"}</p>
-          <div className="picks-carousel-dots" aria-hidden="true">{venues.map((venue) => <span key={venue.id} className={venue.id === active.id ? "is-selected" : ""} />)}</div>
+          <p>{embedded ? "swipe up or down" : "swipe to explore"}</p>
         </div>
       </section>
     </div>
