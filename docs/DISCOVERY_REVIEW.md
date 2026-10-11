@@ -101,3 +101,36 @@ npm run typecheck:discovery
 
 Approval/rejection tests operate exclusively on synthetic temporary fixtures.
 They do not access the actual default queue or make search/API calls.
+
+## Live lookup history
+
+One live lookup starts with a known café's exact name and suburb and returns
+**zero to five** tentative TikTok/Instagram post links. It uses OpenAI web search
+over cached/indexed public pages, not TikTok's internal search. Results are saved
+as pending records in the review queue. The bot does not download videos, extract
+GPS points or automatically add places to the app's map.
+
+Live discovery requires server-only credentials. To load the ignored root `.env`:
+
+```sh
+npm run build:domain
+node --experimental-strip-types --env-file=.env scripts/discovery-review.ts live <venue-id> "<exact café name>" "<Sydney suburb>"
+npm run discovery:review -- lookups
+```
+
+Before a paid request, the CLI saves an attempt in `lookup-history.json` beside
+the queue (by default `.local/discovery/lookup-history.json`). All queues in that
+directory share the same history. Repeating a venue ID or a name/suburb query
+with different casing or whitespace is skipped without calling OpenAI, even if
+the model or queue filename changes. Empty results are remembered too. The
+history stores the café identity, model, attempt ID, timestamps, status and
+candidate count. It contains no API key or downloaded content.
+
+The attempt is recorded before the API request. Failed or interrupted attempts
+are also skipped on rerun because they may already have incurred a charge.
+There is no automatic retry or refresh. Review the history before deciding on
+an explicit follow-up. Existing video decisions are preserved independently.
+Malformed history stops discovery instead of resetting it. A lock prevents
+concurrent commands from making duplicate requests. If a process crashes, first
+confirm no lookup is running before removing only its history lock; keep the
+history file, including any `started` attempt.

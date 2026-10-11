@@ -13,6 +13,8 @@ async function withApi(options, run) {
     recommendationProvider: { rank: unexpected, interpret: unexpected },
     socialProvider: { discover: unexpected, preview: unexpected },
     eventsHandler: unexpected,
+    eventsMapHandler: unexpected, socialLinkHandler: unexpected,
+    tiktokPlacesHandler: unexpected, itineraryMapHandler: unexpected,
     ...options,
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -123,13 +125,19 @@ test('existing intent and recommendation endpoints retain validation and respons
   });
 });
 
-test('Ticketmaster JSON data is additive without importing the generated map page', async () => {
+test('Ticketmaster JSON and restored map endpoints preserve the existing status contract', async () => {
   await withApi({ eventsHandler: async (req, res) => {
     res.writeHead(200);
     res.end(JSON.stringify({ events: [], points: [], missingCoordinates: 0, mapAvailable: false }));
+  }, eventsMapHandler: async (req, res) => {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end('<html>Mock event map</html>');
   } }, async request => {
     assert.deepEqual(await (await request('/api/events')).json(), { events: [], points: [], missingCoordinates: 0, mapAvailable: false });
-    assert.equal((await request('/api/events-map')).status, 404);
+    const map = await request('/api/events-map');
+    assert.equal(map.status, 200);
+    assert.equal(await map.text(), '<html>Mock event map</html>');
+    assert.equal((await request('/api/events-map', {})).status, 404);
     assert.deepEqual(await (await request('/api/status')).json(), { venues: 'curated', recommendations: 'planner', socialDiscovery: 'unavailable' });
   });
 });
@@ -143,4 +151,25 @@ test('existing CORS allowlist and recommendation rate limit remain enforced', as
     for (let i = 0; i < 6; i++) assert.equal((await request('/api/intent', { prefs })).status, 200);
     assert.equal((await request('/api/intent', { prefs })).status, 429);
   });
+});
+
+
+test('restored itinerary, TikTok and copied-link endpoints dispatch without private provider credentials', async () => {
+  const handled = [];
+  const handler = label => async (req, res) => {
+    handled.push([label, req.url]);
+    res.writeHead(200);
+    res.end(JSON.stringify({ mock: label }));
+  };
+  await withApi({ itineraryMapHandler: handler('itinerary'),
+    tiktokPlacesHandler: handler('tiktok'), socialLinkHandler: handler('link') }, async request => {
+    for (const path of ['/api/itinerary-map?stops=mock', '/api/tiktok-places', '/api/tiktok-places-map']) {
+      assert.equal((await request(path)).status, 200);
+    }
+    assert.deepEqual(await (await request('/api/social-link', { url: 'mock' })).json(), { mock: 'link' });
+    assert.equal((await request('/api/social-link')).status, 404);
+    assert.equal((await request('/api/itinerary-map', {})).status, 404);
+  });
+  assert.deepEqual(handled, [['itinerary', '/api/itinerary-map?stops=mock'],
+    ['tiktok', '/api/tiktok-places'], ['tiktok', '/api/tiktok-places-map'], ['link', '/api/social-link']]);
 });

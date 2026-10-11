@@ -137,6 +137,7 @@ test('TikTok CLI imports pending candidates, preserves decisions on reruns, and 
     const listed = await runReviewCommand(['--queue', queuePath, 'list']);
     assert.ok('records' in listed);
     assert.ok(listed.records);
+    assert.ok('sourceUrl' in listed.records[0]);
     assert.equal(listed.records[0].sourceUrl, video().url);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

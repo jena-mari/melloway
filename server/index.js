@@ -2,6 +2,10 @@ import http from "node:http";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createEventsHandler } from "./events.ts";
+import { createEventMapHandler } from "./eventMap.ts";
+import { createSocialLinkHandler } from "./socialLinks.ts";
+import { createTikTokPlacesHandler } from "./tiktokPlacesMap.ts";
+import { createItineraryMapHandler } from "./itineraryMap.ts";
 import { validPreferences } from "../src/utils/planner.js";
 import { localLocations } from "../src/utils/location.js";
 import { createGoogleProvider } from "./google.js";
@@ -40,6 +44,10 @@ export function createApiServer(options = {}) {
     .filter(Boolean);
 
   const eventsHandler = options.eventsHandler ?? createEventsHandler();
+  const eventsMapHandler = options.eventsMapHandler ?? createEventMapHandler();
+  const socialLinkHandler = options.socialLinkHandler ?? createSocialLinkHandler();
+  const tiktokPlacesHandler = options.tiktokPlacesHandler ?? createTikTokPlacesHandler();
+  const itineraryMapHandler = options.itineraryMapHandler ?? createItineraryMapHandler();
   return http.createServer(async (req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Cache-Control", "no-store");
@@ -79,8 +87,13 @@ export function createApiServer(options = {}) {
         req.method === "GET" && req.url.startsWith("/api/photo?");
       const eventsRequest =
         req.method === "GET" && ["/api/events"].includes(req.url.split("?")[0]);
+      const eventsMapRequest = req.method === "GET" && req.url.split("?")[0] === "/api/events-map";
+      const tiktokPlacesRequest = req.method === "GET" && ["/api/tiktok-places", "/api/tiktok-places-map"].includes(req.url.split("?")[0]);
+      const itineraryMapRequest = req.method === "GET" && req.url.split("?")[0] === "/api/itinerary-map";
+      const socialLinkRequest = req.method === "POST" && req.url === "/api/social-link";
       if (
         !photoRequest &&
+        !eventsMapRequest && !tiktokPlacesRequest && !itineraryMapRequest && !socialLinkRequest &&
         !eventsRequest &&
         (req.method !== "POST" ||
           ![
@@ -104,6 +117,7 @@ export function createApiServer(options = {}) {
         !locationSearch &&
         !recommendationRequest &&
         !eventsRequest &&
+        !eventsMapRequest && !tiktokPlacesRequest && !itineraryMapRequest && !socialLinkRequest &&
         !socialSearch &&
         !socialPreview
       )
@@ -129,6 +143,10 @@ export function createApiServer(options = {}) {
         if (recommendationRates.size > 10000) recommendationRates.clear();
       }
       if (eventsRequest) return await eventsHandler(req, res);
+      if (eventsMapRequest) return await eventsMapHandler(req, res);
+      if (tiktokPlacesRequest) return await tiktokPlacesHandler(req, res);
+      if (itineraryMapRequest) return await itineraryMapHandler(req, res);
+      if (socialLinkRequest) return await socialLinkHandler(req, res);
       if (photoRequest) {
         const name = new URL(req.url, "http://localhost").searchParams.get(
           "name",
@@ -255,7 +273,8 @@ if (
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
   const port = Number(process.env.PORT) || 3001;
-  createApiServer().listen(port, "127.0.0.1", () =>
-    console.log(`melloway API listening on http://127.0.0.1:${port}`),
+  const host = process.env.HOST || "127.0.0.1";
+  createApiServer().listen(port, host, () =>
+    console.log(`melloway API listening on http://${host}:${port}`),
   );
 }

@@ -12,9 +12,15 @@ const instagram = {
   id: 'DJf0_RmSd-T',
   normalizedUrl: 'https://www.instagram.com/reel/DJf0_RmSd-T/',
 };
+const photo = {
+  platform: 'tiktok', id: '7666580140201217311',
+  normalizedUrl: 'https://www.tiktok.com/@nabooresident/photo/7666580140201217311',
+};
 
 const valid = [
   ['TikTok full URL', tiktok.normalizedUrl, tiktok],
+  ['TikTok photo slideshow', photo.normalizedUrl, photo],
+  ['TikTok photo sharing parameters', `${photo.normalizedUrl}/?_r=1&_t=tracking#photos`, photo],
   ['TikTok bare host', 'https://tiktok.com/@scout2015/video/6718335390845095173', tiktok],
   ['TikTok sharing parameters and fragment', `${tiktok.normalizedUrl}/?is_from_webapp=1#player`, tiktok],
   ['TikTok HTTP, host case and surrounding whitespace', ' \nHTTP://WWW.TIKTOK.COM/@scout2015/video/6718335390845095173\t ', tiktok],
@@ -65,7 +71,9 @@ const invalid = [
   ['an Instagram short link', 'https://instagr.am/reel/DJf0_RmSd-T/'],
   ['an Instagram share redirect', 'https://www.instagram.com/share/reel/ABC123/'],
   ['a TikTok profile', 'https://www.tiktok.com/@scout2015'],
-  ['a TikTok photo post', 'https://www.tiktok.com/@scout2015/photo/6718335390845095173'],
+  ['a nonnumeric TikTok photo ID', 'https://www.tiktok.com/@scout2015/photo/not-a-number'],
+  ['an encoded TikTok photo path', 'https://www.tiktok.com/@scout2015/%70hoto/6718335390845095173'],
+  ['a lookalike photo host', 'https://www.tiktok.com.evil.test/@scout2015/photo/6718335390845095173'],
   ['a missing TikTok username', 'https://www.tiktok.com/@/video/6718335390845095173'],
   ['a missing TikTok ID', 'https://www.tiktok.com/@scout2015/video/'],
   ['a nonnumeric TikTok ID', 'https://www.tiktok.com/@scout2015/video/123abc'],

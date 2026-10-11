@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "server": "node --experimental-strip-types --env-file-if-exists=.env server/index.js",
-    "test": "node --experimental-strip-types --test tests/*.test.js && npm run test:events && npm run test:discovery",
+    "test": "node --experimental-strip-types --test tests/*.test.js && npm run test:mobile && npm run test:events && npm run test:discovery && npm run test:social-links",
     "test:e2e": "playwright test",
     "test:e2e:setup": "playwright install chromium",
     "build:domain": "npm run build --workspace @melloway/domain",
@@ -17,17 +17,24 @@
     "prebuild": "npm run build:domain",
     "preserver": "npm run build:domain",
     "pretest": "npm run build:domain",
-    "typecheck": "npm run typecheck --workspace @melloway/domain && npm run typecheck:backend",
+    "typecheck": "npm run typecheck --workspace @melloway/domain && npm run typecheck --workspace @melloway/mobile && npm run typecheck:backend && npm run typecheck:web",
     "typecheck:backend": "tsc -p server/tsconfig.discovery.json",
     "typecheck:discovery": "npm run typecheck:backend",
-    "test:events": "node --experimental-strip-types --test tests/ticketmaster.test.ts tests/events.test.ts",
-    "test:discovery": "node --experimental-strip-types --test tests/openai-social-discovery.test.ts tests/discovery-review-queue.test.ts tests/discovery-export.test.ts tests/tiktok-discovery.test.ts",
+    "test:events": "node --experimental-strip-types --test tests/ticketmaster.test.ts tests/events.test.ts tests/event-map.test.ts tests/itinerary-map.test.ts",
+    "test:discovery": "node --experimental-strip-types --test tests/openai-social-discovery.test.ts tests/discovery-review-queue.test.ts tests/discovery-export.test.ts tests/tiktok-discovery.test.ts tests/discovery-lookup-history.test.ts tests/tiktok-places.test.ts",
     "events:sydney": "node --experimental-strip-types --env-file-if-exists=.env scripts/fetch-sydney-events.ts",
     "prediscovery:review": "npm run build:domain",
     "discovery:review": "node --experimental-strip-types scripts/discovery-review.ts",
     "test:tiktokapi": "node --experimental-strip-types --test tests/tiktok-discovery.test.ts && python3 -m unittest discover -s tests/python -p test_tiktokapi_search.py",
     "prediscovery:tiktok": "npm run build:domain",
-    "discovery:tiktok": "node --experimental-strip-types --env-file-if-exists=.env scripts/discovery-review.ts tiktok"
+    "discovery:tiktok": "node --experimental-strip-types --env-file-if-exists=.env scripts/discovery-review.ts tiktok",
+    "test:social-links": "node --experimental-strip-types --test tests/social-link-resolver.test.ts",
+    "prediscovery:populate": "npm run build:domain",
+    "discovery:populate": "node --experimental-strip-types --env-file-if-exists=.env scripts/populate-tiktok-places.ts",
+    "mobile": "npm run start --workspace @melloway/mobile --",
+    "mobile:web": "npm run web --workspace @melloway/mobile --",
+    "typecheck:web": "tsc -p tsconfig.web.json",
+    "test:mobile": "node --experimental-strip-types --test tests/mobile/*.test.ts"
   },
   "dependencies": {
     "@capacitor/core": "^7.0.0",
@@ -35,8 +42,8 @@
     "framer-motion": "^12.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.468.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
     "react-router-dom": "^7.0.0",
     "@melloway/domain": "1.0.0"
   },
@@ -51,6 +58,7 @@
     "@types/node": "26.6.5"
   },
   "workspaces": [
+    "apps/mobile",
     "packages/*"
   ],
   "engines": {

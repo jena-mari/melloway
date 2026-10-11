@@ -125,3 +125,13 @@ Preserved: Outfit, expressive script branding (updated to the supplied Maple Sho
 ### Brand artwork
 
 The app uses the supplied logo and coloured doodles in `public/icons`. Original PNGs stay untouched; `public/icons/optimized` contains smaller copies for phone screens. `BrandLogo` shares the logo across screens and `DoodleBackdrop` maps existing doodle names to these assets, preserving animation and reduced-motion behavior. When replacing an original, regenerate its optimized copy with `sips -Z 256 public/icons/NAME.PNG --out public/icons/optimized/NAME.png` (use 512 for `melloway_logo`).
+
+## Consolidated main workflow
+
+All retained web, backend, discovery and Expo functionality lives on `main`. Use `npm run dev` for the primary React/Vite website. Its newer screens, sourced Sydney catalogue, event preferences, OpenAI integrations and planning engine remain authoritative.
+
+The separate Expo app lives in `apps/mobile/`: `npm run mobile` starts the native preview; `npm run mobile:web` previews those native screens in a browser. Mobile planning defaults to demo mode. See `apps/mobile/.env.example` for public backend configuration. Native device use needs a reachable absolute API origin, and explicit backend `HOST=0.0.0.0` for LAN testing.
+
+Restored features include event venue maps, itinerary pins, TikTok share-link resolution and saved venue videos, TikTok place catalogue discovery, mobile onboarding, event details and itinerary text sharing. Google map pages select the dedicated `GOOGLE_MAPS_JS_KEY`, falling back to `GOOGLE_MAPS_DEMO_KEY`; private Places/Routes keys remain server-only. TikTok discovery runs only through explicit commands and does not imply verified video matches or automatically populate the planner. See `docs/TIKTOK_PLACES.md`, `docs/DISCOVERY_REVIEW.md` and `docs/TIKTOKAPI.md`. Historical handoffs describe earlier branch checkpoints.
+
+Run `npm test`, `npm run typecheck`, `npm run lint --workspace @melloway/mobile`, `npm run build` and relevant web/mobile browser regressions. Expo dependency checks and bundle exports validate the restored native project; actual iOS/Android builds and device testing are separate.

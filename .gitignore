@@ -16,3 +16,21 @@ supabase/.branches/
 
 # Local Python bytecode for the optional TikTokApi adapter
 __pycache__/
+.expo/
+web-build/
+coverage/
+.metro-health-check*
+apps/mobile/ios/
+apps/mobile/android/
+expo-env.d.ts
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+*.jks
+*.keystore
+*.p8
+*.p12
+*.pem
+*.key
+*.mobileprovision
+credentials.json

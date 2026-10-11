@@ -6,3 +6,4 @@ export * from './generate.ts';
 export * from './socialMediaUrl.ts';
 export * from './socialDiscovery.ts';
 export * from './events.ts';
+export * from './tiktokPlaces.ts';

@@ -1,4 +1,4 @@
-/** Private CLI: mock by default; explicit live/tiktok commands use their respective providers. */
+/** Private CLI: mock by default; only the explicit live command can call Responses. */
 import { readFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -6,12 +6,13 @@ import { discoverCafeVideos } from '../server/socialDiscovery.ts';
 import { createLocalReviewQueue } from '../server/discoveryReviewQueue.ts';
 import { exportApprovedVideos } from '../server/discoveryExport.ts';
 import { discoverTikTokCafeVideos, type TikTokCollector } from '../server/tiktokDiscovery.ts';
+import { createLookupHistory } from '../server/discoveryLookupHistory.ts';
 import type { SocialSearchSource } from '@melloway/domain';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const privateDirectory = resolve(root, '.local/discovery');
 const notice = 'Private local curation tool, not secure multi-user moderation. Matches remain tentative.';
-const usage = 'Usage: discovery:review -- [--queue path] mock <venue-id> "<exact name>" "<Sydney suburb>" <mock-sources.json> | live <venue-id> "<exact name>" "<Sydney suburb>" | tiktok <venue-id> "<exact name>" "<Sydney suburb>" | list | approve <id> | reject <id> | export <new-output.json>';
+const usage = 'Usage: discovery:review -- [--queue path] mock <venue-id> "<exact name>" "<Sydney suburb>" <mock-sources.json> | live <venue-id> "<exact name>" "<Sydney suburb>" | tiktok <venue-id> "<exact name>" "<Sydney suburb>" | list | lookups | approve <id> | reject <id> | export <new-output.json>';
 const inside = (parent: string, child: string) => {
   const rel = relative(parent, child);
   return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
@@ -37,6 +38,10 @@ export async function runReviewCommand(input: string[], options: { fetcher?: typ
   // Repository-local generated data must stay in the directory ignored by Git.
   requirePrivatePath(queuePath);
   const queue = createLocalReviewQueue(queuePath);
+  // Share lookup history across queues in the same directory, so changing the review queue cannot repeat a paid search.
+  const historyPath = resolve(dirname(queuePath), 'lookup-history.json');
+  if (queuePath === historyPath) throw new Error('Choose a review queue filename other than lookup-history.json.');
+  const history = createLookupHistory(historyPath);
   const [command, ...values] = args;
   if (command === 'mock' && values.length === 4) {
     const [venueId, name, suburb, sourceFile] = values;
@@ -60,16 +65,26 @@ export async function runReviewCommand(input: string[], options: { fetcher?: typ
   } else if (command === 'live' && values.length === 3) {
     const [venueId, name, suburb] = values;
     await queue.list(); // Do not spend a request on a known malformed queue.
-    const candidates = await discoverCafeVideos({ venueId, name, suburb }, { mode: 'live', fetcher: options.fetcher });
-    return { notice, mode: 'live', ...await queue.importPending(candidates) };
+    await history.list();
+    const model = process.env.OPENAI_DISCOVERY_MODEL?.trim();
+    if (!model) throw new Error('Set OPENAI_DISCOVERY_MODEL before live discovery.');
+    if (!process.env.OPENAI_API_KEY?.trim()) throw new Error('Set server-side OPENAI_API_KEY before live discovery.');
+    const result = await history.runOnce({ venueId, name, suburb }, model, async () => {
+      const candidates = await discoverCafeVideos({ venueId, name, suburb }, { mode: 'live', fetcher: options.fetcher });
+      return { value: await queue.importPending(candidates), candidateCount: candidates.length };
+    });
+    if (result.skipped) return { notice, mode: 'live', skipped: true, reason: 'already_attempted', lookup: result.record };
+    return { notice, mode: 'live', skipped: false, lookup: result.record, ...result.value };
   } else if (command === 'tiktok' && values.length === 3) {
     const [venueId, name, suburb] = values;
-    await queue.list(); // Validate existing storage before starting a browser.
+    await queue.list();
     const result = await discoverTikTokCafeVideos({ venueId, name, suburb }, {
       mode: 'live', collector: options.tiktokCollector,
     });
     return { notice, mode: 'tiktok-local', received: result.received,
       matching: result.candidates.length, ...await queue.importPending(result.candidates) };
+  } else if (command === 'lookups' && values.length === 0) {
+    return { notice, records: await history.list() };
   } else if (command === 'list' && values.length === 0) {
     return { notice, records: await queue.list() };
   } else if ((command === 'approve' || command === 'reject') && values.length === 1) {

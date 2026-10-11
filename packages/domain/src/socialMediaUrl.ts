@@ -5,8 +5,23 @@ export interface SocialMediaUrl {
   normalizedUrl: string;
 }
 
+/** Recognizes copied TikTok share URLs; the video ID requires a redirect lookup. */
+export function normalizeTikTokShareUrl(input: unknown): string | null {
+  if (typeof input !== 'string') return null;
+  const value = input.trim();
+  if (/[\s\\]/u.test(value)) return null;
+  const match = /^https:\/\/(vm\.tiktok\.com|vt\.tiktok\.com|(?:www\.)?tiktok\.com)(\/[^?#]*)(?:[?#].*)?$/i.exec(value);
+  if (!match) return null;
+  const host = match[1].toLowerCase();
+  const path = host === 'vm.tiktok.com' || host === 'vt.tiktok.com'
+    ? /^\/([A-Za-z0-9_-]{1,128})\/?$/.exec(match[2])
+    : /^\/t\/([A-Za-z0-9_-]{1,128})\/?$/.exec(match[2]);
+  if (!path) return null;
+  return `https://${host}/${host.startsWith('v') ? '' : 't/'}${path[1]}/`;
+}
+
 /**
- * Parses standard full TikTok video and Instagram Reel URLs, without requests.
+ * Parses standard full TikTok video/photo posts and Instagram Reel URLs, without requests.
  * Accepts HTTP(S), bare/www hosts, and optional trailing slashes. Normalizes to
  * HTTPS/www and removes query parameters and fragments. Returns null for other
  * input, including shortened links. This checks URL format, not post existence.
@@ -26,12 +41,12 @@ export function parseSocialMediaUrl(input: unknown): SocialMediaUrl | null {
   const path = url[2];
 
   if (host === 'tiktok.com' || host === 'www.tiktok.com') {
-    const video = /^\/@([A-Za-z0-9_.]+)\/video\/([0-9]+)\/?$/.exec(path);
-    if (!video) return null;
+    const post = /^\/@([A-Za-z0-9_.]+)\/(video|photo)\/([0-9]+)\/?$/.exec(path);
+    if (!post) return null;
     return {
       platform: 'tiktok',
-      id: video[2],
-      normalizedUrl: `https://www.tiktok.com/@${video[1]}/video/${video[2]}`,
+      id: post[3],
+      normalizedUrl: `https://www.tiktok.com/@${post[1]}/${post[2]}/${post[3]}`,
     };
   }
 

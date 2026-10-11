@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import GoogleStopMap from "./GoogleStopMap";
 import { directions } from "../utils/planner";
 import {
   tileUrl,
@@ -227,21 +228,8 @@ function MapCanvas({ stops, transport, interactive, ...selection }) {
   // Google Places content belongs on a Google map, never third-party tiles.
   if (stops.some((stop) => stop.source === "google")) {
     if (!embedKey || stops.length === 1)
-      return (
-        <div className="map-unavailable">
-          <span className="map-unavailable-dots" aria-hidden="true">
-            {stops.map((_, i) => i + 1).join(" · · · ")}
-          </span>
-          <p>ur route is ready in Google Maps.</p>
-          <a
-            href={directions(stops, transport)}
-            target="_blank"
-            rel="noreferrer"
-          >
-            see the route <ArrowUpRight size={16} />
-          </a>
-        </div>
-      );
+      return <GoogleStopMap stops={stops} {...selection}
+        directionsUrl={directions(stops, transport)} />;
     const url = new URL("https://www.google.com/maps/embed/v1/directions");
     url.searchParams.set("key", embedKey);
     url.searchParams.set("origin", `${stops[0].lat},${stops[0].lng}`);

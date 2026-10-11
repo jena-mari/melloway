@@ -2387,6 +2387,11 @@ dd {
   width: 100%;
   height: 100%;
 }
+.google-stop-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
 .map-unavailable {
   height: 100%;
   display: flex;
@@ -2456,6 +2461,7 @@ dd {
 }
 .expanded-route > .street-map,
 .expanded-route > .google-route-map,
+.expanded-route > .google-stop-map,
 .expanded-route > .map-unavailable {
   flex: 1;
   min-height: 180px;
