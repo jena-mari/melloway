@@ -27,11 +27,11 @@ test("different branches, distant namesakes and fictional venues do not inherit 
   ]) assert.deepEqual(venuePostLinks(venue), []);
 });
 
-test("a different venue keeps its own attached reel without inheriting MATCHA-YA's", () => {
+test("a different venue keeps its own attached reels without inheriting MATCHA-YA's", () => {
   const glebe = sydneyVenues.find(venue => venue.id === "sydney-glebe-markets");
   const links = venuePostLinks(glebe);
-  assert.equal(links.length, 1);
-  assert.equal(socialPost(links[0]).platform, "TikTok");
+  assert.equal(links.length, 3);
+  assert.ok(links.every(link => socialPost(link).platform === "TikTok"));
   assert.ok(links.every(link => !venuePostLinks(matchaya).includes(link)));
 });
 
