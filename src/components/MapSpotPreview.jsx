@@ -1,3 +1,4 @@
+import { venuePriceLabel } from "../../packages/domain/src/venuePricing.ts";
 import { ArrowUpRight, X } from "lucide-react";
 import { Doodle } from "./DoodleBackdrop";
 import { MoodImage } from "./UI";
@@ -12,7 +13,7 @@ export default function MapSpotPreview({ points, onSelect, onClose }) {
         </div>
         <div className="map-preview-copy">
           <strong>{point.name}</strong>
-          <small>{[Number.isFinite(point.cost) ? `~$${point.cost} each` : null, ...(point.tags || []).slice(0, 2)].filter(Boolean).join(" · ")}</small>
+          <small>{[Number.isFinite(point.cost) ? venuePriceLabel(point) : null, ...(point.tags || []).slice(0, 2)].filter(Boolean).join(" · ")}</small>
           <button type="button" onClick={() => onSelect(point.id)}>see the vibe <ArrowUpRight size={14} /></button>
         </div>
       </div>)}

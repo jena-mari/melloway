@@ -9,3 +9,4 @@ export * from './socialDiscovery.ts';
 export * from './events.ts';
 export * from './tiktokPlaces.ts';
 export * from './venueMedia.ts';
+export * from './venuePricing.ts';

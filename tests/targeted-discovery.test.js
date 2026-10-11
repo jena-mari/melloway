@@ -26,12 +26,12 @@ function cafe(id = "fixture-cafe", source = "curated") {
     lat: -33.873, lng: 151.207, area: "Sydney CBD", cost: 15, mins: 45, rating: 5,
     weeklyHours: openingHours(allHours), hoursStatus: "published" };
 }
-function providerFor(targetPlaces, curated = [cafe()], normalPlaces = []) {
+function providerFor(targetPlaces, curated = [cafe()], normalPlaces = [], admissionEvidence) {
   const requests = [];
   const provider = createGoogleProvider("mock-only-key", async (_url, options) => {
     const body = JSON.parse(options.body); requests.push({ body, mask: options.headers["X-Goog-FieldMask"] });
     return Response.json({ places: body.textQuery.startsWith("skate park") ? targetPlaces : normalPlaces });
-  }, { curated: () => curated });
+  }, { curated: () => curated, ...(admissionEvidence ? { admissionEvidence } : {}) });
   return { provider, requests };
 }
 
@@ -104,13 +104,59 @@ test("price allowances respect total and activity budgets without treating unkno
   const result = await provider.discoverWithDebug(prefs);
   assert.deepEqual(result.venues.map(v => v.id), ["unknown-price"]);
   assert.equal(result.venues[0].cost, 20);
-  assert.equal(result.venues[0].priceStatus, "estimate");
+  assert.equal(result.venues[0].priceStatus, "unknown");
+  assert.equal(result.venues[0].costLabel, "price unconfirmed · $20 planning allowance");
   assert.equal(result.venues[0].priceLevel, null);
   assert.match(result.venues[0].note, /not a venue quote/);
   assert.deepEqual(result.debug.rejectedReasons, { budget: 1, "invalid-price": 1 });
   assert.deepEqual((await provider.discoverWithDebug({ ...prefs, activityBudgets: { activities: 0 } })).venues, []);
   assert.deepEqual((await provider.discoverWithDebug({ ...prefs, budget: 0 })).venues, []);
   assert.equal((await providerFor([place({ priceLevel: "PRICE_LEVEL_FREE" })]).provider.discoverWithDebug({ ...prefs, budget: 0 })).venues[0].cost, 0);
+});
+
+test("verified free admission stays zero despite missing outdoor types and custom activity money", async () => {
+  const evidence = { url: 'https://example.com/council/fixture-park', checkedAt: '2026-10-12', fields: ['free admission'] };
+  const park = place({ priceLevel: undefined, types: ['sports_complex'] });
+  const provider = providerFor([park], [], [], p => p.id === park.id ? evidence : null).provider;
+  const result = await provider.discoverWithDebug({ ...prefs, budget: 0, preferences: [] });
+  assert.equal(result.venues.length, 1);
+  assert.equal(result.venues[0].cost, 0);
+  assert.equal(result.venues[0].priceStatus, 'free');
+  assert.equal(result.venues[0].costLabel, 'free entry · $0');
+  assert.deepEqual(result.venues[0].priceEvidence, evidence);
+  const allocated = schedule(result.venues, { ...prefs, activityBudgets: { activities: 35 } }, [[{ minutes: 0, distance: 0 }]], [0]);
+  assert.ok(allocated);
+  assert.equal(allocated.stops[0].cost, 0);
+  assert.equal(allocated.cost, 0);
+  assert.equal(allocated.budgetBreakdown.activities.allowance, 35);
+  // A fee reported by Google takes precedence over a previously checked source.
+  const paid = await providerFor([place({ priceLevel: 'PRICE_LEVEL_MODERATE' })], [], [], () => evidence).provider.discover(prefs);
+  assert.equal(paid[0].cost, 45);
+  assert.equal(paid[0].priceStatus, 'estimate');
+  assert.equal(paid[0].priceEvidence, undefined);
+});
+
+test("free admission never invents hours and duplicate fallbacks cannot inflate its cost", async () => {
+  const free = place({ priceLevel: 'PRICE_LEVEL_FREE' });
+  const unknown = place({ priceLevel: undefined });
+  const venues = await providerFor([free], [], [unknown]).provider.discover(prefs);
+  assert.equal(venues.length, 1);
+  assert.equal(venues[0].cost, 0);
+  assert.equal(venues[0].priceStatus, 'free');
+  const noHours = await providerFor([place({ priceLevel: 'PRICE_LEVEL_FREE', regularOpeningHours: undefined })]).provider.discover(prefs);
+  assert.equal(noHours[0].hoursStatus, 'unverified');
+  assert.equal(venueRejection(noHours[0], prefs, interpretPreferences(prefs)), 'unknown-hours');
+  assert.equal(schedule(noHours, prefs, demoMatrix(noHours, prefs.transport), [0]), null);
+});
+
+test("contradictory provider prices stay unconfirmed rather than promising free entry", async () => {
+  const venues = await providerFor([place({ priceLevel: 'PRICE_LEVEL_FREE' })], [],
+    [place({ priceLevel: 'PRICE_LEVEL_MODERATE' })]).provider.discover(prefs);
+  assert.equal(venues[0].cost, 45);
+  assert.equal(venues[0].priceStatus, 'unknown');
+  assert.equal(venues[0].priceLevel, null);
+  assert.match(venues[0].costLabel, /price unconfirmed/);
+  assert.match(venues[0].note, /results disagree/);
 });
 
 test("unknown outdoor hours are unverified suggestions and can never enter a confirmed schedule", async () => {

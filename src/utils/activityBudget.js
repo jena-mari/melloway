@@ -1,3 +1,5 @@
+import { hasFreeAdmission } from '../../packages/domain/src/venuePricing.ts';
+
 export const budgetCategories = [
   { id: "food", label: "food" },
   { id: "drinks", label: "drinks" },
@@ -24,6 +26,7 @@ export function validActivityBudgets(value) {
   );
 }
 export function estimatedCost(venue) {
+  if (hasFreeAdmission(venue)) return 0;
   return venue.estimatedCost ?? venue.cost;
 }
 export function budgetCategory(venue) {
@@ -86,6 +89,8 @@ export function replacementBudget(previous, venue) {
     ...(previous.visitOverride != null ? { mins: previous.visitOverride, visitOverride: previous.visitOverride } : {}) };
   const category = budgetCategory(venue);
   const minimum = estimatedCost(venue);
+  if (category === 'activities' && hasFreeAdmission(venue))
+    return { ...venue, cost: 0, estimatedCost: 0, budgetCategory: category };
   return previous.budgetCategory === category &&
     Number.isFinite(previous.estimatedCost)
     ? {
@@ -164,7 +169,13 @@ export function allocateActivityBudgets(stops, prefs, transport = 0) {
   }
   const allocatedStops = [];
   for (const id of ids) {
-    const groupRows = rows.filter((row) => row.group === id);
+    const groupRows = rows.filter((row) => row.group === id &&
+      !(id === 'activities' && hasFreeAdmission(row.venue)));
+    // A category cap reserves optional spending; it must not turn free
+    // admission into a per-stop fee. Keep that money reserved when all are free.
+    for (const row of rows.filter(row => row.group === id && !groupRows.includes(row))) {
+      allocatedStops[row.index] = { ...row.venue, estimatedCost: row.minimum / 100, cost: row.minimum / 100, budgetCategory: id };
+    }
     let extra = breakdown[id].allowance - breakdown[id].minimum;
     let weight = groupRows.reduce(
       (sum, row) =>

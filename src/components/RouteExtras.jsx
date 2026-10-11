@@ -1,3 +1,4 @@
+import { venuePriceLabel } from "../../packages/domain/src/venuePricing.ts";
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import { Plus, RefreshCw, MapPin, ChevronUp, ChevronDown, ArrowUpRight, LoaderCircle } from "lucide-react";
@@ -190,7 +191,7 @@ export default function RouteExtras({
                 <p className="suggestion-address"><MapPin size={13} aria-hidden="true" />{venue.address || "Address unavailable"}</p>
                 <div className="extra-actions">
                   <p>
-                    ~${venue.cost}
+                    {venuePriceLabel(venue)}
                     {browse ? ` · ${venue.mins} min visit` : next
                       ? ` · +${Math.max(0, Math.round(next.elapsed - elapsed))} min`
                       : " · doesn’t fit"}

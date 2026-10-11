@@ -1,3 +1,4 @@
+import { venuePriceLabel } from "../../packages/domain/src/venuePricing.ts";
 import RecommendationEvidence from '../components/RecommendationEvidence.jsx';
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowUpRight } from "lucide-react";
@@ -67,7 +68,7 @@ export default function Venue({ route, backTo = "/itinerary", backLabel = "back 
           <dl>
             <div>
               <dt>estimated spend</dt>
-              <dd>{v.costLabel || `~$${v.cost} each`}</dd>
+              <dd>{venuePriceLabel(v)}</dd>
             </div>
             <div>
               <dt>visit</dt>

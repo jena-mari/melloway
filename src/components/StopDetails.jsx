@@ -1,3 +1,4 @@
+import { venuePriceLabel, venueBudgetNote } from "../../packages/domain/src/venuePricing.ts";
 import RecommendationEvidence from './RecommendationEvidence.jsx';
 import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
@@ -81,15 +82,9 @@ export default function StopDetails({
               {!suggestion && <>{formatTime(s.arrival)} · </>}
               {s.mins} min visit
             </span>
-            <span>{s.cost ? `~$${s.cost} each` : "$0 allowance"}</span>
+            <span>{venuePriceLabel(s)}</span>
           </div>
-          {Number.isFinite(s.estimatedCost) && s.cost !== s.estimatedCost && (
-            <p className="stop-budget-note">
-              {s.budgetCategory === "shopping"
-                ? `$${Math.round((s.cost - s.estimatedCost) * 100) / 100} for purchases · ~$${s.estimatedCost} entry`
-                : `$${s.cost} budget · ~$${s.estimatedCost} estimate`}
-            </p>
-          )}
+          {venueBudgetNote(s) && <p className="stop-budget-note">{venueBudgetNote(s)}</p>}
           <p className="stop-address">
             <MapPin size={14} />
             {s.address}

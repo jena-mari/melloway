@@ -8,6 +8,8 @@ import { extractRequestedActivities, matchesRequestedActivity, outdoorActivityVe
 import { km, transportAllowance } from "../src/utils/planner.js";
 import { allocateActivityBudgets } from "../src/utils/activityBudget.js";
 import { outingInstant } from "../src/utils/date.js";
+import { freeAdmissionEvidence } from './freeAdmission.js';
+import { venuePriceLabel } from '../packages/domain/src/venuePricing.ts';
 
 export function openingHours(periods) {
   const days = Array.from({ length: 7 }, () => []);
@@ -84,7 +86,7 @@ function allowance(tag) {
 const priceAllowances = { PRICE_LEVEL_FREE: 0, PRICE_LEVEL_INEXPENSIVE: 20,
   PRICE_LEVEL_MODERATE: 45, PRICE_LEVEL_EXPENSIVE: 90, PRICE_LEVEL_VERY_EXPENSIVE: 150 };
 
-export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVenuesForDate } = {}) {
+export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVenuesForDate, admissionEvidence = freeAdmissionEvidence } = {}) {
   async function google(url, body, mask) {
     const response = await fetcher(url, {
       method: "POST",
@@ -123,6 +125,7 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVe
       googleResults: 0, googleCandidates: 0, targetedQueries: tasks.filter(t => t.targeted).length,
       rejectedResults: 0, rejectedReasons: {}, rejections: [], unverifiedSuggestions: 0, failedQueries: 0 };
     const targetedVenues = new WeakSet();
+    const pricingConflicts = new WeakSet();
     const reject = (reason, place, targeted) => {
       debug.rejectedResults++;
       debug.rejectedReasons[reason] = (debug.rejectedReasons[reason] || 0) + 1;
@@ -162,7 +165,10 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVe
         if (priceLevel !== undefined && priceLevel !== "PRICE_LEVEL_UNSPECIFIED" && !Object.hasOwn(priceAllowances, priceLevel)) {
           reject("invalid-price", p, targeted); continue;
         }
-        const cost = priceLevel === "PRICE_LEVEL_FREE" ? 0 : Math.max(allowance(tag),
+        const unknownPrice = !priceLevel || priceLevel === 'PRICE_LEVEL_UNSPECIFIED';
+        const priceEvidence = unknownPrice ? admissionEvidence(p) : null;
+        const free = priceLevel === 'PRICE_LEVEL_FREE' || !!priceEvidence;
+        const cost = free ? 0 : Math.max(allowance(tag),
           priceAllowances[priceLevel] ?? (activityMatch ? (outdoor ? 20 : 35) : allowance(tag)));
         let venue = { id: p.id, name: identity.name, address: p.formattedAddress,
           website: p.websiteUri, providerTypes: p.types, pureServiceAreaBusiness: p.pureServiceAreaBusiness,
@@ -172,12 +178,16 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVe
           tags: lead ? lead.tags : [...new Set([tag, ...(activityMatch ? [matchedActivity.query] : [])])],
           category: activityMatch ? matchedActivity.query : tag, weeklyHours, source: "google", cost,
           ...(activityMatch ? { roles: [matchedActivity.role] } : {}),
-          hoursStatus: unverified ? "unverified" : "published", priceStatus: "estimate",
+          hoursStatus: unverified ? "unverified" : "published", priceStatus: free ? 'free' : unknownPrice ? 'unknown' : 'estimate',
           priceLevel: priceLevel || null,
+          ...(priceEvidence ? { priceEvidence } : {}),
           mins: tag === "Fine dining" ? 120 : ["Speakeasies", "Cocktail bars"].includes(tag) ? 60 : tag === "Photo booths" ? 15 : 45,
           note: "Discovered with Google Places. Estimated spend is a planning allowance, not a venue quote. Check the venue before visiting." +
             (unverified ? " Opening hours are unverified; this suggestion cannot be scheduled as confirmed open." : ""),
           mapsUri: p.googleMapsUri };
+        venue.costLabel = venuePriceLabel(venue);
+        if (free) venue.note = 'Free admission. Equipment, lessons and purchases are separate. Confirm current access before visiting.' +
+          (unverified ? ' Opening hours are unverified; this suggestion cannot be scheduled as confirmed open.' : '');
         if (eventServiceOnly(venue)) { reject("event-service", p, targeted); continue; }
         if (activityMatch && !allocateActivityBudgets([venue], prefs, transportAllowance(prefs.transport))) {
           reject("budget", p, targeted); continue;
@@ -206,7 +216,24 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVe
         if (existing) {
           reject("duplicate", venue, targetedVenues.has(venue));
           existing.tags = [...new Set([...existing.tags, ...venue.tags])];
-          existing.cost = Math.max(existing.cost, venue.cost);
+          // Prefer sourced pricing over query-dependent fallback allowances.
+          const confidence = v => v.priceLevel && v.priceLevel !== 'PRICE_LEVEL_UNSPECIFIED' ? 2 : v.priceEvidence ? 1 : 0;
+          if (pricingConflicts.has(existing)) {
+            existing.cost = Math.max(existing.cost, venue.cost);
+          } else if (confidence(venue) > confidence(existing)) {
+            for (const field of ['cost', 'priceStatus', 'priceLevel', 'priceEvidence', 'note']) {
+              if (venue[field] === undefined) delete existing[field];
+              else existing[field] = venue[field];
+            }
+          } else if (confidence(venue) === confidence(existing)) {
+            existing.cost = Math.max(existing.cost, venue.cost);
+            if (existing.priceStatus === 'free' && venue.priceStatus !== 'free' || venue.priceStatus === 'free' && existing.priceStatus !== 'free') {
+              pricingConflicts.add(existing);
+              existing.priceStatus = 'unknown'; existing.priceLevel = null; delete existing.priceEvidence;
+              existing.note = 'Admission price unconfirmed: provider results disagree. This amount is a planning allowance; check with the venue.';
+            }
+          }
+          existing.costLabel = venuePriceLabel(existing);
           if (venue.roles) existing.roles = [...new Set([...(existing.roles || []), ...venue.roles])];
         } else merged.set(venue.id, venue);
       }

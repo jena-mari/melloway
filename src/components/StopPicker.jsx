@@ -1,3 +1,4 @@
+import { venuePriceLabel } from "../../packages/domain/src/venuePricing.ts";
 import { useEffect, useRef, useState } from "react";
 import { Plus, Search, X } from "lucide-react";
 
@@ -58,8 +59,7 @@ export default function StopPicker({ choices, replacing, onChoose, onClose }) {
               <div>
                 <strong>{venue.name}</strong>
                 <span>
-                  {venue.category.toLowerCase()} · {venue.mins} min · ~$
-                  {venue.cost}
+                  {venue.category.toLowerCase()} · {venue.mins} min · {venuePriceLabel(venue)}
                 </span>
                 <small>
                   {venue.source === "demo" ? "sample spot" : venue.address}

@@ -23,6 +23,10 @@ export interface Venue extends Coordinates {
   area: string;
   address: string;
   cost: number;
+  estimatedCost?: number;
+  priceStatus?: 'free' | 'unknown' | 'estimate';
+  priceLevel?: string | null;
+  costLabel?: string;
   mins: number;
   arrivalOverride?: number;
   visitOverride?: number;

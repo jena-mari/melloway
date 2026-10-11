@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Linking, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { venues, formatTime } from '@melloway/domain';
+import { venues, formatTime, venuePriceLabel } from '@melloway/domain';
 import { Screen } from '../components/Screen';
 import { Button, MoodImage, Notice } from '../components/UI';
 import { useAppStore } from '../store/useAppStore';
@@ -58,7 +58,7 @@ export default function VenueScreen() {
       </View>)}
     </>}
     <View style={common.card}>
-      <Text style={common.label}>estimated spend</Text><Text style={common.text}>${venue.cost} AUD per person · planning allowance</Text>
+      <Text style={common.label}>estimated spend</Text><Text style={common.text}>{venuePriceLabel(venue)}</Text>
       <Text style={common.label}>make a little time</Text><Text style={common.text}>{venue.mins} minutes</Text>
       <Text style={common.label}>why it might be ur vibe</Text><Text style={common.text}>{venue.tags.join(' · ')}</Text>
       <Text style={common.label}>ratings & reviews</Text><Text style={common.fine}>{venue.rating ? `${venue.rating}/5 from Google. Check the venue link for current reviews.` : 'No verified ratings or availability in demo mode.'}</Text>

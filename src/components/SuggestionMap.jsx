@@ -1,3 +1,4 @@
+import { hasFreeAdmission } from "../../packages/domain/src/venuePricing.ts";
 import { useMemo, useState } from "react";
 import { LocateFixed, ArrowUpRight } from "lucide-react";
 import GoogleMapCanvas from "./GoogleMapCanvas";
@@ -12,7 +13,9 @@ function spotDirections(venue) {
   return url.href;
 }
 function spotMarker(element, [point]) {
-  element.textContent = Number.isFinite(point.cost) ? `~$${point.cost}` : "spot";
+  element.textContent = hasFreeAdmission(point) ? "free" : point.priceStatus === 'unknown' ||
+    (point.source === 'google' && point.priceStatus === 'estimate' && !point.priceLevel)
+    ? "check price" : Number.isFinite(point.cost) ? `~$${point.cost}` : "spot";
 }
 export default function SuggestionMap({ venues, active, onSelect, onView }) {
   const [resetView, setResetView] = useState(0);

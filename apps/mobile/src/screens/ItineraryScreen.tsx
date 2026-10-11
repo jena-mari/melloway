@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Linking, Share, Text, View, Modal, ScrollView, Pressable } from 'react-native';
 import { router } from 'expo-router';
-import { directions, formatTime, replaceStop, editRoute, addStop, reorderSelected, type Venue, type Plan, type Preferences, type GenerationBundle } from '@melloway/domain';
+import { venuePriceLabel, directions, formatTime, replaceStop, editRoute, addStop, reorderSelected, type Venue, type Plan, type Preferences, type GenerationBundle } from '@melloway/domain';
 import { randomUUID } from 'expo-crypto';
 import { Screen } from '../components/Screen';
 import { Button, MoodImage, Notice, Chips, Field } from '../components/UI';
@@ -124,7 +124,7 @@ export default function ItineraryScreen() {
           return !windows ? 'unconfirmed · check with venue' : !windows.length ? 'closed on this date' : windows.map(w => `${formatTime(w.open)}–${formatTime(w.close % 1440)}${w.close >= 1440 ? ' next day' : ''}`).join(', ') + (stop.source === 'demo' ? ' · sample hours' : ' · confirm before going');
         })()}</Text>
         <Text style={common.fine}>recommended visit · {stop.mins} min</Text>
-        <Text style={common.text}>{stop.category} · {stop.cost ? `~$${stop.cost} each` : '$0 allowance'}</Text>
+        <Text style={common.text}>{stop.category} · {venuePriceLabel(stop)}</Text>
         <Text style={common.fine}>why this spot · {stop.tags.filter(t => prefs.preferences.includes(t)).join(' + ') || 'fits this route’s time and budget.'}</Text>
         <Button label={`View Details · ${stop.name}`} tone="green" onPress={() => venue(stop.id)} />
 
@@ -149,7 +149,7 @@ export default function ItineraryScreen() {
         <Text style={common.title}>add a stop</Text><Field label="search nearby spots" value={query} onChangeText={setQuery} />
         {picker?.candidates.filter(v => !plan.stops.some(s => s.id === v.id) && `${v.name} ${v.address} ${v.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())).map(v => {
           const next = addStop(plan, v, picker.candidates, picker.matrix);
-          return <Button key={v.id} label={`${v.name} · ~$${v.cost}`} disabled={!next || editBusy} tone="cream" onPress={() => { if (next) { commit(next, picker); setPicker(null); setStatus('Stop added.'); } }} />;
+          return <Button key={v.id} label={`${v.name} · ${venuePriceLabel(v)}`} disabled={!next || editBusy} tone="cream" onPress={() => { if (next) { commit(next, picker); setPicker(null); setStatus('Stop added.'); } }} />;
         })}
         <Button label="close suggestions" tone="cream" onPress={() => setPicker(null)} />
       </ScrollView></SafeAreaView>

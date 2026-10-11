@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Linking, Text, View } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import { venues, selectVenues } from '@melloway/domain';
+import { venues, selectVenues, venuePriceLabel } from '@melloway/domain';
 import { Screen } from '../components/Screen';
 import { Button, MoodImage, Notice } from '../components/UI';
 import VenueMediaGallery from '../components/VenueMediaGallery';
@@ -30,7 +30,7 @@ export default function ExploreScreen() {
       <MoodImage uri={venue.image} source={venue.source} attribution={venue.attribution} />
       <Text accessibilityRole="header" style={common.label}>{venue.name}</Text>
       <Text style={common.fine}>{venue.area} · {venue.address}</Text>
-      <Text style={common.fine}>~${venue.cost} each · {venue.mins} min</Text>
+      <Text style={common.fine}>{venuePriceLabel(venue)} · {venue.mins} min</Text>
       <Text style={common.text}>{venue.note}</Text>
       <Text style={common.fine}>{venue.tags.filter(tag => prefs.preferences.includes(tag)).join(' · ') || venue.category}</Text>
       <PlaceActions venue={venue} />

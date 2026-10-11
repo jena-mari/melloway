@@ -1,3 +1,4 @@
+import { venuePriceLabel, venueBudgetNote } from "../../packages/domain/src/venuePricing.ts";
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, RefreshCw, Trash2, Navigation } from 'lucide-react';
@@ -17,10 +18,10 @@ export default function InlineStopDetails({ stop: s, index, prefs, busy, onRepla
     <p className="inline-stop-description">{s.description || s.note || `${s.category} · ${s.address}`}</p>
     <dl className="inline-stop-facts">
       <div><dt>opening hours</dt><dd>{stopOpeningHours(s, prefs)}</dd></div>
-      <div><dt>estimated cost</dt><dd>~${s.cost} each</dd></div>
+      <div><dt>estimated cost</dt><dd>{venuePriceLabel(s)}</dd></div>
       <div><dt>visit</dt><dd>{s.mins} min</dd></div>
     </dl>
-    {Number.isFinite(s.estimatedCost) && s.cost !== s.estimatedCost && <p className="inline-stop-note">{s.budgetCategory === 'shopping' ? `$${Math.round((s.cost - s.estimatedCost) * 100) / 100} for purchases · ~$${s.estimatedCost} entry` : `$${s.cost} budget · ~$${s.estimatedCost} estimate`}</p>}
+    {venueBudgetNote(s) && <p className="inline-stop-note">{venueBudgetNote(s)}</p>}
     <p className="inline-stop-reason"><strong>why this spot</strong>{s.reason || (matches.length ? `Matches your ${matches.join(' + ')} picks.` : 'Fits this route’s time and budget.')}</p>
     {s.booking && <p className="inline-stop-note">{s.booking}</p>}
     {s.description && s.note && <p className="inline-stop-note">{s.note}</p>}
