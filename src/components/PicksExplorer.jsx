@@ -74,8 +74,8 @@ export default function PicksExplorer({ embedded = false }) {
     if (!scroll || !card || !list) return;
     const cardBox = card.getBoundingClientRect(), listBox = list.getBoundingClientRect();
     list.scrollTo({
-      left: list.scrollLeft + cardBox.left - listBox.left - (list.clientWidth - cardBox.width) / 2,
-      top: 0,
+      left: embedded ? 0 : list.scrollLeft + cardBox.left - listBox.left - (list.clientWidth - cardBox.width) / 2,
+      top: embedded ? list.scrollTop + cardBox.top - listBox.top - (list.clientHeight - cardBox.height) / 2 : 0,
       behavior: reduced ? "instant" : "smooth",
     });
   }
@@ -84,10 +84,10 @@ export default function PicksExplorer({ embedded = false }) {
     scrollTimer.current = setTimeout(() => {
       const list = carousel.current;
       if (!list) return;
-      const box = list.getBoundingClientRect(), center = box.left + box.width / 2;
+      const box = list.getBoundingClientRect(), center = embedded ? box.top + box.height / 2 : box.left + box.width / 2;
       const closest = venues.reduce((best, venue) => {
         const card = cards.current.get(venue.id)?.getBoundingClientRect();
-        const distance = card ? Math.abs(card.left + card.width / 2 - center) : Infinity;
+        const distance = card ? Math.abs((embedded ? card.top + card.height / 2 : card.left + card.width / 2) - center) : Infinity;
         return distance < best.distance ? { id: venue.id, distance } : best;
       }, { id: active.id, distance: Infinity });
       if (closest.id !== active.id) select(closest.id, false);
@@ -97,32 +97,36 @@ export default function PicksExplorer({ embedded = false }) {
     skipClick.current = false;
     drag.current = null;
     if (event.pointerType !== "mouse" || event.button !== 0 || event.target.closest("a, button")) return;
-    drag.current = { x: event.clientX, scroll: carousel.current.scrollLeft, moved: false };
+    drag.current = { position: embedded ? event.clientY : event.clientX, scroll: embedded ? carousel.current.scrollTop : carousel.current.scrollLeft, moved: false };
   }
   function moveDrag(event) {
     const gesture = drag.current;
     if (!gesture || event.pointerType !== "mouse" || !event.buttons) return;
-    if (Math.abs(event.clientX - gesture.x) < 6 && !gesture.moved) return;
+    const position = embedded ? event.clientY : event.clientX;
+    if (Math.abs(position - gesture.position) < 6 && !gesture.moved) return;
     gesture.moved = true;
     setDragging(true);
     event.currentTarget.setPointerCapture(event.pointerId);
     event.preventDefault();
-    event.currentTarget.scrollLeft = gesture.scroll + gesture.x - event.clientX;
+    if (embedded) event.currentTarget.scrollTop = gesture.scroll + gesture.position - position;
+    else event.currentTarget.scrollLeft = gesture.scroll + gesture.position - position;
   }
   function endDrag(event) {
     if (!drag.current?.moved) { drag.current = null; return; }
     setDragging(false);
     const list = carousel.current;
-    const step = list.children[0].getBoundingClientRect().width + 12;
-    const index = Math.max(0, Math.min(venues.length - 1, Math.round(list.scrollLeft / step)));
+    const box = list.children[0].getBoundingClientRect();
+    const step = (embedded ? box.height : box.width) + 12;
+    const index = Math.max(0, Math.min(venues.length - 1, Math.round((embedded ? list.scrollTop : list.scrollLeft) / step)));
     select(venues[index].id);
     skipClick.current = event.type !== "pointercancel";
     drag.current = null;
   }
   function carouselKey(event) {
-    if (event.target !== event.currentTarget || !["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+    const previous = embedded ? "ArrowUp" : "ArrowLeft", next = embedded ? "ArrowDown" : "ArrowRight";
+    if (event.target !== event.currentTarget || ![previous, next].includes(event.key)) return;
     event.preventDefault();
-    select(venues[Math.max(0, Math.min(venues.length - 1, activeIndex + (event.key === "ArrowRight" ? 1 : -1)))].id);
+    select(venues[Math.max(0, Math.min(venues.length - 1, activeIndex + (event.key === next ? 1 : -1)))].id);
   }
   if (id) {
     const venue = editorialPicks.find((venue) => venue.id === id);
@@ -153,19 +157,21 @@ export default function PicksExplorer({ embedded = false }) {
             className={`editorial-place-card ${active.id === venue.id ? "is-selected" : ""}`} data-venue-id={venue.id}>
             <PlacePhoto venue={venue} />
             <div className="editorial-place-copy">
-              <div className="editorial-place-kicker"><span>{venue.kind === "recurring-event" ? "weekly event" : venue.category}</span><span>{String(venue.number).padStart(2, "0")}</span></div>
+              {!embedded && <div className="editorial-place-kicker"><span>{venue.kind === "recurring-event" ? "weekly event" : venue.category}</span><span>{String(venue.number).padStart(2, "0")}</span></div>}
               <h2><button type="button" aria-label={`show ${venue.name} on map`} onClick={() => select(venue.id)}>{venue.name}</button></h2>
               <p className="editorial-place-address"><MapPin size={14} /> {venue.address}</p>
-              <div className="editorial-vibes">{venue.vibes.map((vibe) => <span key={vibe}>{vibe}</span>)}</div>
-              <p>{venue.description}</p>
-              <div className="editorial-place-facts"><span><Clock3 size={14} /> ~{venue.mins} min visit</span><span>{venue.costLabel}</span></div>
-              <p className="editorial-place-schedule">{venue.scheduleLabel}</p>
+              {!embedded && <>
+                <div className="editorial-vibes">{venue.vibes.map((vibe) => <span key={vibe}>{vibe}</span>)}</div>
+                <p>{venue.description}</p>
+                <div className="editorial-place-facts"><span><Clock3 size={14} /> ~{venue.mins} min visit</span><span>{venue.costLabel}</span></div>
+                <p className="editorial-place-schedule">{venue.scheduleLabel}</p>
+              </>}
               <Link className="text-button" to={`/picks/places/${venue.id}`}>the details <ArrowUpRight size={15} /></Link>
             </div>
           </li>)}
         </ul>
         <div className="picks-carousel-progress">
-          <p aria-live="polite">{activeIndex + 1} / {venues.length} · swipe to explore</p>
+          <p aria-live="polite">{activeIndex + 1} / {venues.length} · {embedded ? "swipe up or down" : "swipe to explore"}</p>
           <div className="picks-carousel-dots" aria-hidden="true">{venues.map((venue) => <span key={venue.id} className={venue.id === active.id ? "is-selected" : ""} />)}</div>
         </div>
       </section>

@@ -42,7 +42,7 @@ test("Explore immediately shows ten mapped swipe cards without suggestion API ca
   await expect(page.getByRole("button", { name: "show suggestions", exact: true })).toBeVisible();
   await expect(page.getByRole("list", { name: "Nearby spot suggestions" })).toHaveCount(0);
   const carousel = page.getByRole("list", { name: "Swipe through Melloway’s Picks" });
-  await carousel.press("ArrowRight");
+  await carousel.press("ArrowDown");
   await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
   await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
   expect(new URL(page.url()).searchParams.get("keep")).toBe("1");
@@ -71,6 +71,57 @@ test("Explore immediately shows ten mapped swipe cards without suggestion API ca
   await expect(page.locator(".editorial-place-card")).toHaveCount(10);
   expect(requests).toEqual([]);
   expect(await state()).toEqual(before);
+});
+
+test.describe("Explore reel swipes", () => {
+  test.use({ hasTouch: true, reducedMotion: "reduce" });
+  for (const width of [390, 320])
+    test(`vertical touch swipes follow the spot on the map at ${width}px without fetching suggestions`, async ({ page }, info) => {
+      await page.setViewportSize({ width, height: 844 });
+      await mockPicks(page);
+      const requests = [];
+      page.on("request", request => {
+        if (request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/"))
+          requests.push(request.url());
+      });
+      await page.goto("/explore");
+      await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
+      const feed = page.getByRole("list", { name: "Swipe through Melloway’s Picks" });
+      const pageScroll = await page.evaluate(() => scrollY);
+      const session = await page.context().newCDPSession(page);
+      async function swipe(start, end) {
+        const box = await feed.boundingBox();
+        const x = box.x + box.width / 2;
+        const from = box.y + box.height * start, to = box.y + box.height * end;
+        await session.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y: from }] });
+        for (let step = 1; step <= 10; step++) {
+          await session.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x, y: from + (to - from) * step / 10 }] });
+          await page.waitForTimeout(16); // Pace a real touch gesture over multiple animation frames.
+        }
+        await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      }
+      // Start on the caption and swipe up, then start on the photo and swipe down.
+      await swipe(0.82, 0.12);
+      await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
+      await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
+      await expect(page.locator(".picks-carousel-progress")).toContainText("2 / 10 · swipe up or down");
+      const centered = () => feed.evaluate(list => {
+        const card = list.querySelector(".is-selected").getBoundingClientRect();
+        const box = list.getBoundingClientRect();
+        return Math.abs(card.top + card.height / 2 - box.top - box.height / 2);
+      });
+      await expect.poll(centered).toBeLessThan(2);
+      const details = page.locator(".editorial-place-card.is-selected").getByRole("link", { name: "the details", exact: true });
+      await expect(details).toBeInViewport();
+      await swipe(0.12, 0.82);
+      await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[0].id);
+      await expect.poll(centered).toBeLessThan(2);
+      expect(await feed.evaluate(list => list.scrollLeft)).toBe(0);
+      expect(await page.evaluate(() => scrollY)).toBe(pageScroll);
+      expect(requests).toEqual([]);
+      await page.screenshot({ path: info.outputPath(`explore-reels-${width}.png`) });
+      await session.detach();
+    });
 });
 
 test("desktop keeps the phone-width frame, stacked map and synced horizontal cards", async ({ page }, info) => {

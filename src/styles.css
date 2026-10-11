@@ -6665,6 +6665,55 @@ html:has(.profile-page) {
   line-height: 1.1;
   margin: 0;
 }
+.embedded-picks .editorial-picks-browser {
+  grid-template-rows: minmax(0, 2fr) minmax(0, 3fr);
+}
+.embedded-picks .editorial-place-cards {
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scroll-padding-inline: 0;
+  overscroll-behavior-y: contain;
+}
+.embedded-picks .editorial-place-cards.is-dragging {
+  scroll-snap-type: none;
+}
+.embedded-picks .editorial-place-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior-y: auto;
+  scroll-snap-stop: always;
+}
+.embedded-picks .editorial-place-photo {
+  height: 38%;
+  flex-shrink: 0;
+}
+.embedded-picks .editorial-place-copy {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+}
+.embedded-picks .editorial-place-copy h2 {
+  font-size: 18px;
+  margin: 0 0 6px;
+}
+.embedded-picks .editorial-place-address {
+  font-size: 10px;
+  line-height: 1.3;
+  max-height: 2.6em;
+  overflow: hidden;
+}
+.embedded-picks .editorial-place-copy > .text-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  margin-top: auto;
+}
 .explore-page .route-extras {
   margin: 0;
   padding: 0;
