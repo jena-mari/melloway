@@ -13,6 +13,7 @@ async function withApi(options, run) {
     recommendationProvider: { rank: unexpected, interpret: unexpected },
     socialProvider: { discover: unexpected, preview: unexpected },
     instagramEventsProvider: { discover: unexpected },
+    itineraryRoutesProvider: unexpected,
     eventsHandler: unexpected,
     eventsMapHandler: unexpected, socialLinkHandler: unexpected,
     tiktokPlacesHandler: unexpected, itineraryMapHandler: unexpected,
@@ -203,4 +204,24 @@ test('restored itinerary, TikTok and copied-link endpoints dispatch without priv
   });
   assert.deepEqual(handled, [['itinerary', '/api/itinerary-map?stops=mock'],
     ['tiktok', '/api/tiktok-places'], ['tiktok', '/api/tiktok-places-map'], ['link', '/api/social-link']]);
+});
+
+
+test('itinerary route shapes validate Sydney stops and the two supported transport modes before provider calls', async () => {
+  const stops = [{ name: 'Mock A', lat: -33.87, lng: 151.2 }, { name: 'Mock B', lat: -33.88, lng: 151.21 }];
+  let calls = 0;
+  await withApi({ env: { GOOGLE_MAPS_API_KEY: 'mock-private-key' }, itineraryRoutesProvider: async input => {
+    calls++;
+    return { transport: input.transport, paths: [], missingLegs: 1, warnings: [] };
+  } }, async request => {
+    for (const transport of ['Walking', 'Public transport']) {
+      const response = await request('/api/itinerary-routes', { stops, transport, date: '2026-10-12', time: '11:00' });
+      assert.equal(response.status, 200);
+      assert.equal((await response.json()).transport, transport);
+    }
+    for (const value of [{stops, transport:'Driving'}, {stops:[{...stops[0],lat:0}],transport:'Walking'}, null])
+      assert.equal((await request('/api/itinerary-routes', value)).status, 400);
+  });
+  assert.equal(calls, 2);
+  await withApi({}, async request => assert.equal((await request('/api/itinerary-routes', {stops,transport:'Walking'})).status, 503));
 });

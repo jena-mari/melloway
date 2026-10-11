@@ -48,7 +48,11 @@ test('map endpoint uses only the dedicated public key and makes no provider look
   assert.equal(result.headers['Cache-Control'], 'no-store');
   assert.ok(result.body.includes('key=mock-public-demo-key'));
   assert.ok(result.body.includes('"label":"3"'));
-  for (const unexpected of ['places.googleapis.com', 'routes.googleapis.com', 'DirectionsService', 'Polyline', 'X-Goog-Api-Key']) {
+  assert.ok(result.body.includes('melloway-map-route'));
+  assert.ok(result.body.includes('top: 76, right: 24'));
+  assert.ok(result.body.includes('melloway-map-fit'));
+  assert.ok(result.body.includes("event.source !== window.parent || event.origin !== parentOrigin"));
+  for (const unexpected of ['places.googleapis.com', 'routes.googleapis.com', 'DirectionsService', 'X-Goog-Api-Key']) {
     assert.ok(!result.body.includes(unexpected));
   }
 });

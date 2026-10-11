@@ -574,6 +574,8 @@ export default function Itinerary({
             <RouteMap
               stops={plan.stops}
               transport={d.transport}
+              date={d.date}
+              time={d.time}
               selectedStopId={selectedStop}
               onSelectStop={chooseStop}
             />

@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { defaultDraft } from '../../src/data/preferences.js';
 import { renderVenueMap } from '../../server/eventMap.ts';
+import { googleMapsFixture } from './google-maps-fixture.js';
 import { itineraryMapPoints } from '../../server/itineraryMap.ts';
 
 // Synthetic Google-shaped stops and a mocked Maps script: no real provider calls.
@@ -20,8 +21,8 @@ const mapsScript = `window.google = { maps: {
       // Mock pins occupy the map centre, like fitted real markers, clear of its toolbar.
       Object.assign(element.style, { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '24px' });
     }
-    fitBounds(bounds) { this.element.dataset.bounds = JSON.stringify(bounds.points); }
-  } } : {
+    fitBounds(bounds, padding) { this.element.dataset.bounds = JSON.stringify(bounds.points); this.element.dataset.padding = JSON.stringify(padding); }
+  }, Polyline: class { constructor(options) { this.node = document.createElement('div'); this.node.dataset.routePath = JSON.stringify(options.path); this.node.dataset.routeColor = options.strokeColor; options.map.element.append(this.node); } setMap(map) { if (!map) this.node.remove(); } } } : {
     PinElement: class { constructor(options) { const pin = document.createElement('span'); pin.textContent = options.glyphText; return pin; } },
     AdvancedMarkerElement: class {
       constructor(options) { this.button = document.createElement('button'); this.button.setAttribute('aria-label', options.title); }
@@ -33,6 +34,13 @@ const mapsScript = `window.google = { maps: {
 } }; window.initVenueMap();`;
 
 async function mapFixture(page, script = mapsScript) {
+  await page.route('**/api/itinerary-routes', route => {
+    const { stops, transport } = route.request().postDataJSON();
+    return route.fulfill({ json: { transport, missingLegs: 0, warnings: [], paths: stops.slice(1).map((to,index) => ({
+      fromIndex: index, toIndex: index + 1,
+      path: [{lat:stops[index].lat,lng:stops[index].lng},{lat:stops[index].lat,lng:to.lng},{lat:to.lat,lng:to.lng}],
+    })) } });
+  });
   await page.route('**/api/status', route => route.fulfill({ json: { venues: 'curated', recommendations: 'planner' } }));
   await page.addInitScript(value => localStorage.setItem('melloway.current', JSON.stringify(value)), current);
   await page.route('https://maps.googleapis.com/**', route => route.fulfill({ contentType: 'text/javascript', body: script }));
@@ -96,4 +104,52 @@ test('unrelated window messages cannot select a stop or hide the map', async ({ 
   await expect(page.locator('#stop-0 .stop-card')).toHaveClass(/selected-stop/);
   await expect(page.locator('.map-unavailable')).toHaveCount(0);
   await expect(page.getByRole('complementary', { name: 'Place preview' })).toHaveCount(0);
+});
+
+
+for (const transport of ['Walking', 'Public transport']) test(`${transport} connects the numbered stops with mode-specific route geometry in both map views`, async ({page}) => {
+  await mapFixture(page);
+  await page.addInitScript(transport => {
+    const value = JSON.parse(localStorage.getItem('melloway.current'));
+    value.plan.prefs.transport = transport;
+    localStorage.setItem('melloway.current', JSON.stringify(value));
+  }, transport);
+  await page.goto('/itinerary');
+  const frame = page.frameLocator('.route-map-hero .google-route-map');
+  const color = transport === 'Walking' ? '#cc5478' : '#287665';
+  await expect(frame.locator('#map')).toHaveAttribute('data-route-mode', transport);
+  await expect(frame.locator(`[data-route-color="${color}"]`)).toHaveCount(2);
+  await expect(frame.locator('#map')).toHaveAttribute('data-padding', JSON.stringify({top:76,right:24,bottom:24,left:24}));
+  const path = JSON.parse(await frame.locator(`[data-route-color="${color}"]`).first().getAttribute('data-route-path'));
+  expect(path).toHaveLength(3);
+  expect(path[1]).toEqual({lat:stops[0].lat,lng:stops[1].lng});
+  await page.getByRole('button',{name:'expand map',exact:true}).click();
+  await expect(page.frameLocator('dialog .google-route-map').locator(`[data-route-color="${color}"]`)).toHaveCount(2);
+});
+
+test('a missing route keeps the pins and cards usable without drawing guessed connections', async ({page}) => {
+  await mapFixture(page);
+  await page.route('**/api/itinerary-routes', route => route.fulfill({status:502,json:{error:'Unavailable'}}));
+  await page.goto('/itinerary');
+  await expect(page.locator('.map-caption')).toContainText('Some route connections are unavailable');
+  const frame=page.frameLocator('.route-map-hero .google-route-map');
+  await expect(frame.getByRole('button',{name:'1. Mock stop 1'})).toBeVisible();
+  await expect(frame.locator('[data-route-path]')).toHaveCount(0);
+  await expect(page.locator('.stop-body h2')).toHaveText(stops.map(stop => stop.name));
+});
+
+
+test('curated stops use the same real-route response without a straight visit-order line', async ({page}) => {
+  await mapFixture(page);
+  await page.route('**/api/maps/config', route => route.fulfill({json:{apiKey:'mock-key',mapId:'DEMO_MAP_ID'}}));
+  await page.route('https://maps.googleapis.com/**', route => route.fulfill({contentType:'text/javascript',body:googleMapsFixture}));
+  await page.addInitScript(() => {
+    const value=JSON.parse(localStorage.getItem('melloway.current'));
+    value.plan.stops.forEach(stop => stop.source='curated');
+    localStorage.setItem('melloway.current',JSON.stringify(value));
+  });
+  await page.goto('/itinerary');
+  await expect(page.locator('.route-map-hero .google-map-surface')).toHaveAttribute('data-route-legs','2');
+  await expect(page.locator('.route-map-hero .google-map-surface')).toHaveAttribute('data-route-mode','Walking');
+  await expect(page.locator('.map-caption')).toContainText('Walking route');
 });

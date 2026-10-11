@@ -1,4 +1,5 @@
 import http from "node:http";
+import { createItineraryRoutesProvider, readItineraryRouteRequest } from "./itineraryRoutes.ts";
 import { createHack48Handler } from "./hack48.js";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -26,6 +27,7 @@ export function createApiServer(options = {}) {
   });
   const key = env.GOOGLE_MAPS_API_KEY,
     provider = options.googleProvider ?? createGoogleProvider(key);
+  const itineraryRoutes = options.itineraryRoutesProvider ?? createItineraryRoutesProvider(key);
   const openaiKey = env.OPENAI_API_KEY;
   const recommendations =
     options.recommendationProvider ??
@@ -96,6 +98,7 @@ export function createApiServer(options = {}) {
         "/api/recommendations",
         "/api/intent",
       ].includes(req.url);
+      const itineraryRoutesRequest = req.url === "/api/itinerary-routes";
       const locationSearch = req.url === "/api/locations/search";
       const locationResolve = req.url === "/api/locations/resolve";
       const socialSearch = req.url === "/api/social/search";
@@ -117,6 +120,7 @@ export function createApiServer(options = {}) {
           ![
             "/api/venues",
             "/api/matrix",
+            "/api/itinerary-routes",
             "/api/recommendations",
             "/api/intent",
             "/api/locations/search",
@@ -190,6 +194,12 @@ export function createApiServer(options = {}) {
         body = JSON.parse(raw);
       } catch {
         return reply(400, { error: "Invalid JSON" });
+      }
+      if (itineraryRoutesRequest) {
+        let request;
+        try { request = readItineraryRouteRequest(body); }
+        catch { return reply(400, { error: "Use valid Sydney stops, dates and walking or public transport." }); }
+        return reply(200, await itineraryRoutes(request));
       }
       if (instagramEventsSearch) {
         try { return reply(200, { posts: await instagramEvents.discover() }); }

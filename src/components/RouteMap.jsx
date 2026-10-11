@@ -10,6 +10,7 @@ import GoogleMapCanvas from "./GoogleMapCanvas";
 import GoogleStopMap from "./GoogleStopMap";
 import MapSpotPreview from "./MapSpotPreview";
 
+import { requestItineraryRoutes } from "../services/itineraryRoutes.ts";
 import { directions } from "../utils/planner";
 function routeMarker(element, group) {
   const content = document.createElement("span");
@@ -28,17 +29,17 @@ function routeMarker(element, group) {
   element.append(content);
 }
 
-function MapCanvas({ stops, transport, interactive, selectedStopId, onSelectStop, resetView }) {
+function MapCanvas({ stops, transport, interactive, selectedStopId, onSelectStop, resetView, routePaths, transportMode }) {
   const points = useMemo(() => stops.map((stop, index) => ({
     ...stop, index, className: "route-pin",
     ariaLabel: `Show ${index + 1}. ${stop.name} in your plan`,
   })), [stops]);
   if (stops.some((stop) => stop.source === "google"))
     return <GoogleStopMap stops={stops} selectedStopId={selectedStopId}
-      onSelectStop={onSelectStop} directionsUrl={directions(stops, transport)} />;
+      onSelectStop={onSelectStop} directionsUrl={directions(stops, transport)} routePaths={routePaths} transport={transportMode} resetView={resetView} />;
   return (
     <div className={`street-map ${interactive ? "interactive-map" : "map-preview"}`}>
-      <GoogleMapCanvas points={points} selectedId={selectedStopId}
+      <GoogleMapCanvas routePaths={routePaths} routeTransport={transportMode} points={points} selectedId={selectedStopId}
         onSelect={onSelectStop} resetView={resetView} interactive={interactive}
         groupNearby markerContent={routeMarker} ariaLabel="Map of your stops"
         renderPreview={(points, onSelect, onClose) => <MapSpotPreview points={points} onSelect={onSelect} onClose={onClose} />}
@@ -59,6 +60,8 @@ export default function RouteMap({
   compact = false,
   stops,
   transport = "Walking",
+  date,
+  time,
   selectedStopId,
   onSelectStop,
 }) {
@@ -73,12 +76,31 @@ export default function RouteMap({
     setLegend(false);
     onSelectStop?.(id);
   }
+  const [routes, setRoutes] = useState(null);
+  const [routeStatus, setRouteStatus] = useState("loading");
+  const realStops = stops.every(stop => ["google", "curated"].includes(stop.source));
+  const transportMode = transport === "Public transport" ? "Public transport" : "Walking";
+  useEffect(() => {
+    if (!realStops || stops.length < 2) { setRoutes(null); setRouteStatus("order"); return; }
+    const controller = new AbortController();
+    setRoutes(null);
+    setRouteStatus("loading");
+    requestItineraryRoutes(stops, transportMode, date, time,
+      AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]))
+      .then(data => { if (!controller.signal.aborted) { setRoutes(data); setRouteStatus("ready"); } })
+      .catch(() => { if (!controller.signal.aborted) setRouteStatus("error"); });
+    return () => controller.abort();
+  }, [stops, realStops, transportMode, date, time]);
+  const routePaths = realStops ? routes?.paths || [] : undefined;
   const google = stops.some((stop) => stop.source === "google");
-  const caption = google
-    ? "Confirm directions and opening times before heading out."
-    : stops.some((stop) => stop.source === "curated")
-      ? "Approximate pins · dotted line shows visit order, not a road route."
+  const caption = realStops && stops.length > 1
+    ? routeStatus === "loading" ? `Loading ${transportMode.toLowerCase()} route…`
+      : routeStatus === "error" || routes?.missingLegs
+        ? "Some route connections are unavailable. Open Google Maps for directions."
+        : `${transportMode} route · confirm directions before heading out.`
+    : google ? "Confirm directions and opening times before heading out."
       : "Sample stops · dotted line shows visit order, not a road route.";
+  const routeWarnings = routes?.warnings.join(" ") || "";
   useEffect(() => {
     if (!open) return;
     const previous = document.body.style.overflow;
@@ -93,6 +115,8 @@ export default function RouteMap({
         <MapCanvas
           stops={stops}
           transport={transport}
+          routePaths={routePaths}
+          transportMode={transportMode}
           interactive={false}
           selectedStopId={selectedStopId}
           onSelectStop={selectStop}
@@ -143,7 +167,7 @@ export default function RouteMap({
           </ol>
         )}
       </div>
-      <p className="map-caption">{caption}</p>
+      <p className="map-caption">{caption} {routeWarnings}</p>
       <dialog
         ref={dialog}
         className="route-map-dialog"
@@ -165,12 +189,14 @@ export default function RouteMap({
             <MapCanvas
               stops={stops}
               transport={transport}
+              routePaths={routePaths}
+              transportMode={transportMode}
               interactive
               selectedStopId={selectedStopId}
               onSelectStop={selectStop}
             />
             <div className="expanded-route-footer">
-              <p>{caption}</p>
+              <p>{caption} {routeWarnings}</p>
               <ol>
                 {stops.map((stop) => (
                   <li key={stop.id}>{stop.name}</li>

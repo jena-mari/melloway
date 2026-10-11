@@ -20,7 +20,7 @@
     "typecheck": "npm run typecheck --workspace @melloway/domain && npm run typecheck --workspace @melloway/mobile && npm run typecheck:backend && npm run typecheck:web",
     "typecheck:backend": "tsc -p server/tsconfig.discovery.json",
     "typecheck:discovery": "npm run typecheck:backend",
-    "test:events": "node --experimental-strip-types --test tests/ticketmaster.test.ts tests/events.test.ts tests/event-map.test.ts tests/itinerary-map.test.ts",
+    "test:events": "node --experimental-strip-types --test tests/ticketmaster.test.ts tests/events.test.ts tests/event-map.test.ts tests/itinerary-map.test.ts tests/itinerary-routes.test.ts",
     "test:discovery": "node --experimental-strip-types --test tests/openai-social-discovery.test.ts tests/discovery-review-queue.test.ts tests/discovery-export.test.ts tests/tiktok-discovery.test.ts tests/browser-discovery.test.ts tests/discovery-lookup-history.test.ts tests/tiktok-places.test.ts",
     "events:sydney": "node --experimental-strip-types --env-file-if-exists=.env scripts/fetch-sydney-events.ts",
     "prediscovery:review": "npm run build:domain",
