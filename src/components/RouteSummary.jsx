@@ -109,6 +109,7 @@ export default function RouteSummary({
               aria-label={`edit ${stop.name} timeframe`} aria-haspopup="dialog" onClick={() => onSchedule(i)}>
               {formatTime(stop.arrival)}–{formatTime(stop.arrival + stop.mins)}
             </button>}
+            {!readOnly && onSchedule && Number.isFinite(stop.cost) && <small className="route-stop-budget" title="Estimated budget allowance per person">~${stop.cost} each</small>}
             {!editing && !readOnly && onSwap && <button className="route-row-shuffle" disabled={busy} aria-label={`regenerate ${stop.name}`} onClick={() => onSwap(i)}><Shuffle size={17} /></button>}
             {!editing && (
               <button

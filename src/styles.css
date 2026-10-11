@@ -6789,10 +6789,11 @@ html:has(.profile-page) {
 .generated-route-card .route-summary-list > li.selected-route-stop > .route-stop-box { background: #fcf9eb; border-color: #111; }
 .route-stop-box:has(.route-time-edit) .route-summary-spot { grid-column: 2; grid-row: 1; }
 .route-time-edit { grid-column: 2; grid-row: 2; justify-self: start; max-width: 100%; min-height: 44px; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.route-stop-budget { grid-column: 3 / -1; grid-row: 2; justify-self: center; text-align: center; font-size: 10px; line-height: 1.4; color: #555; }
 .route-row-arrow, .route-row-shuffle { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
 .route-row-shuffle { grid-row: 1; grid-column: 3; }
 .route-row-arrow { grid-row: 1; grid-column: 4; }
-.generated-route-card .route-summary-list.editing > li > .route-stop-box { grid-template-columns: 26px minmax(0, 1fr); }
+.generated-route-card .route-summary-list.editing > li > .route-stop-box { grid-template-columns: 26px minmax(0, 1fr) max-content; }
 .generated-route-card .route-row-tools { grid-column: 2 / -1; grid-row: 3; }
 .generated-route-card .route-summary-list > li > .route-stop-box:has(.route-summary-spot):not(:has(.route-time-edit)) { grid-template-columns: 26px minmax(0, 1fr) 44px; }
 .generated-route-card .route-summary-list > li > .route-stop-box:not(:has(.route-time-edit)) .route-row-arrow { grid-column: 3; }
