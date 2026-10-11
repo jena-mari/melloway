@@ -25,6 +25,7 @@ import {
 import {
   generate,
   prepareReplacement,
+  replacementSearch,
   prepareAdditions,
   prepareRouteEdit,
 } from "../services/discovery";
@@ -118,12 +119,11 @@ export default function Itinerary({
   async function swap(i) {
     const signal = beginRequest(i);
     try {
-      const options = candidates.length
-        ? { candidates, matrix, notice: plan.notice }
-        : await prepareReplacement(plan, { signal });
+      const options = await prepareReplacement(plan, { signal, index: i,
+        existing: { candidates, matrix, notice: plan.notice } });
       if (signal.aborted) return;
       const next =
-        plan.stops.some((v) => v.source === "curated") || plan.intent
+        plan.stops.some((v) => v.source !== "demo") || plan.intent
           ? replaceExperienceStop(
               plan,
               i,
@@ -144,6 +144,8 @@ export default function Itinerary({
         plan: {
           ...plan,
           ...next,
+          stops: next.stops.map((stop, index) => index === i
+            ? { ...stop, replacementSearch: replacementSearch(plan.stops[i]) } : stop),
           notice: options.notice,
           id: createId(),
         },

@@ -1,4 +1,7 @@
 import { scoreVenue } from '../engine/scoring.js';
+import { createSearchCache } from '../utils/searchCache.js';
+import { categories } from '../data/preferences.js';
+import { planningArea } from '../utils/location.js';
 import { cachedSocialContext } from './social.js';
 import { withScheduleDefaults } from '../utils/date.js';
 import { attachRecommendationEvidence, eventServiceOnly } from '../engine/recommendationEvidence.js';
@@ -11,6 +14,7 @@ import {
   interpretPreferences,
   mergeIntent,
   resolvePlanningTime,
+  venueRoles,
 } from "../engine/preferences.js";
 import { selectCandidates, venueRejection } from "../engine/filtering.js";
 import { mergeDiscoveryPool, sameBusiness } from "../engine/discoveryPool.ts";
@@ -30,7 +34,8 @@ const withApiPhoto = (venue) => ({
   image: venue.image?.startsWith("/api/") ? apiBase + venue.image : venue.image,
 });
 
-async function api(path, body, signal) {
+const placeSearches = typeof window === 'undefined' ? null : createSearchCache({ storage: () => sessionStorage });
+async function apiRequest(path, body, signal) {
   const timeout = path === "discovery" ? 40000 : 20000;
   const response = await fetch(apiUrl(path), {
     method: "POST",
@@ -42,6 +47,13 @@ async function api(path, body, signal) {
   });
   if (!response.ok) throw new Error("Provider unavailable");
   return response.json();
+}
+async function api(path, body, signal) {
+  if (!placeSearches || !['venues', 'discovery'].includes(path)) return apiRequest(path, body, signal);
+  return placeSearches.get(JSON.stringify([apiBase, path, body]), sharedSignal => apiRequest(path, body, sharedSignal), {
+    signal,
+    cacheable: value => Array.isArray(value?.venues) && !value.debug?.failedQueries && value.researchStatus !== 'unavailable',
+  });
 }
 const demoNotice =
   "Demo venues, sample hours and estimated prices. Mood photos are illustrative.";
@@ -380,16 +392,40 @@ export async function prepareRouteEdit(plan, { signal } = {}) {
   };
 }
 
-export async function prepareReplacement(plan, { signal } = {}) {
+export function replacementSearch(stop) {
+  return stop.replacementSearch || {
+    id: stop.id, name: stop.name, address: stop.address || '', area: stop.area,
+    lat: stop.lat, lng: stop.lng, category: stop.category, tags: stop.tags,
+  };
+}
+
+export async function prepareReplacement(plan, { signal, index, existing } = {}) {
+  let searchPrefs = plan.prefs, status, role;
+  if (Number.isInteger(index) && plan.stops[index]) {
+    const stop = plan.stops[index], anchor = replacementSearch(stop);
+    role = stop.activityRole || venueRoles(stop)[0];
+    try { status = await apiStatus(signal); } catch { checkCancelled(signal); status = {}; }
+    // Preserve an already checked pool when live discovery is unavailable.
+    if (status.venues !== 'google' && existing?.candidates?.length) return existing;
+    const tags = new Set(Object.values(categories).flat());
+    const interests = tags.has(anchor.category) ? [anchor.category] : anchor.tags.filter(tag => tags.has(tag));
+    const area = planningArea(plan.prefs);
+    searchPrefs = { ...plan.prefs, preferences: [...new Set(interests)], location: {
+      id: anchor.id, name: anchor.area || plan.prefs.area, address: anchor.address,
+      lat: anchor.lat, lng: anchor.lng, r: Math.min(10, area.r, plan.prefs.transport === 'Walking' ? 2.5 : 4), source: 'google',
+    } };
+    searchPrefs.area = searchPrefs.location.name;
+  }
   const live = plan.stops.some((v) => v.source === "google");
   const found = plan.stops.every(v => v.source === "demo")
     ? { all: catalogForPlan(plan), notice: "", live: false }
-    : await supplementCatalog(catalogForPlan(plan), plan.prefs, signal);
-  const all = found.all;
+    : await supplementCatalog(catalogForPlan(plan), searchPrefs, signal, status);
+  const all = mergeDiscoveryPool(found.all, existing?.candidates || []);
   const intent = plan.intent || interpretPreferences(plan.prefs);
+  const poolIntent = role ? { ...intent, interests: searchPrefs.preferences, requiredRoles: [role] } : intent;
   const selected = plan.stops.every((v) => v.source === "demo")
     ? selectVenues(all, plan.prefs)
-    : selectCandidates(all, plan.prefs, intent, {
+    : selectCandidates(all, plan.prefs, poolIntent, {
         rejectedIds: plan.rejectedIds || [],
       });
   const ranked = await recommend(

@@ -10,6 +10,7 @@ import { allocateActivityBudgets } from "../src/utils/activityBudget.js";
 import { outingInstant } from "../src/utils/date.js";
 import { freeAdmissionEvidence } from './freeAdmission.js';
 import { venuePriceLabel } from '../packages/domain/src/venuePricing.ts';
+import { createSearchCache } from '../src/utils/searchCache.js';
 
 export function openingHours(periods) {
   const days = Array.from({ length: 7 }, () => []);
@@ -86,8 +87,16 @@ function allowance(tag) {
 const priceAllowances = { PRICE_LEVEL_FREE: 0, PRICE_LEVEL_INEXPENSIVE: 20,
   PRICE_LEVEL_MODERATE: 45, PRICE_LEVEL_EXPENSIVE: 90, PRICE_LEVEL_VERY_EXPENSIVE: 150 };
 
-export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVenuesForDate, admissionEvidence = freeAdmissionEvidence } = {}) {
+export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVenuesForDate, admissionEvidence = freeAdmissionEvidence, now = Date.now } = {}) {
+  const searches = createSearchCache({ maxEntries: 100, now });
   async function google(url, body, mask) {
+    if (url === 'https://places.googleapis.com/v1/places:searchText')
+      return searches.get(JSON.stringify([body, mask]), signal => googleRequest(url, body, mask, signal), {
+        cacheable: value => value.places === undefined || Array.isArray(value.places),
+      });
+    return googleRequest(url, body, mask);
+  }
+  async function googleRequest(url, body, mask, signal) {
     const response = await fetcher(url, {
       method: "POST",
       headers: {
@@ -96,7 +105,7 @@ export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVe
         "X-Goog-FieldMask": mask,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15000),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
     });
     if (!response.ok) throw new Error("Google provider unavailable");
     return response.json();

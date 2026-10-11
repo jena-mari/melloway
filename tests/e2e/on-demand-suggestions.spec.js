@@ -7,12 +7,12 @@ import { mockMapTiles } from "./fixtures.js";
 
 test.use({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce" });
 
-async function setup(page) {
+async function setup(page, extraVenues = []) {
   const prefs = { ...defaultDraft(), area: "Newtown", date: "2026-10-18", transport: "Walking" }; // Matrix requests require an explicit travel mode.
   const catalog = curatedVenuesForDate(prefs.date);
   const google = catalog.filter((v) => v.weeklyHours).map((v) => ({
     ...v, id: `google-${v.id}`, source: "google",
-  }));
+  })).concat(extraVenues);
   const stops = ["maeda", "uturn-vintage", "better-read"].map((id) =>
     google.find((v) => v.id === `google-sydney-${id}`));
   const plan = {
@@ -74,6 +74,7 @@ test("opening and reloading ur day and Explore wait for an explicit suggestions 
   expect(recommendations(requests)).toBe(1);
   await showSuggestions(page);
   expect(recommendations(requests)).toBe(2);
+  expect(requests.filter(r => r.endpoint === 'venues')).toHaveLength(1);
 });
 
 test("route edits do not request suggestions and reuse the picker cache", async ({ page }) => {
@@ -87,6 +88,67 @@ test("route edits do not request suggestions and reuse the picker cache", async 
   await page.getByRole("button", { name: "add a stop", exact: true }).click();
   await expect(page.getByLabel("search available spots")).toBeVisible();
   expect(requests.map((r) => r.endpoint)).toEqual(["venues", "recommendations", "matrix"]);
+  await page.keyboard.press('Escape');
+  await page.reload();
+  await page.getByRole('button', { name: 'add a stop', exact: true }).click();
+  await expect(page.getByLabel('search available spots')).toBeVisible();
+  expect(requests.filter(r => r.endpoint === 'venues')).toHaveLength(1);
+});
+
+test('each stop searches nearby once and later swaps reuse results after reload', async ({ page }) => {
+  const catalog = curatedVenuesForDate('2026-10-18');
+  const alternatives = ['maeda', 'uturn-vintage'].flatMap(id => {
+    const venue = catalog.find(v => v.id === `sydney-${id}`);
+    return [1, 2, 3].map(i => ({ ...venue, id: `fixture-swap-${id}-${i}`, name: `Fixture ${id} alternative ${i}`,
+      address: `${i} Fixture Street, Newtown NSW 2042`, lat: venue.lat + .0001 * i, source: 'google', image: undefined }));
+  });
+  const requests = await setup(page, alternatives);
+  // A nonempty old shortlist must not prevent fresh nearby discovery for a stop.
+  await page.evaluate(() => {
+    const bundle = JSON.parse(localStorage.getItem('melloway.current'));
+    bundle.candidates = bundle.plan.stops;
+    bundle.matrix = bundle.plan.stops.map((_, i) => bundle.plan.stops.map((_, j) => ({ minutes: i === j ? 0 : 5, distance: .1, source: 'estimate' })));
+    localStorage.setItem('melloway.current', JSON.stringify(bundle));
+  });
+  await page.reload();
+  const before = await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')).plan);
+  const swap = async index => {
+    const trigger = page.locator('.route-row-shuffle').nth(index);
+    await trigger.click();
+    await expect(trigger).toBeEnabled();
+  };
+  await swap(0);
+  const venueCalls = () => requests.filter(r => r.endpoint === 'venues');
+  expect(venueCalls()).toHaveLength(1);
+  expect(venueCalls()[0].body.prefs.preferences).toEqual([before.stops[0].category]);
+  expect(venueCalls()[0].body.prefs.location).toMatchObject({ lat: before.stops[0].lat, lng: before.stops[0].lng });
+  const after = await page.evaluate(() => JSON.parse(localStorage.getItem('melloway.current')).plan);
+  expect(after.stops[0].id).not.toBe(before.stops[0].id);
+  expect(after.stops.slice(1).map(s => s.id)).toEqual(before.stops.slice(1).map(s => s.id));
+  await swap(0);
+  expect(venueCalls()).toHaveLength(1);
+  await page.reload();
+  await swap(0);
+  expect(venueCalls()).toHaveLength(1);
+  await swap(1);
+  expect(venueCalls()).toHaveLength(2);
+  expect(venueCalls()[1].body.prefs.location).toMatchObject({ lat: before.stops[1].lat, lng: before.stops[1].lng });
+});
+
+test('an unsuccessful stop search can retry instead of caching its failure', async ({ page }) => {
+  const requests = await setup(page);
+  let calls = 0;
+  await page.route('**/api/venues', route => {
+    calls++;
+    return route.fulfill(calls === 1 ? { status: 503, json: { error: 'Fixture unavailable' } } : { json: { venues: [] } });
+  });
+  for (let i = 0; i < 3; i++) {
+    const trigger = page.locator('.route-row-shuffle').first();
+    await trigger.click();
+    await expect(trigger).toBeEnabled();
+  }
+  expect(calls).toBe(2);
+  expect(requests.filter(r => r.endpoint === 'recommendations').length).toBeGreaterThan(0);
 });
 
 test("an explicit add-stop click loads options once and reopening reuses that cache", async ({ page }) => {
