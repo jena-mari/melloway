@@ -4,7 +4,6 @@ import { selectGoogleMapsBrowserKey } from './googleMapsBrowserKey.ts';
 export { selectGoogleMapsBrowserKey } from './googleMapsBrowserKey.ts';
 import { fetchSydneyEvents } from './ticketmaster.ts';
 import { quietMapStyles } from '../shared/mapStyles.ts';
-import { drawRouteOverlays, transitMapStyles } from '../shared/routeMapOverlays.ts';
 
 /** This page exposes only a selected browser Maps key, never server provider keys. */
 export function renderVenueMap(points: EventMapPoint[], browserKey: string, source: 'events' | 'tiktok' | 'itinerary' = 'events'): string {
@@ -28,13 +27,11 @@ ${itinerary ? `:root{--pink:#f8a8b9}
 .route-pin::after{content:"";position:absolute;z-index:0;bottom:-3px;left:calc(50% - 3px);width:6px;height:6px;box-sizing:border-box;background:inherit;border-right:1.5px solid #111;border-bottom:1.5px solid #111;transform:rotate(45deg)}
 .pin-numbers{position:relative;z-index:2;color:#111;font:800 13px/1 Outfit,sans-serif}
 .route-pin:focus-visible{outline:2px solid #111;outline-offset:4px}
-.route-pin.is-selected{background:#111;transform:scale(1.12)}
-${transitMapStyles}` : ''}</style>
+.route-pin.is-selected{background:#111;transform:scale(1.12)}` : ''}</style>
 </head><body><div id="map" aria-label="${label}"></div><div id="error" role="alert" hidden></div>
 <script>
 const pins = ${pins};
 const itinerary = ${itinerary};
-const drawRouteOverlays = ${drawRouteOverlays.toString()};
 const parentOrigin = document.referrer ? new URL(document.referrer).origin : null;
 function notifyParent(message) {
   if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(message));
@@ -50,8 +47,7 @@ if (itinerary) window.addEventListener('message', event => {
     const { paths, transport, routeColor } = event.data;
     if (!transport && Array.isArray(paths) && paths.length === 0) return drawRoutes([], null);
     if (!['Walking', 'Public transport', 'Driving'].includes(transport) || !Array.isArray(paths) || paths.length > pins.length - 1
-      || paths.some(leg => !Number.isInteger(leg?.fromIndex) || leg.fromIndex < 0 || leg.toIndex !== leg.fromIndex + 1 || leg.toIndex >= pins.length
-        || !Array.isArray(leg?.path) || leg.path.length < 2 || leg.path.length > 10000
+      || paths.some(leg => !Array.isArray(leg?.path) || leg.path.length < 2 || leg.path.length > 10000
         || leg.path.some(p => !Number.isFinite(p?.lat) || !Number.isFinite(p?.lng)
           || Math.abs(p.lat) > 90 || Math.abs(p.lng) > 180))) return;
     if (typeof routeColor === 'string' && /^#(?:[a-f0-9]{3,4}|[a-f0-9]{6}|[a-f0-9]{8})$/i.test(routeColor))
@@ -61,9 +57,6 @@ if (itinerary) window.addEventListener('message', event => {
   if (event.data?.type !== 'melloway-map-select') return;
   const index = event.data.index;
   if (Number.isInteger(index) && index >= 0 && index < pins.length) selectMarker(index);
-});
-if (itinerary) window.addEventListener('keydown', event => {
-  if (event.key === 'Escape') { event.preventDefault(); notifyParent({ type: 'melloway-map-preview-close' }); }
 });
 let complete = false;
 function failMap(reason = 'load') {
@@ -151,7 +144,7 @@ window.initVenueMap = async () => {
       });
     };
     if (itinerary) selectMarker(0);
-    let clearRoutes = () => {};
+    let lines = [];
     let routePaths = [];
     fitMap = () => {
       const fitted = new google.maps.LatLngBounds();
@@ -163,13 +156,13 @@ window.initVenueMap = async () => {
       else { map.setCenter(positions[0]); map.setZoom(itinerary ? 17 : 14); }
     };
     drawRoutes = (paths, transport) => {
-      clearRoutes();
+      lines.forEach(line => line.setMap(null));
       routePaths = paths;
-      clearRoutes = drawRouteOverlays({ maps: { Polyline, OverlayView }, core: { LatLng }, map, paths, transport, points: pins,
-        color: getComputedStyle(document.documentElement).getPropertyValue('--pink').trim() || '#f8a8b9',
-        onPreview: (index, pinned) => notifyParent({ type: 'melloway-map-route-preview', index, pinned }),
-        onLeave: () => notifyParent({ type: 'melloway-map-preview-leave' }),
-        onClose: () => notifyParent({ type: 'melloway-map-preview-close' }) });
+      lines = paths.flatMap(leg => [
+        new Polyline({ map, path: leg.path, strokeColor: '#ffffff', strokeOpacity: .95, strokeWeight: 9, zIndex: 1 }),
+        new Polyline({ map, path: leg.path, strokeColor: getComputedStyle(document.documentElement).getPropertyValue('--pink').trim() || '#f8a8b9',
+          strokeOpacity: 1, strokeWeight: 5, zIndex: 2 }),
+      ]);
       document.getElementById('map').dataset.routeMode = transport;
       document.getElementById('map').dataset.routeLegs = String(paths.length);
       fitMap();

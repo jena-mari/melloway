@@ -1,8 +1,7 @@
-import { isRouteJourney, type RouteLeg, type RoutePoint } from '../../shared/routeJourney.ts';
-export type { RoutePoint } from '../../shared/routeJourney.ts';
+export interface RoutePoint { lat: number; lng: number }
 export interface RoutePaths {
   transport: 'Walking' | 'Public transport' | 'Driving';
-  paths: RouteLeg[];
+  paths: { fromIndex: number; toIndex: number; path: RoutePoint[] }[];
   missingLegs: number;
   warnings: string[];
 }
@@ -31,6 +30,5 @@ export async function requestItineraryRoutes(stops: Stop[], transport: RoutePath
         || leg.path.some(point => !Number.isFinite(point?.lat) || !Number.isFinite(point?.lng)
           || Math.abs(point.lat) > 90 || Math.abs(point.lng) > 180);
     })) throw new Error('Route lines are unavailable.');
-  return { ...data, paths: data.paths.map(({ journey, ...leg }) => ({ ...leg,
-    ...(transport === 'Public transport' && isRouteJourney(journey) ? { journey } : {}) })) };
+  return data;
 }

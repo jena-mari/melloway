@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { RoutePaths } from '../services/itineraryRoutes.ts';
 import MapSpotPreview from './MapSpotPreview';
-import MapRoutePreview from './MapRoutePreview';
 
 interface StopPin { id: string; name: string; lat: number; lng: number }
 interface GoogleStopMapProps {
@@ -20,14 +19,10 @@ export default function GoogleStopMap({ stops, selectedStopId, onSelectStop, dir
   const frame = useRef<HTMLIFrameElement>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [previewIndex, setPreviewIndex] = useState<number | null>(null);
-  const [routePreviewIndex, setRoutePreviewIndex] = useState<number | null>(null);
-  const [routePinned, setRoutePinned] = useState(false);
-  const pinnedPreview = useRef(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   function keepPreview() { if (closeTimer.current) clearTimeout(closeTimer.current); }
-  function closePreview() { keepPreview(); pinnedPreview.current = false; setRoutePinned(false); setPreviewIndex(null); setRoutePreviewIndex(null); }
-  function pinPreview() { keepPreview(); pinnedPreview.current = true; setRoutePinned(true); }
-  function leavePreview() { keepPreview(); if (!pinnedPreview.current) closeTimer.current = setTimeout(closePreview, 250); }
+  function closePreview() { keepPreview(); setPreviewIndex(null); }
+  function leavePreview() { keepPreview(); closeTimer.current = setTimeout(() => setPreviewIndex(null), 250); }
   const src = useMemo(() => `${apiBase}/api/itinerary-map?${new URLSearchParams({
     stops: JSON.stringify(stops.map(({ name, lat, lng }) => ({ name, lat, lng }))),
   })}`, [stops]);
@@ -55,26 +50,16 @@ export default function GoogleStopMap({ stops, selectedStopId, onSelectStop, dir
   useEffect(() => {
     const receive = (event: MessageEvent) => {
       if (event.source !== frame.current?.contentWindow || event.origin !== origin
-        || !['melloway-map-stop', 'melloway-map-preview', 'melloway-map-preview-leave', 'melloway-map-route-preview',
-          'melloway-map-preview-close'].includes(event.data?.type)) return;
-      if (event.data.type === 'melloway-map-preview-close') { closePreview(); return; }
+        || !['melloway-map-stop', 'melloway-map-preview', 'melloway-map-preview-leave'].includes(event.data?.type)) return;
       if (event.data.type === 'melloway-map-preview-leave') { leavePreview(); return; }
       const index: unknown = event.data.index;
       if (typeof index !== 'number' || !Number.isInteger(index) || !stops[index]) return;
-      if (event.data.type === 'melloway-map-route-preview') {
-        if (transport !== 'Public transport' || !routePaths?.some(leg => leg.fromIndex === index)) return;
-        const pinned = event.data.pinned === true;
-        if (pinnedPreview.current && !pinned) return;
-        keepPreview(); pinnedPreview.current = pinned; setRoutePinned(pinned); setPreviewIndex(null); setRoutePreviewIndex(index);
-      } else if (event.data.type === 'melloway-map-preview') {
-        if (pinnedPreview.current) return;
-        keepPreview(); setRoutePreviewIndex(null); setPreviewIndex(index);
-      }
+      if (event.data.type === 'melloway-map-preview') { keepPreview(); setPreviewIndex(index); }
       else { closePreview(); onSelectStop?.(stops[index].id); }
     };
     window.addEventListener('message', receive);
     return () => { keepPreview(); window.removeEventListener('message', receive); };
-  }, [stops, onSelectStop, origin, routePaths, transport]);
+  }, [stops, onSelectStop, origin]);
 
   useEffect(() => {
     if (status === 'ready' && selectedIndex >= 0) frame.current?.contentWindow?.postMessage({
@@ -83,7 +68,6 @@ export default function GoogleStopMap({ stops, selectedStopId, onSelectStop, dir
   }, [status, selectedIndex, origin]);
 
   useEffect(() => {
-    closePreview();
     if (status === 'ready') frame.current?.contentWindow?.postMessage({
       type: 'melloway-map-route', paths: routePaths || [], transport,
       routeColor: frame.current ? getComputedStyle(frame.current).getPropertyValue('--pink').trim() : undefined,
@@ -98,17 +82,14 @@ export default function GoogleStopMap({ stops, selectedStopId, onSelectStop, dir
     <p>The map couldn’t load. Your stops are still below.</p>
     <a href={directionsUrl} target="_blank" rel="noreferrer">open Google Maps ↗</a>
   </div>;
-  const routePreview = routePreviewIndex === null ? undefined : routePaths?.find(leg => leg.fromIndex === routePreviewIndex);
-  return <div className="google-stop-map" onPointerLeave={leavePreview}
-    onKeyDown={event => { if (event.key === 'Escape' && (previewIndex !== null || routePreview)) { event.preventDefault(); event.stopPropagation(); closePreview(); } }}>
+  return <div className="google-stop-map" onKeyDown={event => { if (event.key === 'Escape' && previewIndex !== null) { event.stopPropagation(); closePreview(); } }}>
     <iframe ref={frame} className="google-route-map" src={src} title="Google map of your itinerary stops"
       onError={() => setStatus('error')} />
     {status === 'loading' && <p className="map-status" role="status">bringing ur stops into view…</p>}
-    {status === 'ready' && (routePreview || previewIndex !== null && stops[previewIndex]) && <div className={`map-preview-layer${routePreview ? ' map-route-preview-layer' : ''}`}
+    {status === 'ready' && previewIndex !== null && stops[previewIndex] && <div className="map-preview-layer"
       onPointerEnter={keepPreview} onPointerLeave={leavePreview} onFocus={keepPreview}
       onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) leavePreview(); }}>
-      {routePreview ? <MapRoutePreview leg={routePreview} stops={stops} onClose={closePreview} onPin={pinPreview} pinned={routePinned} />
-        : <MapSpotPreview points={[stops[previewIndex!]]} onSelect={(id: string) => { closePreview(); onSelectStop?.(id); }} onClose={closePreview} />}
+      <MapSpotPreview points={[stops[previewIndex]]} onSelect={(id: string) => { closePreview(); onSelectStop?.(id); }} onClose={closePreview} />
     </div>}
   </div>;
 }

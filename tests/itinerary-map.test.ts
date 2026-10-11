@@ -52,8 +52,6 @@ test('map endpoint uses only the dedicated public key and makes no provider look
   assert.ok(result.body.includes('top: 76, right: 24'));
   assert.ok(result.body.includes('melloway-map-fit'));
   assert.ok(result.body.includes("event.source !== window.parent || event.origin !== parentOrigin"));
-  // Embedded shared helpers must be executable JavaScript after type stripping.
-  for (const script of result.body.matchAll(/<script>([\s\S]*?)<\/script>/g)) assert.doesNotThrow(() => new Function(script[1]));
   for (const unexpected of ['places.googleapis.com', 'routes.googleapis.com', 'DirectionsService', 'X-Goog-Api-Key']) {
     assert.ok(!result.body.includes(unexpected));
   }
