@@ -1,3 +1,4 @@
+import { extractRequestedActivities, activityDescriptor, matchesRequestedActivity } from "./requestedActivity.js";
 import { interestsFromNotes } from "../utils/interests.js";
 import { diningVibes } from "../data/preferences.js";
 import { findIdea } from "../data/ideas.js";
@@ -58,7 +59,7 @@ const roleForTag = {
   "Escape rooms": "activity",
   "Music festivals": "activity",
 };
-export const interestRole = (tag) => roleForTag[tag];
+export const interestRole = (tag) => roleForTag[tag] || activityDescriptor(tag).role;
 const positive = (text, pattern) =>
   text.split(/[.!?;,\n]|\b(?:but|however|and)\b/i).some((clause) => {
     const m = clause.match(pattern);
@@ -73,6 +74,7 @@ const unique = (values) => [...new Set(values)];
 
 export function interpretPreferences(prefs) {
   const text = prefs.notes || "";
+  const requestedActivities = extractRequestedActivities(text);
   const parsed = interestsFromNotes(text);
   const explicit = unique([
     ...(prefs.selectedPreferences || prefs.preferences || []),
@@ -133,11 +135,13 @@ export function interpretPreferences(prefs) {
     hiddenBars ||
     positive(text, /\b(?:evening|night|dinner)\b/i);
   return {
+    requestedActivities,
+    requestedActivity: requestedActivities[0] || null,
     interests: unique(interests),
     atmosphere: unique(atmosphere),
     diningAtmosphere,
-    requiredRoles,
-    requiredTags: explicit.filter((t) => t !== "Shopping"),
+    requiredRoles: unique([...requiredRoles, ...requestedActivities.map(a => a.role)]),
+    requiredTags: unique([...explicit.filter((t) => t !== "Shopping"), ...requestedActivities.map(a => a.query)]),
     excludedTags: parsed.excluded,
     excludedRoles: unique(
       parsed.excluded
@@ -234,6 +238,8 @@ export function venueRoles(v) {
 }
 export function coversTag(stops, tag) {
   const role = roleForTag[tag];
+  if (!role) return stops.some(v => matchesRequestedActivity(v, activityDescriptor(tag)) &&
+    (!v.activityRole || v.activityRole === activityDescriptor(tag).role));
   return stops.some(
     (v) =>
       v.tags.includes(tag) &&

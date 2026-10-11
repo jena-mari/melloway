@@ -311,7 +311,9 @@ export function createApiServer(options = {}) {
         }
       }
       if (req.url === "/api/venues")
-        return reply(200, { venues: await provider.discover(prefs) });
+        return reply(200, provider.discoverWithDebug
+          ? await provider.discoverWithDebug(prefs)
+          : { venues: await provider.discover(prefs) });
       const { venues } = body;
       if (
         !Array.isArray(venues) ||

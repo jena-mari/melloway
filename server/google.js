@@ -1,14 +1,23 @@
 import { categories } from "../src/data/preferences.js";
 import { inSydney, planningArea, sydneyBounds } from "../src/utils/location.js";
 import { attachRecommendationEvidence, matchesLead, eventServiceOnly } from '../src/engine/recommendationEvidence.js';
+import { curatedVenuesForDate } from "../src/data/sydneyVenues.js";
+import { interpretPreferences } from "../src/engine/preferences.js";
+import { venueRejection } from "../src/engine/filtering.js";
+import { extractRequestedActivities, matchesRequestedActivity, outdoorActivityVenue } from "../src/engine/requestedActivity.js";
+import { km, transportAllowance } from "../src/utils/planner.js";
+import { allocateActivityBudgets } from "../src/utils/activityBudget.js";
 import { outingInstant } from "../src/utils/date.js";
 
 export function openingHours(periods) {
   const days = Array.from({ length: 7 }, () => []);
-  for (const period of periods || []) {
+  const validTime = (point) => point && Number.isInteger(point.day) && point.day >= 0 && point.day <= 6 &&
+    Number.isInteger(point.hour) && point.hour >= 0 && point.hour <= 23 &&
+    (point.minute === undefined || (Number.isInteger(point.minute) && point.minute >= 0 && point.minute <= 59));
+  for (const period of Array.isArray(periods) ? periods : []) {
+    if (!period || typeof period !== "object") continue;
     const { open, close } = period;
-    if (!open || !Number.isInteger(open.day) || open.day < 0 || open.day > 6)
-      continue;
+    if (!validTime(open) || (close && !validTime(close))) continue;
     if (!close) {
       // Google's special representation for an always-open place.
       if (open.day === 0 && open.hour === 0 && !open.minute)
@@ -71,7 +80,11 @@ function allowance(tag) {
               : 0;
 }
 
-export function createGoogleProvider(key, fetcher = fetch) {
+// Coarse, conservative AUD planning allowances; price levels are not quotes.
+const priceAllowances = { PRICE_LEVEL_FREE: 0, PRICE_LEVEL_INEXPENSIVE: 20,
+  PRICE_LEVEL_MODERATE: 45, PRICE_LEVEL_EXPENSIVE: 90, PRICE_LEVEL_VERY_EXPENSIVE: 150 };
+
+export function createGoogleProvider(key, fetcher = fetch, { curated = curatedVenuesForDate } = {}) {
   async function google(url, body, mask) {
     const response = await fetcher(url, {
       method: "POST",
@@ -87,84 +100,125 @@ export function createGoogleProvider(key, fetcher = fetch) {
     return response.json();
   }
 
-  async function discover(prefs, leads = null) {
+  async function discoverResults(prefs, leads = null) {
     const area = planningArea(prefs);
-    const settled = await Promise.allSettled(
-      (leads ? leads.slice(0, 6).filter(lead => lead.tags?.length).map(lead => ({ tag: lead.tags[0], lead })) : discoveryQueries(prefs.preferences).map(tag => ({ tag }))).map(async ({ tag, lead }) => {
-        const data = await google(
-          "https://places.googleapis.com/v1/places:searchText",
-          {
-            textQuery: lead ? `${lead.name}, ${lead.locality}, Sydney Australia` : `${tag === 'Photo booths' ? 'walk-in self-service photobooth studio' : tag} near ${prefs.area}, Sydney Australia`,
-            pageSize: lead ? 2 : 6,
-            locationBias: {
-              circle: {
-                center: { latitude: area.lat, longitude: area.lng },
-                radius: Math.min(30000, area.r * 1000),
-              },
-            },
-          },
-          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.regularOpeningHours,places.photos,places.googleMapsUri,places.businessStatus,places.websiteUri,places.types,places.pureServiceAreaBusiness",
-        );
-        const candidates = (data.places || [])
-          .filter(
-            (p) =>
-              p.businessStatus === "OPERATIONAL" &&
-              p.regularOpeningHours?.periods &&
-              p.location && inSydney({ lat: p.location.latitude, lng: p.location.longitude }),
-          )
-          .map((p) => ({
-            id: p.id,
-            name: p.displayName.text,
-            address: p.formattedAddress,
-            website: p.websiteUri,
-            providerTypes: p.types,
-            pureServiceAreaBusiness: p.pureServiceAreaBusiness,
-            area: prefs.area,
-            lat: p.location.latitude,
-            lng: p.location.longitude,
-            rating: p.rating,
-            image: p.photos?.[0]
-              ? "/api/photo?name=" + encodeURIComponent(p.photos[0].name)
-              : undefined,
-            attribution: p.photos?.[0]?.authorAttributions
-              ?.map((a) => a.displayName)
-              .join(", "),
-            tags: lead ? lead.tags : [tag],
-            category: tag,
-            weeklyHours: openingHours(p.regularOpeningHours.periods),
-            source: "google",
-            cost: allowance(tag),
-            mins:
-              tag === "Fine dining"
-                ? 120
-                : ["Speakeasies", "Cocktail bars"].includes(tag)
-                  ? 60
-                  : tag === "Photo booths"
-                    ? 15
-                    : 45,
-            note: "Discovered with Google Places. Estimated spend is a planning allowance, not a venue quote. Check the venue before visiting.",
-            mapsUri: p.googleMapsUri,
-          }))
-          .filter(v => !eventServiceOnly(v) && (!lead || matchesLead(v, lead)))
-          .map(v => lead ? { ...attachRecommendationEvidence([v], [lead])[0], visitMode: lead.visitMode || 'unknown' } : v);
-        // A name/suburb pair that resolves to multiple addresses is ambiguous.
-        // Never choose the first Google hit and attribute a different branch's post.
-        if (lead && new Set(candidates.map(v => v.address)).size > 1) return [];
-        return candidates;
-      }),
-    );
+    const activities = leads ? [] : extractRequestedActivities(prefs.notes);
+    const intent = interpretPreferences(prefs);
+    const catalogue = leads ? [] : curated(prefs.date || "");
+    const curatedRejectedReasons = {};
+    const eligibleCurated = catalogue.filter(v => {
+      const reason = venueRejection(v, prefs, intent);
+      if (reason) curatedRejectedReasons[reason] = (curatedRejectedReasons[reason] || 0) + 1;
+      return !reason;
+    });
+    const curatedMatches = eligibleCurated.filter(v => activities.some(a => matchesRequestedActivity(v, a)));
+    const activity = activities.find(a => !eligibleCurated.some(v => matchesRequestedActivity(v, a)));
+    const tasks = leads
+      ? leads.slice(0, 6).filter(lead => lead.tags?.length).map(lead => ({ tag: lead.tags[0], lead }))
+      : discoveryQueries(prefs.preferences).map(tag => ({ tag }));
+    // One extra request, no pagination/retries or targeted work in research resolution.
+    if (activity) tasks.push({ tag: activity.query, targeted: true });
+    const debug = { requestedActivity: activity?.query || activities[0]?.query || null, requestedActivities: activities.map(a => a.query), curatedCandidates: catalogue.length,
+      eligibleCuratedCandidates: eligibleCurated.length, curatedRejectedReasons, curatedActivityMatches: curatedMatches.length,
+      googleResults: 0, googleCandidates: 0, targetedQueries: tasks.filter(t => t.targeted).length,
+      rejectedResults: 0, rejectedReasons: {}, rejections: [], unverifiedSuggestions: 0, failedQueries: 0 };
+    const targetedVenues = new WeakSet();
+    const reject = (reason, place, targeted) => {
+      debug.rejectedResults++;
+      debug.rejectedReasons[reason] = (debug.rejectedReasons[reason] || 0) + 1;
+      debug.rejections.push({ id: typeof place?.id === "string" ? place.id : null, reason, targeted: !!targeted });
+    };
+    const settled = await Promise.allSettled(tasks.map(async ({ tag, lead, targeted }) => {
+      const data = await google("https://places.googleapis.com/v1/places:searchText", {
+        textQuery: lead ? `${lead.name}, ${lead.locality}, Sydney Australia`
+          : `${tag === 'Photo booths' ? 'walk-in self-service photobooth studio' : tag} near ${area.name || prefs.area}, Sydney Australia`,
+        pageSize: lead ? 2 : 6,
+        ...(targeted && activity.placeType ? { includedType: activity.placeType, strictTypeFiltering: true } : {}),
+        locationBias: { circle: { center: { latitude: area.lat, longitude: area.lng }, radius: Math.min(30000, area.r * 1000) } },
+      }, "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.regularOpeningHours,places.photos,places.googleMapsUri,places.businessStatus,places.websiteUri,places.types,places.pureServiceAreaBusiness,places.priceLevel");
+      if (data.places !== undefined && !Array.isArray(data.places)) throw new Error("Invalid Places response");
+      const candidates = [];
+      for (const p of data.places || []) {
+        debug.googleResults++;
+        const coords = { lat: p?.location?.latitude, lng: p?.location?.longitude };
+        const identity = { name: p?.displayName?.text, providerTypes: Array.isArray(p?.types) ? p.types : [], source: "google" };
+        const matchedActivity = activities.find(a => matchesRequestedActivity(identity, a));
+        const activityMatch = !!matchedActivity;
+        const outdoor = outdoorActivityVenue(identity, matchedActivity);
+        let reason = !p || typeof p.id !== "string" || !p.id.trim() || typeof identity.name !== "string" || !identity.name.trim() ||
+          typeof p.formattedAddress !== "string" || !p.formattedAddress.trim() ||
+          (p.types !== undefined && (!Array.isArray(p.types) || p.types.some(t => typeof t !== "string"))) ? "identity" : null;
+        reason ||= p.businessStatus !== "OPERATIONAL" && !(p.businessStatus === undefined && outdoor)
+          ? "not-operational" : null;
+        reason ||= !inSydney(coords) || km(coords, area) > area.r ? "location" : null;
+        reason ||= p.pureServiceAreaBusiness === true ? "event-service" : null;
+        reason ||= targeted && !matchesRequestedActivity(identity, activity) ? "activity-mismatch" : null;
+        if (reason) { reject(reason, p, targeted); continue; }
+        const weeklyHours = openingHours(p.regularOpeningHours?.periods);
+        const knownHours = weeklyHours.some(day => day.length);
+        const unverified = !knownHours && outdoor;
+        if (!knownHours && !unverified) { reject("unknown-hours", p, targeted); continue; }
+        const priceLevel = p.priceLevel;
+        if (priceLevel !== undefined && priceLevel !== "PRICE_LEVEL_UNSPECIFIED" && !Object.hasOwn(priceAllowances, priceLevel)) {
+          reject("invalid-price", p, targeted); continue;
+        }
+        const cost = priceLevel === "PRICE_LEVEL_FREE" ? 0 : Math.max(allowance(tag),
+          priceAllowances[priceLevel] ?? (activityMatch ? (outdoor ? 20 : 35) : allowance(tag)));
+        let venue = { id: p.id, name: identity.name, address: p.formattedAddress,
+          website: p.websiteUri, providerTypes: p.types, pureServiceAreaBusiness: p.pureServiceAreaBusiness,
+          area: prefs.area, ...coords, rating: p.rating,
+          image: p.photos?.[0] ? "/api/photo?name=" + encodeURIComponent(p.photos[0].name) : undefined,
+          attribution: p.photos?.[0]?.authorAttributions?.map(a => a.displayName).join(", "),
+          tags: lead ? lead.tags : [...new Set([tag, ...(activityMatch ? [matchedActivity.query] : [])])],
+          category: activityMatch ? matchedActivity.query : tag, weeklyHours, source: "google", cost,
+          ...(activityMatch ? { roles: [matchedActivity.role] } : {}),
+          hoursStatus: unverified ? "unverified" : "published", priceStatus: "estimate",
+          priceLevel: priceLevel || null,
+          mins: tag === "Fine dining" ? 120 : ["Speakeasies", "Cocktail bars"].includes(tag) ? 60 : tag === "Photo booths" ? 15 : 45,
+          note: "Discovered with Google Places. Estimated spend is a planning allowance, not a venue quote. Check the venue before visiting." +
+            (unverified ? " Opening hours are unverified; this suggestion cannot be scheduled as confirmed open." : ""),
+          mapsUri: p.googleMapsUri };
+        if (eventServiceOnly(venue)) { reject("event-service", p, targeted); continue; }
+        if (activityMatch && !allocateActivityBudgets([venue], prefs, transportAllowance(prefs.transport))) {
+          reject("budget", p, targeted); continue;
+        }
+        // Known weekly hours must fit the requested date/time too. Outdoor unknown
+        // hours are retained only for browsing, never labelled confirmed open.
+        if (activityMatch && !unverified) {
+          const rejection = venueRejection(venue, prefs, intent);
+          if (rejection) { reject(rejection, p, targeted); continue; }
+        }
+        if (lead && !matchesLead(venue, lead)) { reject("identity-mismatch", p, targeted); continue; }
+        if (lead) venue = { ...attachRecommendationEvidence([venue], [lead])[0], visitMode: lead.visitMode || 'unknown' };
+        if (targeted) targetedVenues.add(venue);
+        candidates.push(venue);
+      }
+      if (lead && new Set(candidates.map(v => v.address)).size > 1) {
+        candidates.forEach(v => reject("ambiguous-identity", v, targeted)); return [];
+      }
+      return candidates;
+    }));
     const merged = new Map();
-    const lists = settled.filter(result => result.status === "fulfilled").map(result => result.value);
-    if (settled.length && !lists.length) throw new Error("Google provider unavailable");
-    for (const venue of lists.flat()) {
-      const existing = merged.get(venue.id);
-      if (existing) {
-        existing.tags = [...new Set([...existing.tags, ...venue.tags])];
-        existing.cost = Math.max(existing.cost, venue.cost);
-      } else merged.set(venue.id, venue);
+    for (const result of settled) {
+      if (result.status === "rejected") { debug.failedQueries++; continue; }
+      for (const venue of result.value) {
+        const existing = merged.get(venue.id);
+        if (existing) {
+          reject("duplicate", venue, targetedVenues.has(venue));
+          existing.tags = [...new Set([...existing.tags, ...venue.tags])];
+          existing.cost = Math.max(existing.cost, venue.cost);
+          if (venue.roles) existing.roles = [...new Set([...(existing.roles || []), ...venue.roles])];
+        } else merged.set(venue.id, venue);
+      }
     }
-    return [...merged.values()];
+    if (settled.length && debug.failedQueries === settled.length) throw new Error("Google provider unavailable");
+    const venues = [...merged.values()];
+    debug.googleCandidates = venues.length;
+    debug.unverifiedSuggestions = venues.filter(v => v.hoursStatus === "unverified").length;
+    return { venues, debug };
   }
+  async function discover(prefs, leads = null) { return (await discoverResults(prefs, leads)).venues; }
+  async function discoverWithDebug(prefs) { return discoverResults(prefs); }
 
   async function routeMatrix(venues, prefs) {
     const point = (venue) => ({
@@ -320,5 +374,5 @@ export function createGoogleProvider(key, fetcher = fetch) {
     }).finally(() => researchPending.delete(id));
     researchPending.set(id, work); return work;
   }
-  return { discover, resolveResearch, routeMatrix, photo, searchLocations, resolveLocation };
+  return { discover, discoverWithDebug, resolveResearch, routeMatrix, photo, searchLocations, resolveLocation };
 }
