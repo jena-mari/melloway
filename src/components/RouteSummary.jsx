@@ -3,7 +3,6 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowUp,
   ArrowDown,
-  CircleArrowRight,
   Pencil,
   Plus,
   X,
@@ -111,18 +110,6 @@ export default function RouteSummary({
             </button>}
             {!readOnly && onSchedule && Number.isFinite(stop.cost) && <small className="route-stop-budget" title="Estimated budget allowance per person">~${stop.cost} each</small>}
             {!editing && !readOnly && onSwap && <button className="route-row-shuffle" disabled={busy} aria-label={`regenerate ${stop.name}`} onClick={() => onSwap(i)}><Shuffle size={17} /></button>}
-            {!editing && (
-              <button
-                className="route-row-arrow"
-                aria-label={`open ${stop.name} details`}
-                aria-haspopup={renderDetails ? undefined : 'dialog'}
-                aria-expanded={renderDetails ? expandedStopId === stop.id : undefined}
-                aria-controls={renderDetails ? `inline-stop-${stop.id}` : undefined}
-                onClick={() => onSelect(stop.id)}
-              >
-                <CircleArrowRight size={18} aria-hidden="true" />
-              </button>
-            )}
             {editing && (
               <div className="route-row-tools">
                 <button

@@ -146,15 +146,16 @@ test("compact route rows lead into the map and suggestion previews remain opt-in
   );
   await expect(page.locator(".inline-stop-expansion").first()).not.toBeVisible();
   await expect(page.locator(".route-summary-meta p")).not.toBeVisible();
-  const arrow = page.getByRole("button", {
-    name: `open ${initial.stops[0].name} details`,
+  await expect(page.locator(".route-row-arrow")).toHaveCount(0);
+  const stopName = page.getByRole("button", {
+    name: `view ${initial.stops[0].name} details`,
     exact: true,
   });
-  await arrow.tap();
+  await stopName.tap();
   await expect(
     page.getByRole("region", { name: `${initial.stops[0].name} stop details`, exact: true }),
   ).toBeVisible();
-  await arrow.tap();
+  await stopName.tap();
   await expect(page.locator(".inline-stop-expansion")).toHaveCount(0);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".result-sheet, #result-plan-options, .date-lifecycle")).toHaveCount(0);

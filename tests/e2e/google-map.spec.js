@@ -79,7 +79,7 @@ test('Google stops match Explore styling with round alphabetical pins in both ma
   await expectRoundLetterPin(frame.getByRole('button', {name:'B. Mock stop 2'}));
   await expect(page.locator('.route-summary-list > li').nth(1)).toHaveClass(/selected-route-stop/);
   await expect(page.getByRole('region',{name:'Mock stop 2 stop details',exact:true})).toBeVisible();
-  await page.getByRole('button', { name: 'open Mock stop 2 details', exact: true }).click();
+  await page.getByRole('button', { name: 'view Mock stop 2 details', exact: true }).click();
   await expect(page.locator('.route-summary-spot strong')).toHaveText(stops.map(stop => stop.name));
   await page.getByRole('button', { name: 'expand map', exact: true }).click();
   await expect(page.frameLocator('dialog .google-route-map').getByRole('button', { name: 'C. Mock stop 3' })).toBeVisible();
