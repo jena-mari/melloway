@@ -15,10 +15,16 @@ const artwork = {
   camera: "yellow_camera",
   music: "yellow_music",
   shell: "yellow_shell",
+  palette: "yellow_palette",
+  kaomoji: "yellow_kaomoji",
+  sparkle: "yellow_sparkle",
+  salmon: "yellow_salmon",
+  bread: "yellow_bread",
+  fish: "yellow_fish",
   // Keep existing callers while replacing every old drawing with supplied art.
   apple: "green_matcha",
-  flower: "pink_cat",
-  star: "yellow_shell",
+  flower: "yellow_kaomoji",
+  star: "yellow_sparkle",
   leaf: "green_whisk",
   bag: "pink_duo",
   book: "yellow_music",
@@ -54,6 +60,7 @@ function DoodleBackdrop({ screen, paused = false }) {
   const motifs = [
     "matcha", "camera", "cat", "whisk", "coffee", "music",
     "duo", "wine", "shell", "cookie", "pot", "strain",
+    "palette", "kaomoji", "sparkle", "bread", "salmon", "fish",
   ];
   const introduction = screen.startsWith("/plan/") || screen === "/generating";
   const seed =

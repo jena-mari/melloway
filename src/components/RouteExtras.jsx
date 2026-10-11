@@ -156,6 +156,8 @@ export default function RouteExtras({
                       kind={
                         venue.tags.includes("Photo booths")
                           ? "camera"
+                          : venue.tags.includes("Art galleries") || venue.tags.includes("Museums")
+                            ? "palette"
                           : venue.tags.includes("Desserts")
                             ? "dessert"
                             : venue.tags.includes("Bookshops")
