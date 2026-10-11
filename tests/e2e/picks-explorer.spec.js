@@ -338,3 +338,41 @@ test("dragging the photo swipes to the next card and updates its Google marker",
   await expect(page.locator(".editorial-place-cards")).not.toHaveClass(/is-dragging/);
   await page.screenshot({ path: info.outputPath("picks-swipe.png") });
 });
+
+// The real SDK chooses zoom from these bounds/padding; this fixture records the
+// requested viewport without loading Google or requiring a browser key.
+for (const path of ["/explore", "/picks"]) test(`${path} show-all fits all ten pins tightly after a selected-place zoom`, async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mockPicks(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(path);
+  await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
+  const surface = page.locator(".picks-map .google-map-surface");
+  const padding = JSON.stringify({ top: 40, bottom: 20, left: 24, right: 24 });
+  const bounds = JSON.stringify(editorialPicks.map(({ lat, lng }) => ({ lat, lng })));
+  await expect(surface).toHaveAttribute("data-fit-padding", padding);
+  const overviewZoom = await surface.getAttribute("data-map-zoom");
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    const place = editorialPicks.at(-1);
+    await page.getByRole("button", { name: `select ${place.name} on map`, exact: true }).click();
+    if (path === "/explore") {
+      await expect(page.getByRole("dialog")).toContainText(place.name);
+      await page.getByRole("button", { name: "close pick details", exact: true }).click();
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+    }
+    await expect(surface).toHaveAttribute("data-map-zoom", "16");
+    const fits = Number(await surface.getAttribute("data-fit-count"));
+    const showAll = page.getByRole("button", { name: "show all pick pins" });
+    await showAll.click();
+    await expect.poll(async () => Number(await surface.getAttribute("data-fit-count"))).toBeGreaterThan(fits);
+    await expect(surface).toHaveAttribute("data-fit-padding", padding);
+    await expect(surface).toHaveAttribute("data-fitted-points", bounds);
+    await expect(surface).toHaveAttribute("data-map-zoom", overviewZoom);
+    await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
+    await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", place.id);
+    const repeatedFits = Number(await surface.getAttribute("data-fit-count"));
+    await showAll.click();
+    await expect.poll(async () => Number(await surface.getAttribute("data-fit-count"))).toBeGreaterThan(repeatedFits);
+  }
+});

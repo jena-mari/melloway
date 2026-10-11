@@ -28,7 +28,10 @@ export const googleMapsFixture = String.raw`
     addListener(name, fn) { const list = this.listeners.get(name) || new Set(); list.add(fn); this.listeners.set(name,list); return { remove: () => list.delete(fn) }; }
     emit(name) { this.listeners.get(name)?.forEach(fn => fn()); }
     scheduleIdle() { clearTimeout(this.timer); this.timer = setTimeout(() => this.emit('idle'),20); }
-    fitBounds(bounds) {
+    fitBounds(bounds, padding) {
+      this.element.dataset.fittedPoints = JSON.stringify(bounds.points);
+      this.element.dataset.fitPadding = JSON.stringify(padding);
+      this.element.dataset.fitCount = String(Number(this.element.dataset.fitCount || 0) + 1);
       this.bounds = bounds.points;
       this.center = {lat:bounds.points.reduce((sum,p)=>sum+p.lat,0)/bounds.points.length,lng:bounds.points.reduce((sum,p)=>sum+p.lng,0)/bounds.points.length};
       this.setZoom(13); this.render(); this.scheduleIdle();

@@ -6,7 +6,7 @@ const located = (point) => Number.isFinite(point.lat) && Number.isFinite(point.l
 
 export default function GoogleMapCanvas({
   points, selectedId, onSelect, focusPoint, resetView, interactive = true,
-  groupNearby = false, markerContent, ariaLabel = "Google Maps",
+  groupNearby = false, fitPadding, markerContent, ariaLabel = "Google Maps",
   className = "map-canvas", statusClassName = "map-status", fallback,
   renderPreview, previewOnTap = false, routePaths, routeTransport = "Walking",
 }) {
@@ -71,8 +71,8 @@ export default function GoogleMapCanvas({
           const fitted = new window.google.maps.LatLngBounds();
           valid.forEach(point => fitted.extend({ lat: point.lat, lng: point.lng }));
           routePositions.forEach(point => fitted.extend(point));
-          map.fitBounds(fitted, groupNearby ? { top: 64, bottom: 20, left: 24, right: 24 }
-            : { top: 60, bottom: 35, left: 45, right: 45 });
+          map.fitBounds(fitted, fitPadding ?? (groupNearby ? { top: 64, bottom: 20, left: 24, right: 24 }
+            : { top: 60, bottom: 35, left: 45, right: 45 }));
         }
       }
       function selectPins() {
@@ -186,7 +186,7 @@ export default function GoogleMapCanvas({
       window.removeEventListener("melloway-map-auth-error", authFailure);
       clean();
     };
-  }, [points, interactive, groupNearby, markerContent]);
+  }, [points, interactive, groupNearby, fitPadding, markerContent]);
   useEffect(() => { view.current?.setRoutes(routePaths, routeTransport); }, [routePaths, routeTransport]);
   useEffect(() => { view.current?.selectPins(); }, [selectedId]);
   useEffect(() => {
