@@ -36,7 +36,8 @@ test('selected date, visit times, incoming travel and used / available hours sta
   await expect(overview(page)).toContainText('2:00 pm start');
   await expect(overview(page)).not.toContainText('Sydney time');
   await expect(overview(page)).toContainText('~3h 20m / 5h available');
-  await expect(overview(page).locator('p').last()).toHaveText('~3h 20m / 5h available · Public transport · 35 min · estimated');
+  await expect(overview(page).locator('p').nth(1)).toHaveText('~3h 20m / 5h available · Public transport · 35 min · estimated');
+  await expect(overview(page).locator('strong')).toHaveText(['~3h 20m / 5h available', `~$${bundle.plan.cost} / $100 each`]);
   await expect(page.locator('.route-summary-meta')).not.toContainText('35 min · estimated');
   await expect(page.locator('.route-summary-total')).toContainText(`~$${bundle.plan.cost} / $100 each`);
   await expect(overview(page)).not.toContainText('estimated, including travel and waiting');
@@ -57,6 +58,7 @@ test('selected date, visit times, incoming travel and used / available hours sta
       expect(travel.x).toBe(previous.x);
     }
     await page.locator('.route-summary').screenshot({ path: info.outputPath(`day-timing-${width}.png`) });
+    await page.locator('.route-summary-heading').screenshot({ path: info.outputPath(`time-and-budget-${width}.png`) });
   }
   await page.locator('.route-summary-total').screenshot({ path: info.outputPath('cost-against-budget.png') });
   await page.getByRole('button', { name: 'lock this in', exact: true }).click();

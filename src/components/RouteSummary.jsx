@@ -57,6 +57,7 @@ export default function RouteSummary({
             <p><strong>~{formatRouteDuration(plan.elapsed)} / {formatRouteDuration(Number(plan.prefs.duration) * 60)} available</strong>
               {' · '}<span>{plan.prefs.transport === 'Not selected' ? 'Travel mode not selected · planning buffer' : plan.prefs.transport} · {plan.travel} min · estimated</span>
             </p>
+            <p><strong>~${plan.cost} / ${plan.prefs.budget} each</strong></p>
           </div>
         </div>
         {!readOnly && <button

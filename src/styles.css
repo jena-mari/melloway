@@ -6961,5 +6961,5 @@ html:has(.itinerary-sticky-actions) { scroll-padding-bottom: calc(var(--tabs-hei
 /* Keep the selected day and existing schedule estimates visible above the route. */
 .route-day-schedule { margin-top: 6px; }
 .route-day-schedule p { margin: 3px 0; font-size: 11px; line-height: 1.4; color: #666; }
-.route-day-schedule strong { font-weight: 500; color: #111; }
+.route-day-schedule strong { font-weight: 700; color: #111; }
 .route-leg-timing { margin: 6px 0 2px; padding-left: 8px; font-size: 11px; line-height: 1.4; color: #666; }

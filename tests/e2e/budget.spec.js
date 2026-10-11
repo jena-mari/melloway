@@ -54,6 +54,7 @@ for (const width of [320, 390]) {
     const initial = await stored(page);
     expect(initial.cost).toBe(44);
     await expect(page.locator('.route-summary-total')).toContainText('~$44 / $80 each');
+    await expect(page.getByLabel('Your day timing', { exact: true })).toContainText('~$44 / $80 each');
     expect(initial.budgetBreakdown.shopping.allowance).toBe(32);
     await expect(
       page.getByRole("form", { name: "Activity budgets" }),
@@ -67,6 +68,7 @@ for (const width of [320, 390]) {
     await page.getByRole("button", { name: "apply", exact: true }).tap();
     await expect.poll(async () => (await stored(page)).cost).toBe(60);
     await expect(page.locator('.route-summary-total')).toContainText('~$60 / $80 each');
+    await expect(page.getByLabel('Your day timing', { exact: true })).toContainText('~$60 / $80 each');
     const changed = await stored(page);
     expect(changed.prefs.activityBudgets).toEqual({ drinks: 20, shopping: 40 });
     expect(changed.stops.map((s) => s.id)).toEqual(
@@ -83,6 +85,7 @@ for (const width of [320, 390]) {
     );
     expect(saved.prefs.activityBudgets).toEqual(changed.prefs.activityBudgets);
     await page.reload();
+    await expect(page.getByLabel('Your day timing', { exact: true })).toContainText('~$60 / $80 each');
     await openBudget(page);
     await expect(
       page.getByLabel("shopping budget", { exact: true }),
@@ -101,6 +104,7 @@ for (const width of [320, 390]) {
       .tap();
     await expect.poll(async () => (await stored(page)).cost).toBe(44);
     await expect(page.locator('.route-summary-total')).toContainText('~$44 / $80 each');
+    await expect(page.getByLabel('Your day timing', { exact: true })).toContainText('~$44 / $80 each');
     expect((await stored(page)).prefs.activityBudgets).toEqual({});
     expect(
       await page.evaluate(
