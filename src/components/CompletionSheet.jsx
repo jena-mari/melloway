@@ -99,7 +99,7 @@ function Sheet({ entry }) {
           onClick={() => dialog.current.close()}><X size={21} /></button>
       </header>
       {mode === 'choice' ? <>
-        <div className="completion-doodle" aria-hidden="true"><Doodle kind="flower" /></div>
+        <div className="completion-doodle" aria-hidden="true"><Doodle kind="heart" /></div>
         <h2 id="completion-title" tabIndex={-1}>{outing} complete!<br />how’d it go? 💌</h2>
         <p className="completion-caption">tucked away in Past Dates.</p>
         <div className="completion-options">
