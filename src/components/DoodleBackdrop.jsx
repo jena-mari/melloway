@@ -25,11 +25,13 @@ const artwork = {
   plate: "black_pot",
   dessert: "black_cookie",
 };
+export const doodleImageSrc = kind => `/icons/optimized/${artwork[kind] || artwork.matcha}.png`;
+
 export function Doodle({ kind }) {
   return (
     <img
       className="doodle-art"
-      src={`/icons/optimized/${artwork[kind] || artwork.matcha}.png`}
+      src={doodleImageSrc(kind)}
       alt=""
       aria-hidden="true"
       width="256"

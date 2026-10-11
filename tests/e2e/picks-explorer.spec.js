@@ -443,3 +443,40 @@ for (const path of ["/explore", "/picks"]) test(`${path} show-all fits all ten p
     await expect.poll(async () => Number(await surface.getAttribute("data-fit-count"))).toBeGreaterThan(repeatedFits);
   }
 });
+
+for (const path of ["/explore", "/picks"]) test(`${path} has compact pointed place-icon pins with accessible selection`, async ({ page }, info) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockPicks(page);
+  await page.goto(path);
+  await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
+  const pins = page.locator(".editorial-pick-pin");
+  await expect(pins).toHaveCount(10);
+  await expect(pins).toHaveText(Array(10).fill(""));
+  await expect(pins.locator("img[aria-hidden=true][alt='']")).toHaveCount(10);
+  for (const pin of await pins.all()) {
+    await expect.poll(() => pin.locator("img").evaluate(image => image.complete && image.naturalWidth > 0)).toBe(true);
+    const shape = await pin.evaluate(button => {
+      const style = getComputedStyle(button), tip = getComputedStyle(button, "::after");
+      return { width: parseFloat(style.width), height: parseFloat(style.height), tip: tip.content,
+        tipHeight: parseFloat(tip.height), tipBottom: parseFloat(tip.bottom) };
+    });
+    expect(shape.width).toBeLessThan(36);
+    expect(shape.height).toBeLessThan(36);
+    expect(shape.tip).not.toBe("none");
+    expect(shape.tipHeight).toBeGreaterThan(0);
+    expect(shape.tipBottom).toBeLessThan(0);
+  }
+  const camera = page.getByRole("button", { name: `select ${editorialPicks[1].name} on map`, exact: true });
+  await expect(camera.locator("img")).toHaveAttribute("src", "/icons/optimized/yellow_camera.png");
+  await expect(pins.first().locator("img")).toHaveAttribute("src", "/icons/optimized/green_matcha.png");
+  await page.screenshot({ path: info.outputPath(`icon-pins-${path.slice(1)}.png`) });
+  await camera.focus();
+  await page.keyboard.press("Enter");
+  await expect(camera).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
+  await page.getByRole("button", { name: "show all pick pins" }).click();
+  await expect(pins).toHaveCount(10);
+  await expect(camera).toHaveAttribute("aria-pressed", "true");
+});
