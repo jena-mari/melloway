@@ -6949,3 +6949,9 @@ html:has(.itinerary-sticky-actions) { scroll-padding-bottom: calc(var(--tabs-hei
 .venue-review-file small { font-size: 11px; color: #666; }
 .venue-review-form [role=alert], .venue-reviews [role=alert] { color: #9a2836; font-size: 13px; }
 .venue-review-form > .button { width: 100%; margin-top: 16px; }
+
+/* Keep the selected day and existing schedule estimates visible above the route. */
+.route-day-schedule { margin-top: 6px; }
+.route-day-schedule p { margin: 3px 0; font-size: 11px; line-height: 1.4; color: #666; }
+.route-day-schedule strong { font-weight: 500; color: #111; }
+.route-summary-spot .route-leg-timing { color: #666; }

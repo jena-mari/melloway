@@ -10,7 +10,8 @@ import {
   Shuffle,
   Route,
 } from "lucide-react";
-import { formatTime } from '../utils/planner.js';
+import { formatTime, minutes } from '../utils/planner.js';
+import { formatRouteDate, formatRouteDuration, betweenStopsLabel } from '../utils/routeTiming.js';
 
 export default function RouteSummary({
   plan,
@@ -45,6 +46,10 @@ export default function RouteSummary({
       <div className="route-summary-heading">
         <div>
           <h2>{location}</h2>
+          <div className="route-day-schedule" aria-label="Your day timing">
+            <p><time dateTime={plan.prefs.date}>{formatRouteDate(plan.prefs.date)}</time> · {formatTime(minutes(plan.prefs.time))} start · Sydney time</p>
+            <p><strong>~{formatRouteDuration(plan.elapsed)} / {formatRouteDuration(Number(plan.prefs.duration) * 60)} available</strong> · estimated, including travel and waiting</p>
+          </div>
         </div>
         {!readOnly && <button
           className="route-edit-toggle"
@@ -92,6 +97,7 @@ export default function RouteSummary({
               <strong>{stop.name}</strong>
               <span>{stop.address}</span>
               <small>{formatTime(stop.arrival)}–{formatTime(stop.arrival + stop.mins)}</small>
+              {i > 0 && <small className="route-leg-timing">{betweenStopsLabel(plan.stops[i - 1], stop, plan.prefs.transport)}</small>}
             </button>
             {!readOnly && onSchedule && <button className="route-time-edit" disabled={busy} aria-label={`edit ${stop.name} timeframe`} onClick={() => onSchedule(i)}>time</button>}
             {!editing && !readOnly && onSwap && <button className="route-row-shuffle" disabled={busy} aria-label={`regenerate ${stop.name}`} onClick={() => onSwap(i)}><Shuffle size={17} /></button>}
