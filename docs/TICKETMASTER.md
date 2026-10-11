@@ -45,36 +45,56 @@ The Node server exposes `GET /api/events` (events, grouped venue pins, missing-c
 The endpoints share a 60-second Ticketmaster snapshot and use the existing local request rate limit. The server makes no Google API requests for this preview.
 The map labels every unique coordinate pair and fits all pins into view. Shared venue locations are grouped. It draws no route, performs no Places lookup and preserves Google's controls and attribution. Ticketmaster's coordinates can be inaccurate; missing coordinates are reported instead of guessed.
 
-### No-card, zero-spend prototype setup
+### Browser map keys
 
-Use Google's [Maps Demo Key flow](https://developers.google.com/maps/demo-key), which supports JavaScript map rendering and markers without billing information. Click **Get a Demo Key**, sign in with your Google account and accept Google's Demo Key terms yourself. Do **not** attach a billing account or upgrade the Demo project. Usage pauses at the demo quota rather than charging; this key is for prototypes only.
+Add `GOOGLE_MAPS_JS_KEY=` to the **ignored root `.env`** used by the Node server and enter your real standard Maps JavaScript API key locally after `=`. The committed `.env.example` contains only an empty placeholder. Edit/add that single value; do not copy `.env.example` over an existing `.env`, overwrite other values, print the file, or commit it. Keep the existing server-only `TICKETMASTER_API_KEY` configured.
 
-Put only that dedicated Demo Key in the root ignored `.env`:
+The server prefers a nonblank `GOOGLE_MAPS_JS_KEY`, trimming surrounding whitespace. A nonblank `GOOGLE_MAPS_DEMO_KEY` is an optional fallback **only when the standard key is blank/unset**. A rejected standard key does not silently switch to a Demo Key or issue another Google load. Restart the backend after editing either key.
 
-```dotenv
-GOOGLE_MAPS_DEMO_KEY=your_actual_demo_key
-APP_ORIGINS=http://localhost:8083
-```
+Both are **browser map keys visible to map viewers at runtime** in the server-hosted HTML. The key is not returned by `/api/events`, but it is necessarily present in `/api/events-map` and the Google JavaScript request. Keep both separate from private Ticketmaster credentials and the server's `GOOGLE_MAPS_API_KEY` for Places/Routes. Neither private credential is a fallback. Do not add the key to `VITE_` or `EXPO_PUBLIC_` variables, native Maps SDK settings, app source or URLs you share.
 
-The map loads Google JavaScript in a browser frame on web and in the existing WebView on phones. `GOOGLE_MAPS_DEMO_KEY` is therefore **visible to map viewers**, even though it is configured on the server. Never substitute the private Ticketmaster or Places/Routes keys. `GOOGLE_MAPS_STATIC_KEY` is no longer used by the preview; the Maps Demo Key does not support Static Maps, and this prototype does not call it. The existing planner's Google adapter is independent; keep `EXPO_PUBLIC_DATA_MODE=demo` for planning without paid API calls.
+The optional [Maps Demo Key](https://developers.google.com/maps/demo-key) remains a prototype configuration. A standard key uses its Google Cloud project's existing API/account configuration. This task does not upgrade billing, change quotas, add APIs or promise that a standard key has unlimited free usage. Keep the account on its unupgraded Free Trial; if Google refuses the request, keep the list fallback and inspect the error rather than upgrading or changing quotas.
 
-Set the public server origin in `apps/mobile/.env.local` (this value is an address, never a secret):
+### Google Console restrictions for the standard key
 
-```dotenv
-EXPO_PUBLIC_DATA_MODE=demo
-EXPO_PUBLIC_API_URL=http://localhost:3001
-```
+In **Google Cloud Console → APIs & Services → Credentials → your browser map key**:
 
-Start the backend and restart the Expo preview after setting environment variables:
+1. **API restrictions:** choose **Restrict key**, allowing **Maps JavaScript API only**. The map uses only map rendering and markers; no Places, Routes, Geocoding, Static Maps or other API is needed.
+2. **Application restrictions:** choose **Websites (HTTP referrers)**. Allow the origin of the **server-hosted map page**, including its protocol, host and port. For the default local backend, use `http://localhost:3001/*`; add `http://127.0.0.1:3001/*` only if opening the map through that hostname. For the isolated live check below, add `http://localhost:3002/*`.
+3. Save and allow the restrictions to propagate before the single live check. If rejected, compare the browser console's reported referrer with these entries and correct the exact entry. **Keep restrictions enabled.** Do not remove them to fix an error.
+
+The iframe is loaded from `http://localhost:3001/api/events-map?...` by default, or `http://localhost:3002/api/events-map?...` for the isolated check. Google sees that backend page's origin as its referrer. Merely allowing the outer Expo page (`http://localhost:8083`, `:8084`, or `:8086`) does not authorize the backend map page. Modern browsers may strip the path from cross-origin referrers, so use the origin with `/*`, not a restriction limited to `/api/events-map`.
+
+`APP_ORIGINS` is a separate **server CORS** setting for the outer Expo browser origin; it does not configure the Google key. The server defaults to loopback. No deployed map domain is configured in this repository. If later hosted, explicitly allow the real HTTPS backend/map-page origin; do not invent or wildcard unrelated domains. For intentional LAN testing, allow the actual HTTP backend host/port used in `EXPO_PUBLIC_API_URL`, without relaxing restrictions. A WebView using a local file, inline HTML or a missing referrer may be rejected; use the existing HTTP(S) server-hosted page and verify in the browser rather than disabling restrictions.
+
+References: [Google's API key security/restriction guidance](https://developers.google.com/maps/api-security-best-practices), [Maps JavaScript error messages](https://developers.google.com/maps/documentation/javascript/error-messages), and [authentication-failure callback](https://developers.google.com/maps/documentation/javascript/events#auth-errors).
+
+### One isolated live map check
+
+Install the existing locked dependencies with `npm ci` in the feature checkout. Keep the real keys in the existing ignored root `.env` you edited; the isolated worktree need not copy it. Use its absolute path for `--env-file-if-exists` below. Do not put keys in terminal arguments.
+
+From the feature checkout, start the existing backend on a separate port in terminal 1:
 
 ```sh
-npm run server
-# In a second terminal:
-npm run mobile:web -- --port 8083 --localhost
+HOST=127.0.0.1 PORT=3002 APP_ORIGINS=http://localhost:8086 \
+  node --experimental-strip-types --env-file-if-exists=/absolute/path/to/your/root/.env server/index.js
 ```
 
-For a physical phone, use the computer's LAN IP instead of localhost and explicitly configure root backend `HOST=0.0.0.0` on a trusted local network. A browser needs its exact origin in `APP_ORIGINS`; native apps do not use browser CORS. The JavaScript map uses the already-installed WebView, without a Maps SDK key or a native rebuild.
+In terminal 2, from the same checkout:
 
-Missing/rejected Demo Keys or script-loading failures preserve the Ticketmaster venue list and show an unavailable-map message. Each venue still has a Google Maps link, which requires no API key. No demo events or replacement coordinates are substituted. The planner remains usable in demo mode without any keys or backend; the live event screen still requires Ticketmaster credentials and the server. Restart the backend after editing keys.
+```sh
+EXPO_PUBLIC_DATA_MODE=demo EXPO_PUBLIC_API_URL=http://localhost:3002 \
+  npm run mobile:web -- --port 8086 --localhost --clear
+```
 
-Mocked map tests are included in `npm run test:events`; browser tests in `tests/mobile-e2e/events-map.spec.js` intercept Google JavaScript and verify all markers, fitted coordinates, missing/rejected keys, failed loading and refresh. They make no real Google API calls.
+Open `http://localhost:8086/events-map` **once**. It loads the Ticketmaster event list and one Google map from the backend on port 3002, using the current 60-second event snapshot. Check that every listed coordinate group has a labelled pin and that events lacking coordinates remain listed. The list is real Ticketmaster data; no demo events or invented points are substituted. Avoid repeatedly refreshing during this manual check. Close the preview when done. These ports keep the existing app/backend running; override neither existing process.
+
+Planning stays in demo mode: this map check does not call the planner's Places/Routes adapter. It still requires the server's private Ticketmaster key. If there are no usable event coordinates, no map loads. A missing browser key leaves the list visible with a configuration message; Google authentication, loader/library errors or a 20-second loading timeout preserve the list with a map-failure message. The standalone map page reports authentication failures separately and suggests checking Maps JavaScript API access and website referrers. Each venue retains its original keyless Google Maps link.
+
+### Mocked verification
+
+`npm run test:events` covers key preference/fallback, missing/blank keys, separation from private keys, safe HTML rendering, authentication/library/timeout failures and the shared Ticketmaster snapshot. `tests/mobile-e2e/events-map.spec.js` mocks Google JavaScript, Ticketmaster endpoints and external Google Maps navigation; it checks pins, list preservation, both rejected key configurations and retry. No credentials or real Maps loads are required.
+
+Validation for this change: all 115 tests in `npm test` passed (79 root, 5 mobile, 31 event/backend); domain/mobile typechecking, strict standalone event-file typechecking, mobile lint and the preserved Vite build passed. All 8 mocked map browser tests passed using a temporary port-only config on port 8087, removed afterwards. The key-selection tests cover the standard key alone, standard-key preference over Demo, blank/unset fallback, missing keys and exclusion of private server keys. There were no baseline failures.
+
+No actual key, Google Console restriction, Free Trial status, real Ticketmaster request, real Maps load or real phone was tested or changed. The single manual check above is still required; automation deliberately uses fixtures only.

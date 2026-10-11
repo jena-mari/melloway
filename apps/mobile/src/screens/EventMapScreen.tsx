@@ -31,8 +31,10 @@ export default function EventMapScreen() {
       {data.points.length > 0 && (data.mapAvailable && !failedMap
         ? <View style={styles.map}><EventVenueMap key={query.dataUpdatedAt}
           uri={`${eventApiOrigin()}/api/events-map?v=${query.dataUpdatedAt}`} onError={() => setFailedMap(true)} /></View>
-        : <Notice>The Google map preview is unavailable. Venue coordinates are still listed below.</Notice>)}
-      <Text style={common.fine}>Google Demo Key map · coordinates supplied by Ticketmaster. Pins show venues, with shared locations grouped together. They are not verified Google Places matches or a route.</Text>
+        : <Notice>{data.mapAvailable
+          ? 'The Google map preview could not load. Check the connection, browser key and allowed website referrers.'
+          : 'Google Maps is not configured on the event server.'} Venue coordinates are still listed below.</Notice>)}
+      <Text style={common.fine}>Google Maps JavaScript map · coordinates supplied by Ticketmaster. Pins show venues, with shared locations grouped together. They are not verified Google Places matches or a route.</Text>
       {data.events.length === 0 && <Text style={common.text}>No upcoming Sydney events were returned.</Text>}
       {data.missingCoordinates > 0 && <Notice>{data.missingCoordinates} events have no usable venue coordinates and cannot be pinned.</Notice>}
       {data.points.map(point => <View key={point.label} testID={`venue-pin-${point.label}`} style={common.card}>
