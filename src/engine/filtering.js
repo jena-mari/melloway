@@ -1,14 +1,18 @@
-import { km, schedule } from "../utils/planner.js";
+import { km, schedule, transportAllowance } from "../utils/planner.js";
 import { planningArea } from "../utils/location.js";
 import { venueRoles } from "./preferences.js";
 import { scoreVenue } from "./scoring.js";
+import {
+  estimatedCost,
+  allocateActivityBudgets,
+} from "../utils/activityBudget.js";
 
 import { closedOn } from "../utils/openingHours.js";
 export function spendAllowance(v, intent) {
   return v.foodAllowance &&
     intent.interests.some((t) => ["Brunch", "Café food"].includes(t))
     ? v.foodAllowance
-    : v.cost;
+    : estimatedCost(v);
 }
 export function venueRejection(v, prefs, intent, rejectedIds = []) {
   const area = planningArea(prefs),
@@ -23,12 +27,29 @@ export function venueRejection(v, prefs, intent, rejectedIds = []) {
     return "area";
   if (closedOn(v, prefs.date)) return "hours";
   if (!v.weeklyHours && !v.hours) return "unknown-hours";
+  const spending = spendAllowance(v, intent);
+  const versions = (
+    v.activityRole ? [v.activityRole] : rs.length ? rs : [undefined]
+  ).map((activityRole) => ({
+    ...v,
+    activityRole,
+    cost: spending,
+    estimatedCost: spending,
+  }));
   if (
     !Number.isFinite(v.cost) ||
-    spendAllowance(v, intent) > Number(prefs.budget)
+    spending > Number(prefs.budget) ||
+    !versions.some((venue) =>
+      allocateActivityBudgets(
+        [venue],
+        prefs,
+        transportAllowance(prefs.transport),
+      ),
+    )
   )
     return "budget";
   if (
+    !intent.allowAlternatives &&
     intent.upscaleMeal &&
     rs.includes("meal") &&
     !v.upscale &&
@@ -36,6 +57,7 @@ export function venueRejection(v, prefs, intent, rejectedIds = []) {
   )
     return "preference";
   if (
+    !intent.allowAlternatives &&
     intent.hiddenBars &&
     rs.includes("bar") &&
     !v.hidden &&
@@ -43,6 +65,7 @@ export function venueRejection(v, prefs, intent, rejectedIds = []) {
   )
     return "preference";
   if (
+    !intent.allowAlternatives &&
     intent.interests.includes("Matcha cafés") &&
     rs.includes("cafe") &&
     !v.tags.includes("Matcha cafés")
@@ -56,11 +79,13 @@ export function venueRejection(v, prefs, intent, rejectedIds = []) {
   )
     return "preference";
   if (
-    !schedule(
-      [v],
-      prefs,
-      [[{ minutes: 0, distance: 0, source: "estimate" }]],
-      [0],
+    !versions.some((venue) =>
+      schedule(
+        [venue],
+        prefs,
+        [[{ minutes: 0, distance: 0, source: "estimate" }]],
+        [0],
+      ),
     )
   )
     return "hours";
@@ -73,7 +98,11 @@ export function selectCandidates(
   { rejectedIds = [], weights, seed = 0 } = {},
 ) {
   const eligible = all
-    .map((v) => ({ ...v, cost: spendAllowance(v, intent) }))
+    .map((v) => ({
+      ...v,
+      cost: spendAllowance(v, intent),
+      estimatedCost: spendAllowance(v, intent),
+    }))
     .filter((v) => !venueRejection(v, prefs, intent, rejectedIds))
     .map((v) => scoreVenue(v, prefs, intent, weights))
     .sort((a, b) => b.score - a.score || a.id.localeCompare(b.id));

@@ -41,6 +41,105 @@ const storedPlan = (page) =>
     () => JSON.parse(localStorage.getItem("melloway.current")).plan,
   );
 
+test("compact route rows lead into the map and suggestion previews remain opt-in", async ({
+  page,
+}) => {
+  await page.goto("/itinerary");
+  const initial = await storedPlan(page);
+  await expect(page.locator(".route-extras")).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect(page.locator(".route-summary-spot span")).toHaveText(
+    initial.stops.map((stop) => stop.address),
+  );
+  await expect(page.locator(".stop-card").first()).not.toBeVisible();
+  await expect(page.locator(".route-summary-meta p")).not.toBeVisible();
+  const arrow = page.getByRole("button", {
+    name: `open ${initial.stops[0].name} details`,
+    exact: true,
+  });
+  await arrow.tap();
+  await expect(
+    page.getByRole("dialog", { name: initial.stops[0].name, exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(arrow).toBeFocused();
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await expect(page.locator("#result-plan-options")).not.toBeVisible();
+    await page
+      .locator(".result-sheet")
+      .screenshot({ path: `/private/tmp/melloway-plan-actions-${width}.png` });
+    const map = await page.locator(".map-preview").boundingBox();
+    const rows = await page.locator(".route-summary-list").boundingBox();
+    const suggestions = await page.locator(".route-extras").boundingBox();
+    expect(rows.y + rows.height).toBeLessThan(map.y);
+    expect(map.y + map.height).toBeLessThan(suggestions.y);
+    expect(map.y + map.height).toBeLessThan(740);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.evaluate(() => {
+      document.activeElement?.blur();
+      window.scrollTo(0, 0);
+    });
+    await page.screenshot({
+      path: `/private/tmp/melloway-route-layout-${width}.png`,
+      fullPage: true,
+    });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  const more = page.getByRole("button", {
+    name: "more plan options",
+    exact: true,
+  });
+  await more.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#result-plan-options")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "tweak the details", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "start a new plan", exact: true }),
+  ).toBeVisible();
+  await page.locator(".plan-disclosure summary").tap();
+  await expect(page.locator(".plan-disclosure p")).toContainText(
+    "Sourced venues",
+  );
+  await page
+    .locator(".result-sheet")
+    .screenshot({ path: "/private/tmp/melloway-plan-options-390.png" });
+  await more.tap();
+  await expect(page.locator("#result-plan-options")).not.toBeVisible();
+  const preview = page.getByRole("button", {
+    name: "preview Mapo Newtown",
+    exact: true,
+  });
+  await preview.tap();
+  const dialog = page.getByRole("dialog", {
+    name: "Mapo Newtown",
+    exact: true,
+  });
+  await expect(dialog).toContainText("suggested spot");
+  await expect(dialog).not.toContainText("NaN");
+  expect((await storedPlan(page)).stops).toEqual(initial.stops);
+  await page.keyboard.press("Escape");
+  await expect(preview).toBeFocused();
+  await preview.tap();
+  await dialog.getByRole("button", { name: "add to route", exact: true }).tap();
+  await expect(dialog).not.toBeVisible();
+  await expect(page.locator(".route-summary-list li")).toHaveCount(4);
+  const next = await storedPlan(page);
+  expect(next.stops.filter((stop) => stop.id === "sydney-mapo")).toHaveLength(
+    1,
+  );
+  expect(next.cost).toBeLessThanOrEqual(next.prefs.budget);
+  expect(next.elapsed).toBeLessThanOrEqual(next.prefs.duration * 60);
+});
+
 test("place names replace legacy nicknames across current, saved and shared routes", async ({
   page,
 }) => {
@@ -318,6 +417,7 @@ test("extras beyond the remaining budget cannot change the route", async ({
       exact: true,
     }),
   ).toBeDisabled();
+  await page.getByRole("button", { name: "edit", exact: true }).tap();
   await page.getByRole("button", { name: "add a stop", exact: true }).tap();
   await page.getByLabel("search available spots").fill("Mapo");
   await expect(

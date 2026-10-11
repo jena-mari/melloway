@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Search, MapPin, X, Check, LoaderCircle } from "lucide-react";
 import { searchLocations, resolveLocation } from "../services/discovery";
 import { createId } from "../utils/id";
-import { validLocation } from "../utils/location";
+import { validLocation, localLocations } from "../utils/location";
+const LocationMap = lazy(() => import("./LocationMap"));
 
 export default function LocationSearch({ draft, update }) {
   const [query, setQuery] = useState(draft.locationQuery ?? draft.area);
@@ -76,7 +77,7 @@ export default function LocationSearch({ draft, update }) {
         : { locationQuery: "", area: "Anywhere in Sydney", location: null },
     );
   }
-  async function choose(suggestion) {
+  async function choose(suggestion, focusSearch = true) {
     selectionRequest.current?.abort();
     const controller = new AbortController();
     selectionRequest.current = controller;
@@ -96,7 +97,7 @@ export default function LocationSearch({ draft, update }) {
       setQuery(area);
       setSource(suggestion.source);
       setOpen(false);
-      input.current?.focus({ preventScroll: true });
+      if (focusSearch) input.current?.focus({ preventScroll: true });
     } catch {
       if (!controller.signal.aborted)
         setError("couldn’t select that spot. try again or choose another.");
@@ -190,7 +191,7 @@ export default function LocationSearch({ draft, update }) {
         ) : null}
       </div>
       <p className="location-help" id="location-help">
-        in and around Sydney. pick a suggestion to set ur spot.
+        search a spot or tap an area on the map.
       </p>
       {(open || draft.location) && (
         <div className="location-results">
@@ -260,6 +261,24 @@ export default function LocationSearch({ draft, update }) {
           {error}
         </p>
       )}
+      <Suspense
+        fallback={
+          <div className="location-map map-loading" role="status">
+            loading map…
+          </div>
+        }
+      >
+        <LocationMap
+          selectedArea={selected && !draft.location ? draft.area : null}
+          onSelect={(name) => {
+            input.current?.blur();
+            choose(
+              localLocations().find((item) => item.name === name),
+              false,
+            );
+          }}
+        />
+      </Suspense>
       <button type="button" className="anywhere-location" onClick={anywhere}>
         anywhere in Sydney is good
       </button>

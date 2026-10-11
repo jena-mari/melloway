@@ -11,6 +11,10 @@ export default function StopDetails({
   onClose,
   venueLink,
   venueState,
+  suggestion = false,
+  canAdd = false,
+  busy = false,
+  onAdd,
 }) {
   const dialog = useRef(null);
   useEffect(() => {
@@ -35,8 +39,10 @@ export default function StopDetails({
         <header>
           <div>
             <p>
-              stop {String.fromCharCode(65 + index)} ·{" "}
-              {s.category.toLowerCase()}
+              {suggestion
+                ? "suggested spot"
+                : `stop ${String.fromCharCode(65 + index)}`}{" "}
+              · {s.category.toLowerCase()}
             </p>
             <h2 id="spot-detail-title">{s.name}</h2>
           </div>
@@ -57,17 +63,27 @@ export default function StopDetails({
             <small>
               {s.source === "demo"
                 ? "mood imagery"
-                : `Google Places${s.attribution ? " · " + s.attribution : ""}`}
+                : s.source === "curated"
+                  ? "venue photo"
+                  : `Google Places${s.attribution ? " · " + s.attribution : ""}`}
             </small>
           </div>
         )}
         <div className="stop-detail">
           <div className="stop-kicker">
             <span>
-              {formatTime(s.arrival)} · {s.mins} min visit
+              {!suggestion && <>{formatTime(s.arrival)} · </>}
+              {s.mins} min visit
             </span>
             <span>{s.cost ? `~$${s.cost} each` : "$0 allowance"}</span>
           </div>
+          {Number.isFinite(s.estimatedCost) && s.cost !== s.estimatedCost && (
+            <p className="stop-budget-note">
+              {s.budgetCategory === "shopping"
+                ? `$${Math.round((s.cost - s.estimatedCost) * 100) / 100} for purchases · ~$${s.estimatedCost} entry`
+                : `$${s.cost} budget · ~$${s.estimatedCost} estimate`}
+            </p>
+          )}
           <p className="stop-address">
             <MapPin size={14} />
             {s.address}
@@ -90,14 +106,31 @@ export default function StopDetails({
             </a>
           )}
           {s.rating && <p>{s.rating}/5 · Google rating</p>}
-          <Link
-            className="button"
-            to={venueLink || `/venue/${s.id}`}
-            state={venueState}
-            onClick={() => dialog.current.close()}
-          >
-            location spotlight <ArrowUpRight size={15} />
-          </Link>
+          {suggestion ? (
+            <>
+              {!canAdd && (
+                <p className="stop-fit-warning">
+                  Doesn’t fit this plan’s time or budget.
+                </p>
+              )}
+              <button
+                className="button"
+                disabled={busy || !canAdd}
+                onClick={onAdd}
+              >
+                add to route
+              </button>
+            </>
+          ) : (
+            <Link
+              className="button"
+              to={venueLink || `/venue/${s.id}`}
+              state={venueState}
+              onClick={() => dialog.current.close()}
+            >
+              location spotlight <ArrowUpRight size={15} />
+            </Link>
+          )}
         </div>
       </div>
     </dialog>

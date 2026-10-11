@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   useNavigate,
+  useLocation,
   useParams,
   useSearchParams,
   Link,
@@ -13,30 +14,58 @@ import { sydneyToday } from "../data/preferences";
 import { NameQuestion, AboutQuestion } from "../components/questions/Profile";
 import DetailsQuestion from "../components/questions/Details";
 import IdeasQuestion from "../components/questions/Ideas";
+import FoodQuestion from "../components/questions/Food";
 import NotesQuestion from "../components/questions/Notes";
 import { ideas } from "../data/ideas";
 import { Button } from "../components/UI";
-const steps = ["profile", "about", "details", "vibes", "notes"];
+const steps = ["profile", "about", "details", "vibes", "food", "notes"];
+const previousSection = {
+  profile: "/",
+  about: "/plan/profile",
+  details: "/plan/about?q=1",
+  vibes: "/plan/details?q=3",
+  food: "/plan/vibes",
+  notes: "/plan/food?q=1",
+};
 export default function Onboarding() {
   const { step } = useParams(),
     { draft, update } = useApp(),
     navigate = useNavigate();
   const [error, setError] = useState("");
   const [search, setSearch] = useSearchParams();
+  const location = useLocation();
   const turn = useRef(null);
   const reduced = useReducedMotion();
   const lastQuestion =
-    step === "about" ? 1 : step === "details" ? 8 : step === "vibes" ? 3 : 0;
+    step === "about" || step === "food"
+      ? 1
+      : step === "details"
+        ? 8
+        : step === "vibes"
+          ? 3
+          : 0;
   const question = Math.min(
     lastQuestion,
     Math.max(0, Math.floor(Number(search.get("q"))) || 0),
   );
+  // Keep the questions actually visited in this history entry. This survives
+  // reloads and handles optional sections without sending Back to their start.
+  const trail = location.state?.onboardingTrail || [];
+  const forwardState = {
+    onboardingTrail: [...trail, `${location.pathname}${location.search}`],
+  };
   const nextQuestion = (q) => {
     setError("");
-    setSearch(q ? { q: String(q) } : {});
+    setSearch(q ? { q: String(q) } : {}, { state: forwardState });
   };
   const index = steps.indexOf(step);
+  const previous =
+    trail.at(-1) ||
+    (question
+      ? `/plan/${step}${question > 1 ? `?q=${question - 1}` : ""}`
+      : previousSection[step] || "/");
   useEffect(() => {
+    window.scrollTo(0, 0);
     // Focus after the browser restores the previous history entry's control.
     const frame = requestAnimationFrame(() =>
       turn.current?.focus({ preventScroll: true }),
@@ -55,13 +84,14 @@ export default function Onboarding() {
     setError("");
     if (step === "details")
       update({ budget: budgetIsValid() ? Number(draft.budget) : 80 });
-    if (index === 3)
+    if (step === "vibes")
       update({
         idea: skipped ? "" : draft.idea || ideas[0].id,
         ideaExplicit: skipped ? false : !!draft.ideaExplicit,
       });
     navigate(
       index === steps.length - 1 ? "/generating" : `/plan/${steps[index + 1]}`,
+      { state: forwardState },
     );
   }
   function budgetIsValid() {
@@ -79,6 +109,10 @@ export default function Onboarding() {
     return false;
   }
   function skip() {
+    if (step === "food" && question === 0) {
+      nextQuestion(1);
+      return;
+    }
     if (step === "details" && question === 2) {
       update({ area: "Anywhere in Sydney", location: null, locationQuery: "" });
       advance(true);
@@ -94,6 +128,10 @@ export default function Onboarding() {
   }
   function submit(e) {
     e.preventDefault();
+    if (step === "vibes" && question === 1) {
+      nextQuestion(3);
+      return;
+    }
     if (step === "details" && question === 3 && !validateBudget()) return;
     if (
       step === "details" &&
@@ -125,7 +163,7 @@ export default function Onboarding() {
       return;
     }
     if (
-      (step === "about" && question < 1) ||
+      ((step === "about" || step === "food") && question < 1) ||
       (step === "details" && question < 3) ||
       (step === "details" && question >= 4 && question < 8) ||
       (step === "vibes" && question > 0 && question < 3)
@@ -139,13 +177,9 @@ export default function Onboarding() {
     >
       <div className="question-top">
         <Link
-          to={
-            question
-              ? `/plan/${step}${question > 1 ? `?q=${question - 1}` : ""}`
-              : index
-                ? `/plan/${steps[index - 1]}`
-                : "/"
-          }
+          to={previous}
+          state={{ onboardingTrail: trail.slice(0, -1) }}
+          replace
           className="back"
           aria-label="back"
         >
@@ -206,7 +240,10 @@ export default function Onboarding() {
               onExtras={() => nextQuestion(1)}
             />
           )}
-          {index === 4 && <NotesQuestion draft={draft} update={update} />}
+          {step === "food" && (
+            <FoodQuestion draft={draft} update={update} question={question} />
+          )}
+          {step === "notes" && <NotesQuestion draft={draft} update={update} />}
         </motion.div>
         {error && (
           <p className="error" role="alert">
@@ -215,20 +252,21 @@ export default function Onboarding() {
         )}
         <div className="question-actions">
           {(step === "about" ||
+            step === "food" ||
             step === "details" ||
             (step === "vibes" && question > 0)) && (
             <p className="question-beat" aria-live="polite">
-              {step === "about"
+              {step === "about" || step === "food"
                 ? `${question + 1} of 2`
                 : step === "details"
                   ? question < 4
                     ? `${question + 1} of 4`
                     : `${question - 3} of 5`
-                  : `${question} of 3`}
+                  : `${question === 1 ? 1 : 2} of 2`}
             </p>
           )}
           <Button type="submit" className="pink">
-            {index === 4 ? "submit" : "continue"}
+            {step === "notes" ? "submit" : "continue"}
           </Button>
         </div>
       </form>

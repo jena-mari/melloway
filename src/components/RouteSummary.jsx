@@ -2,12 +2,11 @@ import { useState } from "react";
 import {
   ArrowUp,
   ArrowDown,
-  ChevronRight,
+  CircleArrowRight,
   Pencil,
   Plus,
   X,
 } from "lucide-react";
-import { formatTime } from "../utils/planner";
 
 export default function RouteSummary({
   plan,
@@ -18,6 +17,9 @@ export default function RouteSummary({
   onChange,
   onAdd,
   onSelect,
+  visibleStops,
+  onReset,
+  onEdit,
 }) {
   const [editing, setEditing] = useState(false);
   return (
@@ -32,20 +34,27 @@ export default function RouteSummary({
         </div>
         <button
           className="route-edit-toggle"
+          aria-label={editing ? "done" : "edit"}
           aria-pressed={editing}
-          onClick={() => setEditing(!editing)}
+          onClick={() => {
+            if (!editing) onEdit?.();
+            setEditing(!editing);
+          }}
         >
           {editing ? (
             "done"
           ) : (
             <>
-              <Pencil size={14} /> edit
+              <Pencil size={17} aria-hidden="true" />
             </>
           )}
         </button>
       </div>
       <ol className={`route-summary-list ${editing ? "editing" : ""}`}>
-        {plan.stops.map((stop, i) => (
+        {(editing || !visibleStops
+          ? plan.stops.map((stop, index) => ({ stop, index }))
+          : visibleStops
+        ).map(({ stop, index: i }) => (
           <li key={stop.id}>
             <span className="route-letter" aria-hidden="true">
               {String.fromCharCode(65 + i)}
@@ -54,18 +63,20 @@ export default function RouteSummary({
               className="route-summary-spot"
               onClick={() => onSelect(stop.id)}
               aria-label={`view ${stop.name} details`}
+              aria-haspopup="dialog"
             >
               <strong>{stop.name}</strong>
-              <span>
-                {formatTime(stop.arrival)} · ~${stop.cost}
-              </span>
+              <span>{stop.address}</span>
             </button>
             {!editing && (
-              <ChevronRight
-                className="route-row-chevron"
-                size={18}
-                aria-hidden="true"
-              />
+              <button
+                className="route-row-arrow"
+                aria-label={`open ${stop.name} details`}
+                aria-haspopup="dialog"
+                onClick={() => onSelect(stop.id)}
+              >
+                <CircleArrowRight size={18} aria-hidden="true" />
+              </button>
             )}
             {editing && (
               <div className="route-row-tools">
@@ -107,26 +118,23 @@ export default function RouteSummary({
           </li>
         ))}
       </ol>
-      <button
-        className="route-add-stop"
-        disabled={busy || plan.stops.length >= 14}
-        onClick={onAdd}
-      >
-        <Plus size={17} /> add a stop
-      </button>
-      <div className="route-summary-total" aria-live="polite">
-        <strong>
-          {Math.floor(plan.elapsed / 60)}h {Math.round(plan.elapsed % 60)}m
-          total
-        </strong>
-        <span>
-          ~${plan.cost} each · {plan.travel} min travel
-        </span>
-      </div>
-      <p className="route-summary-footnote">
-        {plan.prefs.transport} · estimated
-        {plan.stops.length === 1 && editing ? " · keep at least one stop" : ""}
-      </p>
+      {!editing && visibleStops?.length === 0 && (
+        <div className="stops-empty">
+          <h3>no stops match that one.</h3>
+          <button className="button" onClick={onReset}>
+            show all stops
+          </button>
+        </div>
+      )}
+      {editing && (
+        <button
+          className="route-add-stop"
+          disabled={busy || plan.stops.length >= 14}
+          onClick={onAdd}
+        >
+          <Plus size={17} /> add a stop
+        </button>
+      )}
     </section>
   );
 }

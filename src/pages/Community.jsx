@@ -64,10 +64,10 @@ export function CommunityPost({
             <span>@{post.handle || "you"}</span>
             <small>{post.sample ? "sample" : timeAgo(post.createdAt)}</small>
           </p>
-          <h2 id={`post-title-${post.id}`}>{post.name}</h2>
         </div>
       </header>
       <div className="community-post-copy">
+        <h2 id={`post-title-${post.id}`}>{post.name}</h2>
         <p>{post.description}</p>
       </div>
       {hasRoute && (
@@ -82,16 +82,20 @@ export function CommunityPost({
               className="community-stop-photo"
               aria-label={`view ${stop.name} in full route`}
             >
-              {stop.image && (
-                <MoodImage
-                  src={stop.image}
-                  alt={
-                    stop.source === "demo" ? "Illustrative mood photograph" : ""
-                  }
-                />
-              )}
-              <span className="community-photo-fallback" aria-hidden="true">
-                ✳
+              <span className="community-feed-photo">
+                {stop.image && (
+                  <MoodImage
+                    src={stop.image}
+                    alt={
+                      stop.source === "demo"
+                        ? "Illustrative mood photograph"
+                        : ""
+                    }
+                  />
+                )}
+                <span className="community-photo-fallback" aria-hidden="true">
+                  ✳
+                </span>
               </span>
               <strong>{stop.name}</strong>
             </Link>
@@ -106,7 +110,9 @@ export function CommunityPost({
       {hasRoute && (
         <div className="community-route-line">
           <Link className="community-open-route" to={`/community/${post.id}`}>
-            check full route here <ArrowRight size={15} />
+            <span className="sr-only">check full route here</span>
+            <span aria-hidden="true">view route</span>{" "}
+            <ArrowRight size={15} aria-hidden="true" />
           </Link>
         </div>
       )}

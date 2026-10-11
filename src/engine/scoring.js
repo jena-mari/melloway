@@ -1,6 +1,7 @@
 import { km } from "../utils/planner.js";
 import { planningArea } from "../utils/location.js";
 import { venueRoles, venueAtmosphere } from "./preferences.js";
+import { budgetCategory } from "../utils/activityBudget.js";
 
 export const recommendationWeights = Object.freeze({
   preference: 26,
@@ -19,14 +20,24 @@ export function scoreVenue(v, prefs, intent, weights = recommendationWeights) {
   const preference = intent.interests.length
     ? Math.min(1, matches.length / Math.min(2, intent.interests.length))
     : 0.5;
-  const atmosphere = intent.atmosphere.length
-    ? venueAtmosphere(v).filter((t) => intent.atmosphere.includes(t)).length /
-      intent.atmosphere.length
+  const requestedAtmosphere = [
+    ...new Set([
+      ...intent.atmosphere,
+      ...(venueRoles(v).some((r) => ["meal", "cafe", "dessert"].includes(r))
+        ? intent.diningAtmosphere || []
+        : []),
+    ]),
+  ];
+  const atmosphere = requestedAtmosphere.length
+    ? venueAtmosphere(v).filter((t) => requestedAtmosphere.includes(t)).length /
+      requestedAtmosphere.length
     : 0.5;
   const area = planningArea(prefs);
   const proximity = Math.max(0, 1 - km(v, area) / area.r);
-  const budget = Number(prefs.budget)
-    ? Math.max(0, 1 - v.cost / Number(prefs.budget))
+  const categoryBudget =
+    prefs.activityBudgets?.[budgetCategory(v)] ?? Number(prefs.budget);
+  const budget = categoryBudget
+    ? Math.max(0, 1 - v.cost / categoryBudget)
     : v.cost === 0
       ? 1
       : 0;
@@ -62,7 +73,9 @@ export function explanationFor(v, intent, role, index) {
         ? "The upscale dinner you asked for."
         : role === "shop"
           ? "A browsing stop that matches your shopping interests."
-          : role === "cafe" && intent.interests.includes("Matcha cafés")
+          : role === "cafe" &&
+              intent.interests.includes("Matcha cafés") &&
+              v.tags.includes("Matcha cafés")
             ? "Matches your café and matcha interests; confirm the current menu."
             : role === "culture"
               ? "An art and culture stop that fits your interests."

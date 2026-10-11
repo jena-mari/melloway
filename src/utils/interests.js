@@ -40,6 +40,13 @@ export function interestsFromNotes(text = "") {
   const included = new Set(),
     excluded = new Set();
   const clauses = text.split(/[.!?;,\n]|\b(?:but|however|and)\b/i);
+  // Broad opt-outs also apply when a nearby alternative would be a bar.
+  for (const clause of clauses) {
+    for (const match of clause.matchAll(/\b(?:bars?|alcohol|drinking)\b/gi)) {
+      if (negative.test(clause.slice(0, match.index).slice(-65)))
+        excluded.add("Cocktail bars");
+    }
+  }
   for (const [tag, pattern] of aliases) {
     for (const clause of clauses) {
       for (const match of clause.matchAll(pattern)) {

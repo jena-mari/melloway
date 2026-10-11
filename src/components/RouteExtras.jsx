@@ -1,31 +1,22 @@
-import {
-  Camera,
-  IceCreamBowl,
-  Footprints,
-  BookOpen,
-  Plus,
-  RefreshCw,
-} from "lucide-react";
+import { Plus, RefreshCw } from "lucide-react";
+import { MoodImage } from "./UI";
+import { Doodle } from "./DoodleBackdrop";
 
 const extraTypes = [
   {
     tag: "Photo booths",
-    Icon: Camera,
     colour: "pink",
   },
   {
     tag: "Desserts",
-    Icon: IceCreamBowl,
     colour: "butter",
   },
   {
     tag: "Scenic walks",
-    Icon: Footprints,
     colour: "matcha",
   },
   {
     tag: "Bookshops",
-    Icon: BookOpen,
     colour: "lilac",
   },
 ];
@@ -37,6 +28,7 @@ export default function RouteExtras({
   busy,
   onAdd,
   onRetry,
+  onView,
 }) {
   const picks = [];
   for (const type of extraTypes) {
@@ -50,13 +42,22 @@ export default function RouteExtras({
     const choice = eligible.find(({ next }) => next) || eligible[0];
     if (choice) picks.push({ ...type, choice });
   }
+  for (const choice of [...choices].sort(
+    (a, b) =>
+      Number(Boolean(b.next)) - Number(Boolean(a.next)) ||
+      (b.venue.score || 0) - (a.venue.score || 0),
+  )) {
+    if (picks.length >= 6) break;
+    if (!picks.some((pick) => pick.choice.venue.id === choice.venue.id))
+      picks.push({ colour: "matcha", choice });
+  }
   return (
     <section
       className="route-extras"
       aria-labelledby="route-extras-title"
       aria-busy={loading}
     >
-      <h2 id="route-extras-title">suggestions</h2>
+      <h2 id="route-extras-title">more suggestions</h2>
       {loading ? (
         <p className="extras-state" role="status">
           finding nearby spots…
@@ -70,40 +71,71 @@ export default function RouteExtras({
         </div>
       ) : picks.length ? (
         <ul>
-          {picks.map(({ Icon, colour, choice: { venue, next } }) => (
+          {picks.map(({ colour, choice: { venue, next } }) => (
             <li key={venue.id}>
-              <span className={`extra-doodle ${colour}`} aria-hidden="true">
-                <Icon size={27} strokeWidth={1.4} />
-              </span>
-              <div>
-                <h3>{venue.name}</h3>
-                <p>
-                  ~${venue.cost} each
-                  {next
-                    ? ` · +${Math.max(0, Math.round(next.elapsed - elapsed))} min`
-                    : ` · ${venue.mins} min`}
-                </p>
-                <small>
-                  {venue.source === "demo"
-                    ? "sample spot"
-                    : venue.source === "curated"
-                      ? "sourced venue"
-                      : "Google Places"}
-                </small>
-                {!next && (
-                  <small className="stop-fit-warning">
-                    doesn’t fit this plan
-                  </small>
-                )}
-              </div>
               <button
-                disabled={busy || !next}
-                aria-label={`add ${venue.name} to route`}
-                onClick={() => onAdd(venue)}
+                className={`extra-preview ${colour}`}
+                aria-label={`preview ${venue.name}`}
+                onClick={() => onView(venue)}
               >
-                <Plus size={19} />
-                <span>add</span>
+                {venue.image ? (
+                  <MoodImage
+                    src={venue.image}
+                    alt={
+                      venue.source === "demo"
+                        ? "Illustrative mood photograph"
+                        : ""
+                    }
+                  />
+                ) : (
+                  <span className="extra-art" aria-hidden="true">
+                    <Doodle
+                      kind={
+                        venue.tags.includes("Photo booths")
+                          ? "camera"
+                          : venue.tags.includes("Desserts")
+                            ? "dessert"
+                            : venue.tags.includes("Bookshops")
+                              ? "book"
+                              : venue.roles?.includes("shop") ||
+                                  venue.tags.includes("Thrifting") ||
+                                  venue.tags.includes("Flea markets")
+                                ? "bag"
+                                : venue.roles?.includes("meal") ||
+                                    venue.roles?.includes("food")
+                                  ? "plate"
+                                  : venue.tags.includes("Scenic walks")
+                                    ? "leaf"
+                                    : venue.tags.includes("Matcha cafés") ||
+                                        venue.tags.includes("Coffee shops")
+                                      ? "matcha"
+                                      : "flower"
+                      }
+                    />
+                  </span>
+                )}
+                {venue.source === "demo" && (
+                  <span className="extra-source">sample</span>
+                )}
               </button>
+              <div className="extra-caption">
+                <h3>{venue.name}</h3>
+                <div className="extra-actions">
+                  <p>
+                    ~${venue.cost}
+                    {next
+                      ? ` · +${Math.max(0, Math.round(next.elapsed - elapsed))} min`
+                      : " · doesn’t fit"}
+                  </p>
+                  <button
+                    disabled={busy || !next}
+                    aria-label={`add ${venue.name} to route`}
+                    onClick={() => onAdd(venue)}
+                  >
+                    <Plus size={18} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
             </li>
           ))}
         </ul>

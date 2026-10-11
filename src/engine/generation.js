@@ -14,7 +14,12 @@ export function optimiseExperience(
   prefs,
   matrix,
   intent,
-  { excludeSignature, weights = recommendationWeights } = {},
+  {
+    excludeSignature,
+    weights = recommendationWeights,
+    templates = templatesForIntent(intent, prefs),
+    scoreBonus = () => 0,
+  } = {},
 ) {
   let best = null,
     bestScore = -Infinity;
@@ -23,7 +28,7 @@ export function optimiseExperience(
     : prefs.transport === "Walking"
       ? 2.5
       : 4;
-  for (const template of templatesForIntent(intent, prefs)) {
+  for (const template of templates) {
     function search(indices) {
       const stops = indices.map((i, stage) => ({
         ...candidates[i],
@@ -67,7 +72,8 @@ export function optimiseExperience(
           plan.travel * 0.35 -
           (repeatedMeal ? 30 : 0) +
           (template.length === 3 ? 8 : 0) +
-          (template.join("|") === "bar|meal|bar" ? 8 : 0);
+          (template.join("|") === "bar|meal|bar" ? 8 : 0) +
+          scoreBonus(plan, template);
         if (score > bestScore) {
           bestScore = score;
           best = {

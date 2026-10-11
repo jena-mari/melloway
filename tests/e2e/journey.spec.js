@@ -8,6 +8,12 @@ import {
 } from "./fixtures.js";
 const nameInput = (page) => page.getByLabel("what’s ur name?");
 async function openStops(page) {
+  const toggle = page.getByRole("button", {
+    name: "view stop cards",
+    exact: true,
+  });
+  if ((await toggle.getAttribute("aria-expanded")) !== "true")
+    await toggle.click();
   await expect(page.locator(".stop-body h2").first()).toBeVisible();
 }
 async function openSaved(page) {
@@ -33,7 +39,7 @@ async function planDay(page) {
   await page.getByRole("button", { name: /make it more ur vibe/ }).click();
   await page.getByRole("button", { name: "Matcha cafés", exact: true }).click();
   await page.getByRole("button", { name: "Thrifting", exact: true }).click();
-  await continueQuestions(page, 3);
+  await continueQuestions(page, 4);
   await page.getByRole("button", { name: "submit", exact: true }).click();
   await expect(page).toHaveURL(/\/itinerary$/);
   await openStops(page);
@@ -87,6 +93,9 @@ test("plan, replace, save, reopen, replace again, and start fresh", async ({
   await expect(page.locator(".collection-card")).toHaveCount(1);
   await page.getByRole("button", { name: "open plan" }).click();
   await swapOnly(page, 1);
+  await page
+    .getByRole("button", { name: "more plan options", exact: true })
+    .click();
   await page.getByRole("link", { name: "tweak the details" }).click();
   await continueQuestions(page, 2);
   await expect(page.getByLabel("any specific location in mind?")).toHaveValue(
@@ -99,6 +108,9 @@ test("plan, replace, save, reopen, replace again, and start fresh", async ({
   ).toBeEnabled();
   const directions = page.getByRole("link", { name: "open Google Maps" });
   await expect(directions).toHaveAttribute("href", /travelmode=walking/);
+  await page
+    .getByRole("button", { name: "more plan options", exact: true })
+    .click();
   await page.getByRole("link", { name: "start a new plan" }).click();
   await page.getByRole("button", { name: "start", exact: true }).click();
   await expect(nameInput(page)).toHaveValue("");
@@ -126,13 +138,12 @@ test("draft and interests persist through individual questions, back and reload"
   await continueQuestions(page, 2);
   await page.getByRole("button", { name: /make it more ur vibe/ }).click();
   await page.getByRole("button", { name: "Coffee shops", exact: true }).click();
-  await continueQuestions(page, 2);
+  await continueQuestions(page);
   await page.getByRole("button", { name: "Museums", exact: true }).click();
   await page.reload();
   await expect(
     page.getByRole("button", { name: "Museums", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("link", { name: "back", exact: true }).click();
   await page.getByRole("link", { name: "back", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Coffee shops", exact: true }),
@@ -140,7 +151,7 @@ test("draft and interests persist through individual questions, back and reload"
   await page.getByRole("link", { name: "back", exact: true }).click();
   await expect(page.locator(".idea-caption")).toBeVisible();
   await page.getByRole("link", { name: "back", exact: true }).click();
-  await continueQuestions(page, 2);
+  await page.getByRole("link", { name: "back", exact: true }).click();
   await expect(page.getByLabel("any specific location in mind?")).toHaveValue(
     "Surry Hills",
   );
@@ -213,7 +224,15 @@ test("compact community feed supports threads, saves and expanded itineraries", 
     await posts
       .first()
       .evaluate((card) => getComputedStyle(card).borderTopWidth),
-  ).toBe("2px");
+  ).toBe("1px");
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    await page.evaluate(() => document.fonts.ready);
+    await page.screenshot({
+      path: `/private/tmp/melloway-spacious-feed-${width}.png`,
+    });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
   await expect(
     posts.first().locator(".community-route-line > span"),
   ).toHaveCount(0);
@@ -592,13 +611,21 @@ test("event posters support likes, saves, details and saved-event navigation", a
   expect(errors).toEqual([]);
 });
 
-test("impossible hours show a recoverable empty state", async ({ page }) => {
+test("impossible hours and exclusions show a recoverable empty state", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem(
+      "melloway.draft",
+      JSON.stringify({ notes: "no bars" }),
+    ),
+  );
   await page.goto("/plan/details?q=6");
   await chooseTime(page, "23:30");
-  await continueQuestions(page, 4);
+  await continueQuestions(page, 6);
   await page.getByRole("button", { name: "submit", exact: true }).click();
   await expect(page.getByRole("status")).toContainText(
-    "No cohesive route fits",
+    "No sourced, open places nearby fit",
   );
   await page.getByRole("link", { name: "tweak the details" }).click();
   await continueQuestions(page, 3);
@@ -621,6 +648,8 @@ for (const width of [320, 390]) {
       "/plan/notes",
       "/plan/details",
       "/plan/vibes",
+      "/plan/food",
+      "/plan/food?q=1",
       "/itinerary",
       "/favourites",
       "/community",

@@ -7,6 +7,7 @@ import {
 } from "./preferences.js";
 import { explanationFor } from "./scoring.js";
 import { venueRejection } from "./filtering.js";
+import { replacementBudget } from "../utils/activityBudget.js";
 
 export function replaceExperienceStop(plan, index, candidates, prefs, matrix) {
   if (!Number.isInteger(index) || index < 0 || index >= plan.stops.length)
@@ -24,11 +25,11 @@ export function replaceExperienceStop(plan, index, candidates, prefs, matrix) {
       continue;
     const stops = plan.stops.map((s, i) =>
       i === index
-        ? {
+        ? replacementBudget(s, {
             ...v,
             activityRole: role,
             reason: explanationFor(v, intent, role, i),
-          }
+          })
         : s,
     );
     if (

@@ -121,7 +121,7 @@ export default function IdeasQuestion({
           className="planning-extra vibe-extra extra-invitation"
           onClick={onExtras}
         >
-          make it more ur vibe <span>food, places & little adventures</span>
+          make it more ur vibe <span>places & little adventures</span>
         </button>
       </Reveal>
     </>

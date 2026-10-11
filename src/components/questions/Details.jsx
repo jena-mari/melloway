@@ -77,7 +77,9 @@ export default function DetailsQuestion({
             placeholder="e.g. 80"
             aria-describedby="budget-hint"
             value={d.budget}
-            onChange={(e) => update({ budget: e.target.value })}
+            onChange={(e) =>
+              update({ budget: e.target.value, activityBudgets: {} })
+            }
           />
           <span className="budget-unit" aria-hidden="true">
             AUD each
@@ -97,7 +99,7 @@ export default function DetailsQuestion({
               type="button"
               className={`chip ${d.budget !== "" && Number(d.budget) === amount ? "selected" : ""}`}
               aria-pressed={d.budget !== "" && Number(d.budget) === amount}
-              onClick={() => update({ budget: amount })}
+              onClick={() => update({ budget: amount, activityBudgets: {} })}
             >
               {amount === 0 ? "free" : `$${amount}`}
             </button>
@@ -171,7 +173,7 @@ export default function DetailsQuestion({
             options={["Walking", "Public transport", "Driving"]}
             value={d.transport}
             onChange={(transport) =>
-              update({ transport: transport || "Walking" })
+              update({ transport: transport || "Walking", activityBudgets: {} })
             }
           />
         </fieldset>

@@ -1,4 +1,5 @@
 import { interestsFromNotes } from "../utils/interests.js";
+import { diningVibes } from "../data/preferences.js";
 
 export const roles = [
   "cafe",
@@ -56,6 +57,7 @@ const roleForTag = {
   "Escape rooms": "activity",
   "Music festivals": "activity",
 };
+export const interestRole = (tag) => roleForTag[tag];
 const positive = (text, pattern) =>
   text.split(/[.!?;,\n]|\b(?:but|however|and)\b/i).some((clause) => {
     const m = clause.match(pattern);
@@ -79,6 +81,9 @@ export function interpretPreferences(prefs) {
     (t) => !parsed.excluded.includes(t),
   );
   const atmosphere = [];
+  const diningAtmosphere = unique(
+    (prefs.diningVibes || []).flatMap((vibe) => diningVibes[vibe] || []),
+  );
   if (
     positive(text, /\b(?:romantic|intimate|speakeas(?:y|ies)|hidden bars?)\b/i)
   )
@@ -127,6 +132,7 @@ export function interpretPreferences(prefs) {
   return {
     interests: unique(interests),
     atmosphere: unique(atmosphere),
+    diningAtmosphere,
     requiredRoles,
     requiredTags: explicit.filter((t) => t !== "Shopping"),
     excludedTags: parsed.excluded,

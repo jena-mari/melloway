@@ -78,6 +78,39 @@ export function Doodle({ kind }) {
           <path d="M43 53 Q49 59 55 52" />
         </>
       )}
+      {kind === "bag" && (
+        <>
+          <path d="M20 34 L80 34 L86 85 L15 85 Z" fill="#f8a8b9" />
+          <path d="M34 40 L34 24 Q50 5 67 24 L67 40" />
+          <path d="M35 58 Q51 70 66 56 M25 45 L22 75" />
+        </>
+      )}
+      {kind === "book" && (
+        <>
+          <path
+            d="M12 23 Q30 12 50 24 Q70 12 89 23 L88 80 Q68 68 50 81 Q31 69 13 80 Z"
+            fill="#f5e8aa"
+          />
+          <path d="M50 24 L50 81 M23 34 Q31 29 41 35 M23 45 Q31 40 41 45 M60 34 Q70 29 79 35 M60 45 Q70 40 79 45" />
+          <path d="M69 20 L69 53 L76 48 L82 53 L82 20" fill="#f8a8b9" />
+        </>
+      )}
+      {kind === "plate" && (
+        <>
+          <ellipse cx="50" cy="54" rx="30" ry="29" fill="white" />
+          <ellipse cx="50" cy="54" rx="22" ry="20" />
+          <path d="M36 61 Q35 31 58 36 Q74 49 60 66 Z" fill="#f5e8aa" />
+          <path d="M41 51 Q50 57 60 45 M9 22 L9 79 M5 22 L5 38 L13 38 L13 22 M90 79 L90 22 Q80 32 82 50 L90 50" />
+        </>
+      )}
+      {kind === "dessert" && (
+        <>
+          <circle cx="38" cy="38" r="17" fill="#f8a8b9" />
+          <circle cx="63" cy="40" r="16" fill="#d3e4b4" />
+          <path d="M17 48 L84 48 Q79 77 52 77 Q22 74 17 48 Z" fill="white" />
+          <path d="M50 77 L50 88 M34 88 L66 88 M36 30 L41 35 M65 31 L70 35 M74 17 L88 9" />
+        </>
+      )}
     </svg>
   );
 }

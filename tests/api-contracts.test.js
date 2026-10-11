@@ -11,6 +11,7 @@ async function withApi(options, run) {
     googleProvider: { discover: unexpected, routeMatrix: unexpected, photo: unexpected,
       searchLocations: unexpected, resolveLocation: unexpected },
     recommendationProvider: { rank: unexpected, interpret: unexpected },
+    socialProvider: { discover: unexpected, preview: unexpected },
     eventsHandler: unexpected,
     ...options,
   });
@@ -27,10 +28,10 @@ test('existing status contract is preserved and browser map keys do not enable p
   await withApi({ env: { GOOGLE_MAPS_JS_KEY: 'mock-browser-key' } }, async request => {
     const response = await request('/api/status');
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { venues: 'curated', recommendations: 'planner' });
+    assert.deepEqual(await response.json(), { venues: 'curated', recommendations: 'planner', socialDiscovery: 'unavailable' });
   });
   await withApi({ env: { GOOGLE_MAPS_API_KEY: 'mock-private-key', OPENAI_API_KEY: 'mock-openai-key' } }, async request => {
-    assert.deepEqual(await (await request('/api/status')).json(), { venues: 'google', recommendations: 'openai' });
+    assert.deepEqual(await (await request('/api/status')).json(), { venues: 'google', recommendations: 'openai', socialDiscovery: 'openai' });
   });
 });
 
@@ -42,6 +43,28 @@ test('existing local location search works without credentials', async () => {
     assert.equal(data.source, 'local');
     assert.ok(data.suggestions.some(item => item.name === 'Newtown'));
     assert.equal((await request('/api/locations/search', { query: 'Newtown', sessionToken: '' })).status, 400);
+  });
+});
+
+test('venue social previews and discovery remain independent of Google and never call live providers', async () => {
+  const venue = { name: 'Royal Botanic Garden Sydney', address: 'Sydney NSW 2000', lat: -33.8645, lng: 151.2162 };
+  const url = 'https://www.instagram.com/reel/MockGarden123/';
+  const post = { url, platform: 'Instagram' };
+  await withApi({ env: { OPENAI_API_KEY: 'mock-openai-key' }, socialProvider: {
+    async discover(input) { assert.deepEqual(input, venue); return [post]; },
+    async preview(input) { assert.equal(input, url); return post; },
+  } }, async request => {
+    assert.deepEqual(await (await request('/api/social/search', { venue })).json(), { posts: [post] });
+    assert.deepEqual(await (await request('/api/social/preview', { url })).json(), { post });
+    assert.equal((await request('/api/social/search', { venue: { ...venue, lat: -37.8 } })).status, 400);
+    assert.equal((await request('/api/social/preview', { url: 'https://localhost/private' })).status, 400);
+  });
+  await withApi({ env: { OPENAI_API_KEY: 'mock-openai-key', OPENAI_SOCIAL_SEARCH: 'false' }, socialProvider: {
+    discover: unexpected, preview: async () => post,
+  } }, async request => {
+    assert.equal((await request('/api/social/search', { venue })).status, 503);
+    assert.deepEqual(await (await request('/api/social/preview', { url })).json(), { post });
+    assert.equal((await (await request('/api/status')).json()).socialDiscovery, 'unavailable');
   });
 });
 
@@ -107,7 +130,7 @@ test('Ticketmaster JSON data is additive without importing the generated map pag
   } }, async request => {
     assert.deepEqual(await (await request('/api/events')).json(), { events: [], points: [], missingCoordinates: 0, mapAvailable: false });
     assert.equal((await request('/api/events-map')).status, 404);
-    assert.deepEqual(await (await request('/api/status')).json(), { venues: 'curated', recommendations: 'planner' });
+    assert.deepEqual(await (await request('/api/status')).json(), { venues: 'curated', recommendations: 'planner', socialDiscovery: 'unavailable' });
   });
 });
 

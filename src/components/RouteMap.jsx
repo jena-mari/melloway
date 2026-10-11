@@ -10,16 +10,13 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { directions } from "../utils/planner";
+import {
+  tileUrl,
+  tileAttribution,
+  tileAttributionUrl,
+} from "../utils/mapTiles";
 
 const embedKey = import.meta.env.VITE_GOOGLE_MAPS_EMBED_KEY;
-const tileUrl =
-  import.meta.env.VITE_MAP_TILE_URL ||
-  "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-const tileAttribution =
-  import.meta.env.VITE_MAP_TILE_ATTRIBUTION || "© OpenStreetMap contributors";
-const tileAttributionUrl =
-  import.meta.env.VITE_MAP_TILE_ATTRIBUTION_URL ||
-  "https://www.openstreetmap.org/copyright";
 
 function StreetMap({
   stops,

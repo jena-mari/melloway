@@ -1,3 +1,5 @@
+import { sydneyToday, validDate } from "./date.js";
+
 export function profileHandle(name = "") {
   return (
     name
@@ -5,6 +7,29 @@ export function profileHandle(name = "") {
       .replace(/[^a-z0-9_.]/g, "")
       .slice(0, 24) || "you"
   );
+}
+export function profileSocialUrl(value, platform) {
+  if (
+    typeof value !== "string" ||
+    value.length > 500 ||
+    !["tiktok", "instagram"].includes(platform)
+  )
+    return "";
+  try {
+    const url = new URL(value.trim());
+    const domain = `${platform}.com`;
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      (url.hostname !== domain && !url.hostname.endsWith(`.${domain}`))
+    )
+      return "";
+    url.protocol = "https:";
+    return url.href;
+  } catch {
+    return "";
+  }
 }
 export function validAvatar(value) {
   return (
@@ -29,7 +54,14 @@ export function readProfile(data) {
     bio: typeof data.bio === "string" ? data.bio.slice(0, 160) : "",
     location:
       typeof data.location === "string" ? data.location.slice(0, 60) : "",
+    birthdate:
+      validDate(data.birthdate) && data.birthdate <= sydneyToday()
+        ? data.birthdate
+        : "",
+    tiktok: profileSocialUrl(data.tiktok, "tiktok"),
+    instagram: profileSocialUrl(data.instagram, "instagram"),
     avatar: validAvatar(data.avatar) ? data.avatar : "",
+    coverImage: validAvatar(data.coverImage) ? data.coverImage : "",
     cover: ["white", "matcha", "peach"].includes(data.cover)
       ? data.cover
       : "white",

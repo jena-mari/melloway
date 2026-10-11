@@ -9,7 +9,8 @@ import {
   resolvePlanningTime,
 } from "../engine/preferences.js";
 import { selectCandidates } from "../engine/filtering.js";
-import { optimiseExperience, explainNoMatch } from "../engine/generation.js";
+import { optimiseExperience } from "../engine/generation.js";
+import { closestExperience } from "../engine/alternatives.js";
 import {
   selectVenues,
   demoMatrix,
@@ -240,10 +241,10 @@ export async function generate(
     [],
     intent,
   );
-  const candidates = ranked.candidates;
+  let candidates = ranked.candidates;
   notice += ranked.notice;
   await stage("checking budget, hours & distance…", onStage, signal);
-  const { matrix, routeNotice } = await routeMatrix(
+  let { matrix, routeNotice } = await routeMatrix(
     candidates,
     prefs,
     live,
@@ -256,8 +257,33 @@ export async function generate(
   });
   // Revalidate an unchanged route against today's pool and constraints. Never
   // carry a cached demo route into new generation.
-  const unchanged = !plan && !!previous;
-  if (unchanged) plan = optimiseExperience(candidates, prefs, matrix, intent);
+  if (!plan && previous)
+    plan = optimiseExperience(candidates, prefs, matrix, intent);
+  let recommendationSource = ranked.source;
+  if (!plan) {
+    await stage("finding the closest available alternatives…", onStage, signal);
+    candidates = selectCandidates(
+      all,
+      prefs,
+      { ...intent, allowAlternatives: true },
+      {
+        rejectedIds: previous?.rejectedIds || [],
+        seed,
+      },
+    );
+    const routing = await routeMatrix(candidates, prefs, live, signal);
+    matrix = routing.matrix;
+    if (routing.routeNotice && !notice.includes(routing.routeNotice))
+      notice += routing.routeNotice;
+    plan = closestExperience(candidates, prefs, matrix, intent, {
+      excludeSignature: signature(previous),
+    });
+    if (!plan && previous)
+      plan = closestExperience(candidates, prefs, matrix, intent);
+    recommendationSource = "planner";
+  }
+  const unchanged =
+    !!plan && !!previous && signature(plan) === signature(previous);
   if (plan) {
     const omitted = intent.interests.filter(
       (t) =>
@@ -279,7 +305,7 @@ export async function generate(
           notice,
           createdAt: new Date().toISOString(),
           rejectedIds: previous?.rejectedIds || [],
-          recommendationSource: ranked.source,
+          recommendationSource,
         }
       : null,
     candidates,
@@ -288,7 +314,10 @@ export async function generate(
     unchanged: unchanged && !!plan && signature(plan) === signature(previous),
     failure: plan
       ? null
-      : { message: explainNoMatch(all, prefs, intent, candidates) },
+      : {
+          message:
+            "No sourced, open places nearby fit this time and budget. Try another time or area.",
+        },
   };
 }
 

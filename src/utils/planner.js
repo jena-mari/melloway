@@ -1,7 +1,12 @@
-import { areas, categories } from "../data/preferences.js";
+import { areas, categories, diningVibes } from "../data/preferences.js";
 import { planningArea, validLocation } from "./location.js";
 import { validDate, validTime } from "./date.js";
 import { closedOn, offsetDate } from "./openingHours.js";
+import {
+  allocateActivityBudgets,
+  validActivityBudgets,
+  replacementBudget,
+} from "./activityBudget.js";
 
 const modes = ["Walking", "Public transport", "Driving"];
 const interestOptions = new Set(Object.values(categories).flat());
@@ -17,9 +22,20 @@ export function validPreferences(prefs) {
     Number.isFinite(Number(prefs.budget)) &&
     Number(prefs.budget) >= 0 &&
     Number(prefs.budget) <= 200 &&
+    validActivityBudgets(prefs.activityBudgets) &&
+    Object.values(prefs.activityBudgets || {}).reduce(
+      (sum, value) => sum + Math.round(value * 100),
+      0,
+    ) +
+      Math.round(transportAllowance(prefs.transport) * 100) <=
+      Math.round(Number(prefs.budget) * 100) &&
     [3, 4, 5, 6, 8].includes(Number(prefs.duration)) &&
     Array.isArray(prefs.preferences) &&
     prefs.preferences.every((tag) => interestOptions.has(tag)) &&
+    (prefs.diningVibes === undefined ||
+      (Array.isArray(prefs.diningVibes) &&
+        prefs.diningVibes.length <= Object.keys(diningVibes).length &&
+        prefs.diningVibes.every((vibe) => Object.hasOwn(diningVibes, vibe)))) &&
     // Older saved plans have no free-text notes.
     (prefs.notes === undefined ||
       (typeof prefs.notes === "string" && prefs.notes.length <= 1200)),
@@ -132,14 +148,19 @@ function openingWindow(venue, day, earliest, date) {
 
 export function schedule(stops, prefs, matrix, indices) {
   if (!validPreferences(prefs)) return null;
+  const budget = allocateActivityBudgets(
+    stops,
+    prefs,
+    transportAllowance(prefs.transport),
+  );
+  if (!budget) return null;
   let time = minutes(prefs.time),
-    cost = transportAllowance(prefs.transport),
     travel = 0;
   const end = time + Number(prefs.duration) * 60;
   const day = new Date(prefs.date + "T12:00:00Z").getUTCDay();
   const result = [];
   for (let i = 0; i < stops.length; i++) {
-    const venue = stops[i],
+    const venue = budget.stops[i],
       leg = i ? matrix[indices[i - 1]]?.[indices[i]] : null;
     if (i && (!leg || !Number.isFinite(leg.minutes) || leg.minutes < 0))
       return null;
@@ -152,17 +173,16 @@ export function schedule(stops, prefs, matrix, indices) {
       return null;
     time += leg?.minutes || 0;
     travel += leg?.minutes || 0;
-    cost += venue.cost;
     const window = openingWindow(venue, day, time, prefs.date);
     if (!window) return null;
     time = Math.max(time, window.open);
-    if (time + venue.mins > end || cost > Number(prefs.budget)) return null;
+    if (time + venue.mins > end) return null;
     result.push({ ...venue, arrival: time, travelFromPrevious: leg });
     time += venue.mins;
   }
   return {
+    ...budget,
     stops: result,
-    cost,
     transportAllowance: transportAllowance(prefs.transport),
     travel,
     elapsed: time - minutes(prefs.time),
@@ -279,7 +299,9 @@ export function replaceStop(plan, index, candidates, prefs, matrix) {
       plan.stops.some((s) => s.name === candidate.name)
     )
       continue;
-    const stops = plan.stops.map((v, i) => (i === index ? candidate : v));
+    const stops = plan.stops.map((v, i) =>
+      i === index ? replacementBudget(v, candidate) : v,
+    );
     const indices = stops.map((v) =>
       candidates.findIndex((c) => c.id === v.id),
     );

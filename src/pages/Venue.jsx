@@ -4,6 +4,7 @@ import { venues } from "../data/venues";
 import { sydneyVenues } from "../data/sydneyVenues";
 import { useApp } from "../hooks/useApp";
 import { MoodImage } from "../components/UI";
+import VenueSocial from "../components/VenueSocial";
 export default function Venue({ route, backTo = "/itinerary" }) {
   const { id } = useParams(),
     { current } = useApp();
@@ -23,22 +24,25 @@ export default function Venue({ route, backTo = "/itinerary" }) {
         <ArrowLeft size={17} /> back to ur day
       </Link>
       <div className="venue-layout">
-        <div className="venue-photo">
-          <MoodImage
-            src={v.image}
-            alt={v.source === "demo" ? "Illustrative mood photograph" : ""}
-          />
-          <span className="pill-label">
-            {v.source === "demo"
-              ? "demo venue · mood imagery"
-              : v.source === "curated"
-                ? "sourced Sydney venue"
-                : `Google Places${v.attribution ? " · " + v.attribution : ""}`}
-          </span>
-        </div>
+        {v.image && (
+          <div className="venue-photo">
+            <MoodImage
+              src={v.image}
+              alt={v.source === "demo" ? "Illustrative mood photograph" : ""}
+            />
+            <span className="pill-label">
+              {v.source === "demo"
+                ? "demo venue · mood imagery"
+                : v.source === "curated"
+                  ? "sourced Sydney venue"
+                  : `Google Places${v.attribution ? " · " + v.attribution : ""}`}
+            </span>
+          </div>
+        )}
         <div>
           <h1>{v.name}</h1>
           <p>{v.address}</p>
+          <VenueSocial key={v.id} venue={v} />
           <div className="chips">
             {v.tags.map((t) => (
               <span className="chip selected" key={t}>

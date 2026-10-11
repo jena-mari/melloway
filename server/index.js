@@ -5,6 +5,8 @@ import { createEventsHandler } from "./events.ts";
 import { validPreferences } from "../src/utils/planner.js";
 import { localLocations } from "../src/utils/location.js";
 import { createGoogleProvider } from "./google.js";
+import { createSocialProvider, validSocialVenue } from "./social.js";
+import { socialPost } from "../src/utils/social.js";
 import {
   createOpenAIProvider,
   defaultRecommendationModel,
@@ -16,10 +18,20 @@ export function createApiServer(options = {}) {
   const key = env.GOOGLE_MAPS_API_KEY,
     provider = options.googleProvider ?? createGoogleProvider(key);
   const openaiKey = env.OPENAI_API_KEY;
-  const recommendations = options.recommendationProvider ?? createOpenAIProvider(
-    openaiKey,
-    env.OPENAI_MODEL || defaultRecommendationModel,
-  );
+  const recommendations =
+    options.recommendationProvider ??
+    createOpenAIProvider(
+      openaiKey,
+      env.OPENAI_MODEL || defaultRecommendationModel,
+    );
+  const social =
+    options.socialProvider ??
+    createSocialProvider(
+      openaiKey,
+      env.OPENAI_MODEL || defaultRecommendationModel,
+    );
+  const socialSearchEnabled =
+    Boolean(openaiKey) && env.OPENAI_SOCIAL_SEARCH !== "false";
   const rates = new Map();
   const recommendationRates = new Map();
   const allowedOrigins = (env.APP_ORIGINS || "")
@@ -53,6 +65,7 @@ export function createApiServer(options = {}) {
         return reply(200, {
           venues: key ? "google" : "curated",
           recommendations: openaiKey ? "openai" : "planner",
+          socialDiscovery: socialSearchEnabled ? "openai" : "unavailable",
         });
       const recommendationRequest = [
         "/api/recommendations",
@@ -60,11 +73,15 @@ export function createApiServer(options = {}) {
       ].includes(req.url);
       const locationSearch = req.url === "/api/locations/search";
       const locationResolve = req.url === "/api/locations/resolve";
+      const socialSearch = req.url === "/api/social/search";
+      const socialPreview = req.url === "/api/social/preview";
       const photoRequest =
         req.method === "GET" && req.url.startsWith("/api/photo?");
-      const eventsRequest = req.method === "GET" && ["/api/events"].includes(req.url.split("?")[0]);
+      const eventsRequest =
+        req.method === "GET" && ["/api/events"].includes(req.url.split("?")[0]);
       if (
-        !photoRequest && !eventsRequest &&
+        !photoRequest &&
+        !eventsRequest &&
         (req.method !== "POST" ||
           ![
             "/api/venues",
@@ -73,12 +90,23 @@ export function createApiServer(options = {}) {
             "/api/intent",
             "/api/locations/search",
             "/api/locations/resolve",
+            "/api/social/search",
+            "/api/social/preview",
           ].includes(req.url))
       )
         return reply(404, { error: "Endpoint not found" });
       if (recommendationRequest && !openaiKey)
         return reply(503, { error: "OpenAI is not configured" });
-      if (!key && !locationSearch && !recommendationRequest && !eventsRequest)
+      if (socialSearch && !socialSearchEnabled)
+        return reply(503, { error: "Social search is unavailable" });
+      if (
+        !key &&
+        !locationSearch &&
+        !recommendationRequest &&
+        !eventsRequest &&
+        !socialSearch &&
+        !socialPreview
+      )
         return reply(503, { error: "Google credentials are not configured" });
       const ip = req.socket.remoteAddress,
         now = Date.now();
@@ -90,7 +118,7 @@ export function createApiServer(options = {}) {
       if (++rate.count > 40)
         return reply(429, { error: "Please retry in a minute" });
       if (rates.size > 10000) rates.clear();
-      if (recommendationRequest) {
+      if (recommendationRequest || socialSearch) {
         let aiRate = recommendationRates.get(ip);
         if (!aiRate || now - aiRate.start > 60000) {
           aiRate = { start: now, count: 0 };
@@ -105,7 +133,9 @@ export function createApiServer(options = {}) {
         const name = new URL(req.url, "http://localhost").searchParams.get(
           "name",
         );
-        if (!/^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(name || ""))
+        if (
+          !/^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(name || "")
+        )
           return reply(400, { error: "Invalid photo" });
         const photo = await provider.photo(name);
         res.setHeader("Content-Type", photo.type);
@@ -122,6 +152,18 @@ export function createApiServer(options = {}) {
         body = JSON.parse(raw);
       } catch {
         return reply(400, { error: "Invalid JSON" });
+      }
+      if (socialSearch) {
+        if (!validSocialVenue(body?.venue))
+          return reply(400, { error: "Invalid Sydney venue" });
+        return reply(200, { posts: await social.discover(body.venue) });
+      }
+      if (socialPreview) {
+        if (!socialPost(body?.url))
+          return reply(400, {
+            error: "Use a TikTok video or Instagram post link",
+          });
+        return reply(200, { post: await social.preview(body.url) });
       }
       if (locationSearch || locationResolve) {
         const { query, placeId, sessionToken } = body;
@@ -157,7 +199,10 @@ export function createApiServer(options = {}) {
       if (!validPreferences(prefs))
         return reply(400, { error: "Invalid planning details" });
       if (recommendationRequest) {
-        if (req.url !== "/api/intent" && !validRecommendationVenues(body.venues))
+        if (
+          req.url !== "/api/intent" &&
+          !validRecommendationVenues(body.venues)
+        )
           return reply(400, { error: "Invalid recommendation places" });
         const controller = new AbortController();
         const cancel = () => controller.abort();
@@ -205,7 +250,10 @@ export function createApiServer(options = {}) {
 }
 
 // Importing the server for mocked tests must not bind a port or run providers.
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   const port = Number(process.env.PORT) || 3001;
   createApiServer().listen(port, "127.0.0.1", () =>
     console.log(`melloway API listening on http://127.0.0.1:${port}`),

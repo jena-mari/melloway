@@ -45,6 +45,13 @@ export const categories = {
     "Scenic walks",
   ],
 };
+export const diningVibes = {
+  Chill: ["relaxed", "casual"],
+  Cozy: ["intimate", "quiet"],
+  Lively: ["lively"],
+  Outdoors: ["outdoor"],
+  Fancy: ["upscale", "sophisticated"],
+};
 export const defaultDraft = () => ({
   mode: "date",
   name: "",
@@ -55,12 +62,14 @@ export const defaultDraft = () => ({
   area: "Sydney CBD",
   location: null,
   budget: 80,
+  activityBudgets: {},
   date: sydneyToday(),
   time: "11:00",
   timeExplicit: false,
   transport: "Walking",
   duration: 5,
   preferences: [],
+  diningVibes: [],
   idea: "",
   ideaExplicit: false,
   notes: "",

@@ -5,11 +5,12 @@ import {
   ArrowUpRight,
   Bookmark,
   Camera,
+  Ellipsis,
   Heart,
   MapPin,
   MessageSquare,
+  Pencil,
   Plus,
-  X,
 } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import useCommunity, { readLikes } from "../hooks/useCommunity";
@@ -17,11 +18,11 @@ import { CommunityPost } from "./Community";
 import { Avatar } from "../components/CommunityIdentity";
 import { Doodle } from "../components/DoodleBackdrop";
 import EventPoster from "../components/EventPoster";
-import { Field } from "../components/UI";
 import { communityExamples } from "../data/community";
 import { events } from "../data/events";
 import { writeLocal } from "../services/storage";
-import { profileHandle } from "../utils/profile";
+import { profileHandle, profileSocialUrl } from "../utils/profile";
+import { sydneyToday, validDate } from "../utils/date";
 
 const tabs = [
   { id: "posts", label: "Your Posts", icon: MessageSquare },
@@ -29,13 +30,52 @@ const tabs = [
   { id: "likes", label: "Your Likes", icon: Heart },
 ];
 
+function CoverArtwork({ image }) {
+  if (image) return <img className="profile-cover-image" src={image} alt="" />;
+  return (
+    <div className="profile-cover-art" aria-hidden="true">
+      <span className="profile-cover-doodle">
+        <Doodle kind="matcha" />
+      </span>
+      <span className="profile-cover-wordmark">melloway</span>
+      <span className="profile-cover-doodle">
+        <Doodle kind="camera" />
+      </span>
+      <span className="profile-cover-star">
+        <Doodle kind="star" />
+      </span>
+    </div>
+  );
+}
+
+function ProfileField({ label, id, multiline = false, ...props }) {
+  return (
+    <label className="profile-editor-row" htmlFor={id}>
+      <span>{label}</span>
+      {multiline ? (
+        <textarea id={id} rows={2} {...props} />
+      ) : (
+        <input id={id} {...props} />
+      )}
+    </label>
+  );
+}
+
 function ProfileEditor({ identity, onSave, dialog }) {
   const [avatar, setAvatar] = useState(identity.avatar);
   const [cover, setCover] = useState(identity.cover);
-  const [reading, setReading] = useState(false);
+  const [coverImage, setCoverImage] = useState(identity.coverImage || "");
+  const [reading, setReading] = useState({});
+  const [photoOptions, setPhotoOptions] = useState(false);
   const [error, setError] = useState("");
-  const request = useRef(0);
-  function photo(event) {
+  const request = useRef({ avatar: 0, coverImage: 0 });
+  function clearPhoto(target) {
+    setError("");
+    request.current[target]++;
+    setReading((current) => ({ ...current, [target]: false }));
+    (target === "avatar" ? setAvatar : setCoverImage)("");
+  }
+  function photo(event, target = "avatar") {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
@@ -46,29 +86,48 @@ function ProfileEditor({ identity, onSave, dialog }) {
       setError("Choose a JPEG, PNG or WebP under 1 MB.");
       return;
     }
-    const token = ++request.current;
+    const token = ++request.current[target];
     setError("");
-    setReading(true);
+    setReading((current) => ({ ...current, [target]: true }));
     const reader = new FileReader();
     reader.onload = () => {
-      if (token !== request.current) return;
-      setAvatar(reader.result);
-      setReading(false);
+      if (token !== request.current[target]) return;
+      (target === "avatar" ? setAvatar : setCoverImage)(reader.result);
+      setReading((current) => ({ ...current, [target]: false }));
     };
     reader.onerror = () => {
-      if (token !== request.current) return;
-      setReading(false);
+      if (token !== request.current[target]) return;
+      setReading((current) => ({ ...current, [target]: false }));
       setError("Couldn’t read that photo. Try another one.");
     };
     reader.readAsDataURL(file);
   }
   function submit(event) {
     event.preventDefault();
+    if (Object.values(reading).some(Boolean)) return;
     const data = new FormData(event.currentTarget);
     const name = data.get("name").trim();
     if (!name) {
       event.currentTarget.elements.name.focus();
       return;
+    }
+    const birthdate = data.get("birthdate");
+    if (birthdate && (!validDate(birthdate) || birthdate > sydneyToday())) {
+      setError("Choose a birthdate on or before today.");
+      event.currentTarget.elements.birthdate.focus();
+      return;
+    }
+    const socials = {};
+    for (const platform of ["tiktok", "instagram"]) {
+      const value = data.get(platform).trim();
+      socials[platform] = profileSocialUrl(value, platform);
+      if (value && !socials[platform]) {
+        setError(
+          `Use a ${platform === "tiktok" ? "TikTok" : "Instagram"} link from ${platform}.com.`,
+        );
+        event.currentTarget.elements[platform].focus();
+        return;
+      }
     }
     if (
       onSave({
@@ -78,6 +137,9 @@ function ProfileEditor({ identity, onSave, dialog }) {
         location: data.get("location").trim(),
         avatar,
         cover,
+        coverImage,
+        birthdate,
+        ...socials,
       })
     )
       dialog.current.close();
@@ -88,106 +150,179 @@ function ProfileEditor({ identity, onSave, dialog }) {
   }
   return (
     <form onSubmit={submit} className="profile-editor">
-      <header>
-        <button
-          type="button"
-          className="icon-button"
-          aria-label="Close edit profile"
-          onClick={() => dialog.current.close()}
-        >
-          <X size={22} />
-        </button>
-        <h2 id="edit-profile-title">edit profile</h2>
-        <button className="profile-save" type="submit" disabled={reading}>
-          save
-        </button>
-      </header>
-      <div className="profile-photo-edit">
-        <Avatar name={identity.name} src={avatar} />
-        <label className="profile-upload">
-          <Camera size={18} /> photo
-          <input
-            aria-label="Profile photo"
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={photo}
-          />
-        </label>
-        {avatar && (
+      <h2 id="edit-profile-title" className="profile-editor-title">
+        edit profile
+      </h2>
+      <div className="profile-editor-media">
+        <div className={`profile-cover-preview cover-${cover}`}>
+          <CoverArtwork image={coverImage} />
+          <label className="profile-upload profile-cover-upload">
+            <Pencil size={19} aria-hidden="true" />
+            <input
+              aria-label="Cover photo"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => photo(event, "coverImage")}
+            />
+          </label>
+        </div>
+        <div className="profile-photo-edit">
+          <label className="profile-upload profile-avatar-upload">
+            <Avatar name={identity.name} src={avatar} />
+            <span className="profile-camera-overlay">
+              <Camera size={29} aria-hidden="true" />
+            </span>
+            <input
+              aria-label="Profile photo"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(event) => photo(event)}
+            />
+          </label>
           <button
             type="button"
-            className="text-button"
-            onClick={() => {
-              request.current++;
-              setReading(false);
-              setAvatar("");
-            }}
+            className="icon-button"
+            aria-label="Photo options"
+            aria-expanded={photoOptions}
+            aria-controls="profile-photo-options"
+            onClick={() => setPhotoOptions((open) => !open)}
           >
-            remove
+            <Ellipsis size={22} aria-hidden="true" />
           </button>
+        </div>
+        {photoOptions && (
+          <fieldset className="profile-cover-picker" id="profile-photo-options">
+            <legend className="profile-editor-title">Photo options</legend>
+            <div className="profile-cover-colours">
+              {["white", "matcha", "peach"].map((colour) => (
+                <button
+                  key={colour}
+                  type="button"
+                  aria-label={`${colour} cover`}
+                  aria-pressed={!coverImage && cover === colour}
+                  className={`profile-swatch cover-${colour}`}
+                  onClick={() => {
+                    clearPhoto("coverImage");
+                    setCover(colour);
+                  }}
+                >
+                  <span aria-hidden="true">
+                    {!coverImage && cover === colour ? "✓" : ""}
+                  </span>
+                </button>
+              ))}
+              {coverImage && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => clearPhoto("coverImage")}
+                >
+                  remove cover
+                </button>
+              )}
+              {avatar && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => clearPhoto("avatar")}
+                >
+                  remove photo
+                </button>
+              )}
+            </div>
+          </fieldset>
         )}
       </div>
-      <Field
-        label="name"
-        id="profile-name"
-        name="name"
-        defaultValue={identity.name}
-        maxLength={40}
-        required
-        autoComplete="name"
-      />
-      <Field
-        label="username"
-        id="profile-handle"
-        name="handle"
-        defaultValue={identity.handle}
-        maxLength={24}
-        required
-        pattern="[A-Za-z0-9_.]{1,24}"
-        title="Use 1–24 letters, numbers, dots or underscores."
-        autoCapitalize="none"
-        spellCheck={false}
-      />
-      <label className="field" htmlFor="profile-bio">
-        <span>bio</span>
-        <textarea
+      <div className="profile-editor-fields">
+        <ProfileField
+          label="name"
+          id="profile-name"
+          name="name"
+          defaultValue={identity.name}
+          maxLength={40}
+          required
+          autoComplete="name"
+        />
+        <ProfileField
+          label="username"
+          id="profile-handle"
+          name="handle"
+          defaultValue={identity.handle}
+          maxLength={24}
+          required
+          pattern="[A-Za-z0-9_.]{1,24}"
+          title="Use 1–24 letters, numbers, dots or underscores."
+          autoCapitalize="none"
+          spellCheck={false}
+        />
+        <ProfileField
+          label="bio"
           id="profile-bio"
           name="bio"
-          rows={3}
+          multiline
           defaultValue={identity.bio}
           maxLength={160}
+          placeholder="add a bio"
         />
-      </label>
-      <Field
-        label="location"
-        id="profile-location"
-        name="location"
-        defaultValue={identity.location}
-        maxLength={60}
-      />
-      <fieldset className="profile-cover-picker">
-        <legend>cover</legend>
-        {["white", "matcha", "peach"].map((colour) => (
-          <button
-            key={colour}
-            type="button"
-            aria-label={`${colour} cover`}
-            aria-pressed={cover === colour}
-            className={`profile-swatch cover-${colour}`}
-            onClick={() => setCover(colour)}
-          >
-            <span aria-hidden="true">{cover === colour ? "✓" : ""}</span>
-          </button>
-        ))}
-      </fieldset>
-      <p className="profile-local-note">
-        Profile and posts stay on this device.
-      </p>
+        <ProfileField
+          label="location"
+          id="profile-location"
+          name="location"
+          defaultValue={identity.location}
+          maxLength={60}
+          placeholder="add a location"
+          autoComplete="address-level2"
+        />
+        <ProfileField
+          label="birthdate"
+          id="profile-birthdate"
+          name="birthdate"
+          type="date"
+          defaultValue={identity.birthdate || ""}
+          max={sydneyToday()}
+          autoComplete="bday"
+        />
+        <ProfileField
+          label="TikTok"
+          id="profile-tiktok"
+          name="tiktok"
+          type="url"
+          defaultValue={identity.tiktok || ""}
+          placeholder="https://www.tiktok.com/@you"
+          maxLength={500}
+          autoCapitalize="none"
+          spellCheck={false}
+        />
+        <ProfileField
+          label="Instagram"
+          id="profile-instagram"
+          name="instagram"
+          type="url"
+          defaultValue={identity.instagram || ""}
+          placeholder="https://www.instagram.com/you"
+          maxLength={500}
+          autoCapitalize="none"
+          spellCheck={false}
+        />
+      </div>
       {error && (
         <p className="profile-editor-error" role="alert">
           {error}
         </p>
       )}
+      <footer className="profile-editor-actions">
+        <button type="button" onClick={() => dialog.current.close()}>
+          cancel
+        </button>
+        <button
+          type="submit"
+          className="profile-save"
+          disabled={Object.values(reading).some(Boolean)}
+        >
+          save
+        </button>
+      </footer>
+      <p className="profile-local-note">Saved on this device.</p>
     </form>
   );
 }
@@ -224,6 +359,7 @@ export default function Profile() {
     location: "Sydney",
     avatar: "",
     cover: "white",
+    coverImage: "",
   };
   const shownPosts =
     tab === "posts"
@@ -260,55 +396,36 @@ export default function Profile() {
   }
   return (
     <div className="profile-page">
-      <header className="profile-toolbar">
+      <div className={`profile-cover cover-${identity.cover}`}>
+        <CoverArtwork image={identity.coverImage} />
         <Link
-          className="icon-button"
+          className="profile-cover-button profile-back-button"
           to="/community"
           aria-label="Back to community"
         >
           <ArrowLeft size={22} />
         </Link>
-        <div>
-          <strong>{identity.name}</strong>
-          <small>
-            {posts.length} {posts.length === 1 ? "post" : "posts"}
-          </small>
-        </div>
-        <Link
-          className="icon-button"
-          to="/community?compose=1"
-          aria-label="Create a post"
+        <button
+          className="profile-cover-button profile-edit-button"
+          aria-label="edit profile"
+          onClick={() => {
+            setEditSession((n) => n + 1);
+            dialog.current.showModal();
+          }}
         >
-          <Plus size={22} />
-        </Link>
-      </header>
-      <div
-        className={`profile-cover cover-${identity.cover}`}
-        aria-hidden="true"
-      >
-        <span className="profile-cover-doodle">
-          <Doodle kind="matcha" />
-        </span>
-        <span className="profile-cover-wordmark">melloway</span>
-        <span className="profile-cover-doodle">
-          <Doodle kind="camera" />
-        </span>
-        <span className="profile-cover-star">
-          <Doodle kind="star" />
-        </span>
+          <Pencil size={19} aria-hidden="true" />
+        </button>
       </div>
       <section className="profile-details" aria-label="Your profile">
         <div className="profile-avatar-row">
           <Avatar name={identity.name} src={identity.avatar} />
-          <button
-            className="profile-edit-button"
-            onClick={() => {
-              setEditSession((n) => n + 1);
-              dialog.current.showModal();
-            }}
+          <Link
+            className="profile-create-button"
+            to="/community?compose=1"
+            aria-label="Create a post"
           >
-            edit profile
-          </button>
+            <Plus size={23} aria-hidden="true" />
+          </Link>
         </div>
         <h1>{identity.name}</h1>
         <p className="profile-handle">@{identity.handle}</p>

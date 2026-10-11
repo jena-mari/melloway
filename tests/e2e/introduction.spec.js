@@ -197,16 +197,15 @@ test("illustrated ideas can be browsed and preferences still support multi-selec
   });
   const museums = page.getByRole("button", { name: "Museums", exact: true });
   await coffee.click();
-  await continueQuestions(page, 2);
+  await continueQuestions(page);
   await museums.click();
   await page.reload();
   await expect(museums).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("link", { name: "back", exact: true }).click();
-  await page.getByRole("link", { name: "back", exact: true }).click();
   await expect(coffee).toHaveAttribute("aria-pressed", "true");
-  await continueQuestions(page, 2);
-  await expect(museums).toHaveAttribute("aria-pressed", "true");
   await continueQuestions(page);
+  await expect(museums).toHaveAttribute("aria-pressed", "true");
+  await continueQuestions(page, 3);
   await expect(page).toHaveURL(/\/plan\/notes$/);
 });
 test("the lock-in screen keeps free-text notes through back navigation and uses them in planning", async ({
@@ -299,9 +298,9 @@ test("results show the route summary, expandable map and spot sheets while swaps
   await page.goto("/plan/notes");
   await page.getByRole("button", { name: "submit", exact: true }).click();
   await expect(page).toHaveURL(/\/itinerary$/);
-  await expect(page.locator(".plan-summary h2")).toBeVisible();
-  await expect(page.locator(".stop-card").first()).toBeVisible();
-  const summary = await page.locator(".plan-summary").boundingBox();
+  await expect(page.locator(".route-summary-heading h2")).toBeVisible();
+  await expect(page.locator(".stop-card").first()).not.toBeVisible();
+  const summary = await page.locator(".result-sheet").boundingBox();
   const map = await page.locator(".route-map").boundingBox();
   expect(summary.y).toBeGreaterThanOrEqual(map.y + map.height - 5);
   const routeSummary = await page.locator(".route-summary").boundingBox();
@@ -413,6 +412,9 @@ test("unavailable map tiles leave the plan, details and save action usable", asy
   await expect(page.locator(".map-status")).toHaveText(
     "street map couldn’t load. ur stops are still below.",
   );
+  await page
+    .getByRole("button", { name: "view stop cards", exact: true })
+    .tap();
   await page
     .getByRole("button", { name: "the details", exact: true })
     .first()
@@ -636,6 +638,9 @@ test("result search, filters and map selection preserve the full generated day",
   await page.goto("/plan/notes");
   await page.getByRole("button", { name: "submit", exact: true }).tap();
   await expect(page).toHaveURL(/\/itinerary$/);
+  await page
+    .getByRole("button", { name: "view stop cards", exact: true })
+    .tap();
   await expect(page.locator(".stop-photo").first()).toBeVisible();
   const original = await page.evaluate(
     () => JSON.parse(localStorage.getItem("melloway.current")).plan,
@@ -682,6 +687,8 @@ test("result search, filters and map selection preserve the full generated day",
     1,
   );
   await page.locator(".map-preview .route-pin").first().tap();
+  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(
     page
       .locator(".stop-card")
@@ -694,6 +701,8 @@ test("result search, filters and map selection preserve the full generated day",
   await page.getByRole("button", { name: "stop order", exact: true }).tap();
   await expect(page.locator("#map-stop-legend li")).toHaveCount(count);
   await page.locator("#map-stop-legend button").last().tap();
+  await expect(page.locator(".spot-detail-dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
   await expect(
     page
       .locator(".stop-card")
@@ -801,10 +810,10 @@ test("skipping calendar and time preserves other answers and generates with defa
   expect(draft.name).toBe("Jena");
   expect(draft.date).toBe("");
   expect(draft.time).toBe("");
-  await continueQuestions(page, 3);
+  await continueQuestions(page, 5);
   await page.getByRole("button", { name: "submit", exact: true }).click();
   await expect(page).toHaveURL(/\/itinerary$/);
-  await expect(page.locator(".stop-card").first()).toBeVisible();
+  await expect(page.locator(".route-summary-spot").first()).toBeVisible();
   const prefs = await page.evaluate(
     () => JSON.parse(localStorage.getItem("melloway.current")).plan.prefs,
   );
@@ -871,7 +880,7 @@ test("Sydney location search selects resolved geometry, persists and supports ke
   await page.goto("/plan/notes");
   await page.getByRole("button", { name: "submit", exact: true }).click();
   await expect(page).toHaveURL(/\/itinerary$/);
-  await expect(page.locator(".stop-card").first()).toBeVisible();
+  await expect(page.locator(".route-summary-spot").first()).toBeVisible();
   const prefs = await page.evaluate(
     () => JSON.parse(localStorage.getItem("melloway.current")).plan.prefs,
   );
