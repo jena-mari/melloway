@@ -11,11 +11,11 @@ import { optimiseExperience } from "../src/engine/generation.js";
 import { closestExperience } from "../src/engine/alternatives.js";
 import { demoMatrix, schedule } from "../src/utils/planner.js";
 
-function build(overrides) {
+function build(overrides, catalogue) {
   let prefs = { ...defaultDraft(), date: "2026-10-18", ...overrides };
   const intent = interpretPreferences(prefs);
   prefs = resolvePlanningTime(prefs, intent).prefs;
-  const all = curatedVenuesForDate(prefs.date);
+  const all = catalogue || curatedVenuesForDate(prefs.date);
   const exact = selectCandidates(all, prefs, intent);
   const strict = optimiseExperience(
     exact,
@@ -134,12 +134,22 @@ test("retaining an exact interest wins over padding with unrelated cheaper stops
 });
 
 test("regeneration does not trade the closest browsing alternative for an unrelated activity", () => {
+  // Preserve the original single-signature fixture. Expanded-catalogue
+  // regeneration is covered separately in catalogue-expansion.test.js.
+  const originalIds = new Set([
+    "glebe-markets", "kinokuniya", "matchaya", "burrow", "baxter", "apollonia",
+    "bistecca", "gidley", "hubert", "art-gallery", "state-library", "library-cafe",
+    "botanic-garden", "mamak", "maeda", "uturn-vintage", "uturn-contemporary",
+    "route66", "better-read", "soul-burger", "mapo",
+  ].map((id) => `sydney-${id}`));
+  const originalCatalogue = curatedVenuesForDate("2026-10-18").filter((v) => originalIds.has(v.id));
+  assert.equal(originalCatalogue.length, 21);
   const result = build({
     area: "Newtown",
     preferences: ["Thrifting"],
     time: "18:00",
     timeExplicit: true,
-  });
+  }, originalCatalogue);
   const excludeSignature = result.plan.stops
     .map((v) => v.id)
     .sort()
