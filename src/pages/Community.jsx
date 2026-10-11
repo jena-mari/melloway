@@ -218,7 +218,13 @@ export default function Community() {
   const sharedDate = history.find(r => r.id === params.get("history"));
   const [show, setShow] = useState(params.get("compose") === "1");
   const [photo, setPhoto] = useState("");
-  const [query, setQuery] = useState("");
+  const query = params.get("q") || "";
+  function setQuery(value) {
+    const next = new URLSearchParams(params);
+    if (value) next.set("q", value);
+    else next.delete("q");
+    setParams(next, { replace: true });
+  }
   useEffect(() => {
     if (show) document.getElementById("title")?.focus();
   }, [show]);
@@ -279,7 +285,6 @@ export default function Community() {
       setShow(false);
       setParams({});
       setPhoto("");
-      setQuery("");
       setStatus("Added to ur device feed. This is not publicly published.");
     }
   }

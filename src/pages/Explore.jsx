@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Search, Sparkles, ArrowUpRight } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Search, Sparkles, ArrowUpRight, X } from "lucide-react";
 import { useApp } from "../hooks/useApp";
 import RouteExtras from "../components/RouteExtras";
 import StopDetails from "../components/StopDetails";
@@ -12,12 +12,32 @@ import { readPosts } from "../hooks/useCommunity";
 import { prepareAdditions, prepareBrowse } from "../services/discovery";
 import { addStop } from "../utils/planner";
 import { createId } from "../utils/id";
+import { mellowayPicks } from "../data/mellowayPicks.js";
+import { sydneyVenues } from "../data/sydneyVenues.js";
+import { editorialPicks } from "../data/editorialPicks.js";
+import { searchPlaces } from "../utils/placeSearch.ts";
+import ExplorePlaces from "../components/ExplorePlaces.jsx";
+
+const placeEntries = [
+  ...sydneyVenues.map(venue => ({ venue, href: `/venue/${venue.id}` })),
+  ...editorialPicks.map(venue => ({ venue, href: `/picks/places/${venue.id}` })),
+  ...mellowayPicks.flatMap(pick => pick.stops.map(venue => ({
+    venue, href: `/picks/${pick.id}/venue/${venue.id}`,
+  }))),
+];
 
 export default function Explore() {
   const { current, setCurrent, draft, update, setStatus } = useApp();
   const navigate = useNavigate();
   const plan = current?.plan;
-  const [query, setQuery] = useState("");
+  const [params, setParams] = useSearchParams();
+  const query = params.get("q") || "";
+  function setQuery(value) {
+    const next = new URLSearchParams(params);
+    if (value) next.set("q", value);
+    else next.delete("q");
+    setParams(next, { replace: true });
+  }
   const [pool, setPool] = useState(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -46,6 +66,7 @@ export default function Explore() {
       .map(venue => ({ venue, next: plan && pool ? addStop(plan, venue, pool.candidates, pool.matrix) : null }));
   }, [plan, pool, draft.date]);
   const text = query.trim().toLowerCase();
+  const placeMatches = searchPlaces(placeEntries, query);
   const filtered = choices.filter(({ venue }) =>
     [venue.name, venue.address, venue.category, ...venue.tags].join(" ").toLowerCase().includes(text));
   const sharedRoutes = posts.filter(post =>
@@ -82,7 +103,9 @@ export default function Explore() {
         <span className="sr-only">search suggestions</span>
         <input id="explore-search" type="search" value={query} placeholder="find a place or activity"
           onChange={event => setQuery(event.target.value)} />
+        {query && <button type="button" aria-label="clear search" onClick={() => setQuery("")}><X size={18} /></button>}
       </label>
+      <ExplorePlaces places={placeMatches} />
       <RouteExtras choices={filtered} elapsed={plan?.elapsed || 0} loading={loading} failed={failed}
         browse={!plan} title={plan ? "nearby spots" : "places to go"} onAdd={choose}
         onView={setDetail} onRetry={() => setRetry(value => value + 1)} />

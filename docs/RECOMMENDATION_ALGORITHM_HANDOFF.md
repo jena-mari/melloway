@@ -33,6 +33,8 @@ The push checkpoint also integrates teammate main through `a286d23`, preserving 
 
 The final fetch also included teammate route-geometry/map-framing updates through `806e81f`. Both additive API endpoints were retained. The full automated suite, typechecking and build passed again, plus 18 affected Google-map/history browser checks; the preserved Picks explorer also passed its five browser checks after its Back link was aligned with Explore.
 
+Concurrent teammate commits `b20fc4e` and `e8b0912` were also preserved: Google Maps swipe cards for Picks and real venue search. Venue search was integrated into `/explore`, respecting the user's instruction that `/community` stays a posts feed. Search persists in the URL, finds compact names/addresses and opens existing venue details without changing plans. The final full suite passed 438 automated tests, typechecking and build; the two final affected browser batches passed 19 Picks/maps/research checks and 16 search/history/research checks.
+
 ## Pending brief and evidence gaps
 
 The full new brief is preserved below. Main pending work: richer multi-category venue profiles and verification states; configurable compatibility-first scoring; better intent/vibe interpretation; cohesive activity sequencing, meal/market/sunset timing and constrained routing; controlled diversity using prior/rejected venues; concise personalised explanations; legitimate social metadata; and the eight requested scenario tests/results.
