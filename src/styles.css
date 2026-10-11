@@ -6573,11 +6573,11 @@ html:has(.profile-page) {
 .organiser-event-links { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; }
 .saved-event-card .organiser-event-poster, .profile-event-card .organiser-event-poster { width: 72px; flex-shrink: 0; }
 .saved-event-card .organiser-event-poster figcaption, .profile-event-card .organiser-event-poster figcaption { display: none; }
-/* The editorial explorer widens only /picks; existing routes keep their frame. */
+/* Picks use the same phone-sized surface and carousel at every viewport width. */
 .picks-explorer { padding: 20px 0 0; }
 .editorial-picks-header { padding: 0 18px 18px; }
 .editorial-picks-header .back { margin-bottom: 18px; font-size: 12px; }
-.editorial-picks-header h1 { font-family: "Maple Shore", cursive; font-size: clamp(34px, 5vw, 48px); line-height: 1.1; margin: 0 0 8px; }
+.editorial-picks-header h1 { font-family: "Maple Shore", cursive; font-size: 34px; line-height: 1.1; margin: 0 0 8px; }
 .editorial-picks-header p { font-size: 14px; color: #62615c; margin: 0 0 20px; }
 .editorial-collection-filters { display: flex; gap: 7px; flex-wrap: wrap; }
 .editorial-collection-filters button { border: 1px solid #1113; border-radius: 24px; padding: 10px 13px; font-size: 12px; min-height: 42px; background: white; }
@@ -6639,23 +6639,4 @@ html:has(.profile-page) {
 @media (max-width: 359px) {
   .editorial-collection-filters { gap: 5px; }
   .editorial-collection-filters button { padding: 9px 10px; font-size: 11px; }
-}
-@media (min-width: 900px) {
-  .app-shell.picks-explorer-shell { max-width: 1280px; }
-  .picks-explorer-shell .bottom-tabs { max-width: 1280px; }
-  .picks-explorer { padding: 28px 28px 0; }
-  .editorial-picks-header { padding: 0 0 24px; }
-  .editorial-picks-header .back { margin-bottom: 12px; }
-  .editorial-picks-browser { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; height: clamp(360px, calc(100dvh - 410px), 740px); }
-  .picks-map { height: 100%; margin: 0; }
-  .editorial-card-panel { display: flex; flex-direction: column; min-height: 0; }
-  .editorial-carousel-controls { padding: 0 4px 12px; min-height: 44px; }
-  .editorial-place-cards { display: block; overflow-x: hidden; overflow-y: auto; scroll-snap-type: none; padding: 0 4px 8px; flex: 1; }
-  .editorial-place-card { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); margin-bottom: 14px; }
-  .editorial-place-photo { aspect-ratio: auto; min-height: 320px; }
-  .editorial-place-copy { padding: 20px 16px; }
-  .editorial-place-copy h2 { font-size: 24px; }
-  .editorial-place-photo > .editorial-photo-credit { font-size: 8px; }
-  .editorial-browse-note { padding: 0; }
-  .editorial-existing-picks { margin: 0; }
 }

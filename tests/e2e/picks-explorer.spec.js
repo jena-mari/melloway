@@ -17,27 +17,33 @@ async function mockPicks(page, { maps = true, images = true } = {}) {
     : route.abort());
 }
 
-test("desktop map and cards split evenly, with ten selectable unique pins", async ({ page }, info) => {
+test("desktop keeps the phone-width frame, stacked map and synced horizontal cards", async ({ page }, info) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await mockPicks(page);
   await page.goto("/picks");
   await expect(page.locator(".picks-map-canvas")).toHaveAttribute("data-map-state", "ready");
   await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
   await expect(page.locator(".editorial-place-card")).toHaveCount(10);
+  const shell = await page.locator(".app-shell").boundingBox(), tabs = await page.locator(".bottom-tabs").boundingBox();
+  expect(shell.width).toBe(480);
+  expect(shell.x).toBe((1440 - shell.width) / 2);
+  expect(tabs.width).toBe(shell.width);
   const map = await page.locator(".picks-map").boundingBox(), cards = await page.locator(".editorial-card-panel").boundingBox();
-  expect(Math.abs(map.width - cards.width)).toBeLessThan(2);
-  expect(map.x).toBeLessThan(cards.x);
+  expect(map.y + map.height).toBeLessThan(cards.y);
   const last = editorialPicks.at(-1);
   await page.getByRole("button", { name: `select ${last.name} on map`, exact: true }).click();
   const selected = page.locator(`.editorial-place-card[data-venue-id="${last.id}"]`);
   await expect(selected).toHaveClass(/is-selected/);
   await expect.poll(() => selected.evaluate((node) => {
     const box = node.getBoundingClientRect(), list = node.parentElement.getBoundingClientRect();
-    return box.top >= list.top && box.top < list.bottom;
+    return Math.abs(box.left + box.width / 2 - list.left - list.width / 2) < 2;
   })).toBe(true);
   await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(last.lat));
   await page.getByRole("button", { name: "show all pick pins" }).click();
   await expect(page.locator(".editorial-pick-pin")).toHaveCount(10);
+  await page.locator(".editorial-place-cards").evaluate((list) => list.scrollTo({ left: list.children[1].offsetLeft - 18, behavior: "instant" }));
+  await expect(page.locator(".picks-map")).toHaveAttribute("data-selected-place", editorialPicks[1].id);
+  await expect(page.locator(".picks-map .google-map-surface")).toHaveAttribute("data-center-lat", String(editorialPicks[1].lat));
   await page.screenshot({ path: info.outputPath("picks-desktop.png") });
 });
 

@@ -71,16 +71,14 @@ export default function PicksExplorer() {
     setParams((old) => { const next = new URLSearchParams(old); next.set("place", id); return next; }, { replace: true });
     const card = cards.current.get(id), list = carousel.current;
     if (!scroll || !card || !list) return;
-    const desktop = matchMedia("(min-width: 900px)").matches;
     const cardBox = card.getBoundingClientRect(), listBox = list.getBoundingClientRect();
     list.scrollTo({
-      left: desktop ? 0 : list.scrollLeft + cardBox.left - listBox.left - (list.clientWidth - cardBox.width) / 2,
-      top: desktop ? list.scrollTop + cardBox.top - listBox.top - 12 : 0,
+      left: list.scrollLeft + cardBox.left - listBox.left - (list.clientWidth - cardBox.width) / 2,
+      top: 0,
       behavior: reduced ? "instant" : "smooth",
     });
   }
   function followSwipe() {
-    if (matchMedia("(min-width: 900px)").matches) return;
     clearTimeout(scrollTimer.current);
     scrollTimer.current = setTimeout(() => {
       const list = carousel.current;
